@@ -162,22 +162,116 @@ before any number ships in this repo. See
 
 ---
 
-## 7. Measurement: pending
+## 7. Measured, 2026-08-01
 
-The predecessor's model and dataset have **not** been independently measured yet.
-An earlier pass in this repository reported CPU latency, recall and a confusion
-matrix; those numbers were produced against an **incomplete copy** of the archive
-and have been retracted in full. Nothing derived from them survives in these
-docs.
+Re-measured against the **complete** archive, after an earlier pass against an
+incomplete copy was retracted in full (`54c13ec`). Everything below is
+reproducible from `cv_garbage/` and supersedes the retracted figures.
 
-Once the complete archive is available, re-measure and record here:
+### 7.1 The archive, as it really is
 
-- CPU latency at 448 / 640 / 960 px
-- Precision, recall and per-class confusion on a defined split
-- The archive's true structure: image count, label count, how the two are
-  linked, images containing more than one bin, and class balance
+| | |
+|---|---|
+| `YOLO_Dataset/images/{train,val}` | 372 / 94 = **466** |
+| `YOLO_Dataset/labels/{train,val}` | 372 / 94 – one label per image, no orphans |
+| `raw_images/` | 470 (4 never made it through labelling) |
+| `labeled/` | split by annotator: Alex 156, Fares 161, Sameer 149 = **466** |
+| `models/` | **9 training runs**, not one |
+| `data.yaml` | `nc: 4`, names `Biomüll, Glas, Papier, Restmüll` |
 
-Until that is done, the only numbers about the predecessor in this document are
-the ones in § 1, which come from its own source code and presentation deck, and
-§ 6 still applies to all of them: treat published figures with suspicion until
-independently reproduced.
+The counts finally reconcile with the deck: 466 images, 80/20, three people
+sharing the labelling roughly evenly.
+
+### 7.2 Which model is the real one
+
+Nine runs survive, all fine-tuning `yolov8s.pt`. Best-epoch mAP@0.5 from each
+run's own `results.csv`:
+
+| run | epochs | imgsz | batch | rows | best mAP50 |
+|---|---|---|---|---|---|
+| `20250624_104047` | 100 | 640 | 8 | 1 | 0.4831 (abandoned) |
+| `20250624_113052` | 50 | 960 | 16 | 50 | 0.9890 |
+| `20250624_133331` | 50 | 960 | 16 | 50 | 0.9890 |
+| `20250624_141930` | 50 | 960 | 16 | 50 | 0.9890 |
+| `20250624_151654` | 50 | 960 | 16 | 33 | 0.9820 (stopped) |
+| `20250624_155510` | 50 | 960 | 8 | 0 | – (never started) |
+| **`20250625_1422522`** | **50** | **960** | **16** | **50** | **0.9906** ← production |
+| `20250628_074316` | 50 | 960 | 4 | 0 | – (never started) |
+| `20250628_0743162` | 50 | 960 | 4 | 6 | 0.9351 (abandoned) |
+
+`20250625_1422522` is the one hard-coded at `2-Computer-Vision.py:500` and
+released as `waste_detector_best.pt`. Note the deck's slide 10 says *batch
+size 4*; the production run was actually **batch 16**. The batch-4 runs came
+three days later and were both abandoned.
+
+### 7.3 Independent validation
+
+`best.pt` re-validated on the project's own 94-image val split, CPU, ARM64:
+
+| imgsz | mAP50 | mAP50-95 | precision | recall |
+|---|---|---|---|---|
+| 960 | 0.9873 | 0.7767 | 0.9793 | 0.9479 |
+| 640 | 0.9869 | 0.8349 | 0.9808 | 0.9220 |
+| **448** | **0.9810** | 0.8078 | 0.9533 | 0.9271 |
+| 320 | 0.9339 | 0.7185 | 0.9455 | 0.8648 |
+
+Per class at 960: Biomüll AP50 0.9950, Glas 0.9950, Papier 0.9796, Restmüll
+0.9794.
+
+**This reproduces – and exceeds – the claimed 95.2 %.** It does not vindicate it.
+It confirms § 6: the split is a random 20 % of one capture session, so 0.987 is
+what memorising Deggendorf's bins looks like.
+
+### 7.4 CPU latency
+
+Single image, `torch.set_num_threads(4)` as a stand-in for a free-tier container:
+
+| imgsz | p50 | p95 | fps |
+|---|---|---|---|
+| 960 | 406 ms | 599 ms | 2.5 |
+| 640 | 260 ms | 676 ms | 3.8 |
+| **448** | **174 ms** | **181 ms** | **5.8** |
+| 320 | 135 ms | 143 ms | 7.4 |
+
+**448 px is the operating point**, and this is the most directly useful result
+in this section: it costs 0.6 mAP50 against 960 and runs 2.3× faster, with a p95
+that barely exceeds its p50. 320 buys 22 % more speed for 4.7 mAP50 – a bad
+trade. This is measured evidence for the 448 choice in
+[01-architecture](01-architecture.md), which until now was an assumption.
+
+Caveat: yolov8s is heavier than what the service will actually run, and an ARM64
+Surface CPU is not an x86 container. Treat these as an upper bound on latency and
+a lower bound on throughput.
+
+### 7.5 The result that matters most
+
+A six-image probe on out-of-distribution content – renders of the team's own
+presentation slides:
+
+| image | content | detections |
+|---|---|---|
+| `slide_01` | title, text on white | none ✅ |
+| `slide_03` | section break, text on white | none ✅ |
+| `slide_06` | map screenshot | **`Glas` 0.25** ❌ false positive |
+| `slide_13` | timeline, text on white | **`Glas` 0.39** ❌ false positive |
+| `slide_10` | terminal screenshot | none ✅ |
+| `slide_08` | **three photographs of real bins** | **none** ❌ false negative |
+
+The model hallucinates a glass container on a page of plain black text on white,
+and simultaneously fails to find three actual bins that are visibly present –
+because they appear small, inside a layout, at a scale it never trained on.
+
+n = 6, so this is a probe and not a measurement. But the direction is
+unambiguous and it is the empirical justification for the two-model design in
+[01-architecture](01-architecture.md) and
+[04-ml-pipeline](04-ml-pipeline.md):
+
+- A single model trained only on centred, close-range, in-city bin photographs
+  has **no concept of "not a bin"**. It was never shown one. Hence the negative
+  corpus for the validator – that requirement is now evidence-backed, not
+  a design instinct.
+- 0.987 in-distribution and a false positive on a text slide are the *same
+  finding*. The gap between them is exactly the gap the held-out-city split in
+  [04-ml-pipeline § 7](04-ml-pipeline.md#7-evaluation) exists to expose.
+- Scale generalisation is a named risk. Multi-scale augmentation and small-object
+  cases belong in the validator's training set from the first run.

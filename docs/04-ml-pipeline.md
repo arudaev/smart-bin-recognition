@@ -186,21 +186,25 @@ provenance: source, region, capture date, label origin
 
 The predecessor's hand-labelled photographs are the seed of both datasets.
 
-**Structure, contents and class balance are not yet established.** The archive
-available when this document was first written turned out to be incomplete, and
-every figure derived from it has been retracted – see
-[08-legacy-audit § 7](08-legacy-audit.md#7-measurement-pending).
+The complete archive has now been inventoried –
+[08-legacy-audit § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is):
 
-Before writing the import, establish and record:
+- `YOLO_Dataset/` holds **466** images with a 1:1 label file, 372 / 94 train/val,
+  no orphans on either side.
+- `raw_images/` holds 470; four never made it through labelling.
+- `labeled/` is split by annotator (Alex 156, Fares 161, Sameer 149), which is a
+  useful grouping key – annotator style is a plausible confound and can be held
+  out to check for it.
 
-- where images live, where labels live, and how a label is linked to its image
-- how many labels resolve to an image, and how many do not
+Still to establish before the import is trusted:
+
 - how many images contain more than one bin – this decides how much deliberate
   multi-bin collection is needed
 - class balance, and which classes are under-represented
+- whether `labeled/` and `YOLO_Dataset/` disagree anywhere
 
-`ml/src/sbr/dataset/legacy_import.py` exists but was written against the
-incomplete archive; its resolution logic must be re-validated before use.
+`ml/src/sbr/dataset/legacy_import.py` was written against the incomplete archive;
+its path resolution must be re-validated against the real layout above before use.
 
 ## 6. Training
 
@@ -222,10 +226,18 @@ vCPUs. Budgets: A ≤ 50 ms @ 448, B ≤ 25 ms per crop.
 ## 7. Evaluation
 
 The predecessor reported mAP@0.5 = 95.2 % on a random split of 466 photos taken
-in one city in one week. Even if that number reproduces, it measures
-memorisation of one distribution, not generalisation – so it is not this
-project's baseline. It has not been independently reproduced here; see
-[08-legacy-audit § 7](08-legacy-audit.md#7-measurement-pending).
+in one city in one week. Independent re-validation returned **0.9873** – it
+reproduces, and beats the claim
+([08-legacy-audit § 7.3](08-legacy-audit.md#73-independent-validation)).
+
+That is not good news, and it is not this project's baseline. The same model
+fires `Glas` at 0.39 confidence on a slide of plain black text on white, and
+misses three real bins photographed at small scale
+([§ 7.5](08-legacy-audit.md#75-the-result-that-matters-most)). A near-perfect
+in-distribution score and a false positive on a text document are one finding,
+not two: the model was never shown a negative, so it has no concept of "not a
+bin". That is precisely what the validator's negative corpus is for, and why the
+held-out-city split below is the only number worth quoting.
 
 Three splits, always reported together:
 

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Benchmark and honestly evaluate the predecessor's model on CPU.
 
-UNVERIFIED - written against an incomplete copy of the legacy archive, and its
-assumptions about that archive's layout must be re-checked before the output is
-trusted. Results produced by an earlier run have been retracted in full; see
-docs/08-legacy-audit.md section 7.
+UNVERIFIED - written against an incomplete copy of the legacy archive, so its
+assumptions about layout must be re-checked before its output is trusted.
+
+The measurements now recorded in docs/08-legacy-audit.md section 7 were NOT
+produced by this script; they were produced ad hoc against the complete archive.
+Reconcile this script with that method before using it, and prefer the recorded
+figures over anything it prints today.
 
     python ml/scripts/benchmark_legacy.py --archive-dir cv_garbage
 

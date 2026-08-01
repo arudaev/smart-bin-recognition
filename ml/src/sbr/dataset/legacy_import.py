@@ -1,41 +1,12 @@
-"""UNVERIFIED - written against an incomplete copy of the legacy archive.
+"""UNVERIFIED path resolution - written against an incomplete copy of the archive.
 
-The archive this was developed against turned out to be missing data. Its
-resolution logic (where images live, how a label is linked to its image) is a
-guess at the real structure and MUST be re-validated against the complete
-archive before use. Every figure previously derived from it has been retracted;
-see docs/08-legacy-audit.md section 7.
+The archive has since been inventoried against the complete copy and its real
+layout is recorded in docs/08-legacy-audit.md section 7.1: YOLO_Dataset/ holds
+466 images with a 1:1 label file (372 train / 94 val, no orphans), raw_images/
+holds 470, and labeled/ is split by annotator (Alex 156, Fares 161, Sameer 149).
 
-Kept rather than deleted because the resize / rename / remap / crop logic below
-is independent of the layout question and is expected to survive.
-
-Reconstruct the predecessor's dataset and remap it onto the new taxonomy.
-
-The Waste Sorting Assistant produced 466 hand-labelled photographs. They are the
-single most valuable thing it left behind and the seed of this project's dataset.
-
-The archive layout is **not yet established** - see the warning above.
-The predecessor's own README does not describe it accurately, so the
-resolution below tries several strategies and reports what it found.
-
-This module:
-
-1. Rebuilds the label -> image mapping (``_pairs.json`` first, hash suffix as
-   fallback), so nothing depends on the broken ``YOLO_Dataset/images`` tree.
-2. Resizes to a 960 px longest edge – an ~18x reduction, with no loss that
-   matters at a 448 px training resolution.
-3. Normalises umlaut filenames. The original team hit YOLO ingestion failures
-   from exactly this and fixed it by hand; here it is one function.
-4. Emits **two** datasets, because this project trains two models:
-   - ``validator/``  every box collapsed to a single ``bin`` class
-   - ``identifier/`` crops, labelled by form factor
-
-Colour is deliberately never written into a label. It is measured at inference
-time; the legacy class is kept only as a cross-check.
-
-Usage::
-
-    python -m sbr.dataset.legacy_import --archive-dir cv_garbage --out data/legacy
+What still needs checking before this module is trusted: that its path globbing
+matches that layout, multi-bin image counts, and class balance.
 """
 
 from __future__ import annotations

@@ -122,11 +122,14 @@ Agent guide: [`AGENTS.md`](AGENTS.md).
 ## Status
 
 **Phase 0 – foundation.** Documentation, taxonomy and the ML skeleton are in
-place; the predecessor's model has been benchmarked on CPU
-([results](docs/08-legacy-audit.md#7-measured-on-cpu-2026-08-01)). `web/` and
-`service/` await design and the vision spike. The Deggendorf region pack is
-`draft` and is not servable until its rules are verified against the operator's
-published guidance.
+place. The predecessor's model has been independently re-validated on CPU
+against the complete archive
+([results](docs/08-legacy-audit.md#7-measured-2026-08-01)): it scores 0.987
+mAP@0.5 in-distribution, and also hallucinates a glass container on a slide of
+plain text while missing three real bins in a photograph – which is the
+evidence the two-model design rests on. `web/` and `service/` await design and
+the vision spike. The Deggendorf region pack is `draft` and is not servable
+until its rules are verified against the operator's published guidance.
 
 ## Licence
 
