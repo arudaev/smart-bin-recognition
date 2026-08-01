@@ -34,7 +34,7 @@ about that.
 ## Phase 2 – Vision spike *(highest risk – do it early)*
 
 - [ ] `legacy_import.py` → resized, remapped dataset on HF Hub
-- [ ] Human pass: `wheelie_small` vs `wheelie_large` (~370 decisions)
+- [ ] Human pass: `wheelie_small` vs `wheelie_large` on ambiguous legacy labels
 - [ ] First YOLO11n training run on a Kaggle kernel
 - [ ] ONNX export for both models; enforce the latency budgets
 - [ ] Colour extraction from SAM 2 masks, validated against the legacy class labels

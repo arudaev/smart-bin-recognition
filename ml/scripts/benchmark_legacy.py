@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Benchmark and honestly evaluate the predecessor's model on CPU.
 
-Reproduces the numbers in ``docs/08-legacy-audit.md`` § 7. Requires the legacy
-``cv_garbage/`` archive locally; it is gitignored and never committed.
+UNVERIFIED - written against an incomplete copy of the legacy archive, and its
+assumptions about that archive's layout must be re-checked before the output is
+trusted. Results produced by an earlier run have been retracted in full; see
+docs/08-legacy-audit.md section 7.
 
     python ml/scripts/benchmark_legacy.py --archive-dir cv_garbage
 
-Why this exists: the predecessor's README claims mAP@0.5 = 95.2 %. That number
-is real *and* it measures memorisation of one week of photographs in one town.
-Re-running it keeps the project honest about what it actually inherited – and
-the result is what motivated the validator/identifier split
-(``docs/01-architecture.md`` § 3): detection is near-saturated, identification
-is not.
+Why this exists: the predecessor's README claims mAP@0.5 = 95.2 %. Even if that
+reproduces, it measures memorisation of one week of photographs in one town.
+Reproducing it independently is what keeps this project honest about what it
+actually inherited - and it is the phase-2 test of whether detection really does
+generalise better than identification (docs/01-architecture.md section 3).
 """
 
 from __future__ import annotations

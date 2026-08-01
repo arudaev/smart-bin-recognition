@@ -46,9 +46,8 @@ downloaded to the device – no model, no cache. Two models run on the server:
 | **A · Validator** | "Is there a bin, and where?" | bins **+ a 30:1 negative corpus** | misses a bin (rare) |
 | **B · Identifier** | "What kind of bin?" | curated crops from A | says `unknown` (useful) |
 
-**Their disagreement is the product's engine.** Measured on the predecessor's
-own model, detection is already near-saturated – every validation image produced
-a box, recall 0.985. Identification is the fragile part. So when A says
+**Their disagreement is the product's engine.** The premise is that finding a
+bin generalises across cities while identifying one does not – so when A says
 *"definitely a bin"* and B says *"no idea"*, that is not an error: it is a bin
 type nobody has seen before, and it goes straight into the collection queue. New
 geographic cell, or a user correcting the answer, does the same.

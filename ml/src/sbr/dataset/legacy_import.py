@@ -1,22 +1,22 @@
-"""Reconstruct the predecessor's dataset and remap it onto the new taxonomy.
+"""UNVERIFIED - written against an incomplete copy of the legacy archive.
+
+The archive this was developed against turned out to be missing data. Its
+resolution logic (where images live, how a label is linked to its image) is a
+guess at the real structure and MUST be re-validated against the complete
+archive before use. Every figure previously derived from it has been retracted;
+see docs/08-legacy-audit.md section 7.
+
+Kept rather than deleted because the resize / rename / remap / crop logic below
+is independent of the layout question and is expected to survive.
+
+Reconstruct the predecessor's dataset and remap it onto the new taxonomy.
 
 The Waste Sorting Assistant produced 466 hand-labelled photographs. They are the
 single most valuable thing it left behind and the seed of this project's dataset.
 
-**The archive is not laid out the way its own README claims.** Verified against
-the real 2.1 GB tree on 2026-08-01:
-
-    cv_garbage/
-    ├── labeled/{Alex,Fares,Sameer}/   427 images, umlaut filenames  <- the images
-    ├── YOLO_Dataset/
-    │   ├── labels/{train,val}/        401 label files, 436 boxes    <- the labels
-    │   └── images/{train,val}/        16 files                      <- nearly empty
-    └── models/                        9 training runs + best.pt
-
-Labels and images live in *different trees*. They are linked by a short hash
-suffix in the filename (``Restmüll_1c64fee5.JPG`` <-> ``…-Restm_C3_BCll_1c64fee5.txt``),
-and ``_pairs.json`` at the archive root records 368 of those pairings – with
-mojibake image names, so matching is done on the hash, not the name.
+The archive layout is **not yet established** - see the warning above.
+The predecessor's own README does not describe it accurately, so the
+resolution below tries several strategies and reports what it found.
 
 This module:
 

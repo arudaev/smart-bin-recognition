@@ -24,9 +24,10 @@ No local training, no Colab, no notebooks.
 | Failure mode | misses a bin (rare) | says `unknown` (expected, useful) |
 
 Rationale in [01-architecture § 3](01-architecture.md#3-two-models-and-why). The
-short version: detection is nearly solved already, identification is not, and
-separating them turns "B is wrong" into a **trustworthy signal** rather than
-noise.
+short version: detection is expected to generalise across cities and
+identification is not, so separating them turns "B is wrong" into a
+**trustworthy signal** rather than noise. The premise is untested – phase 2
+exists to test it.
 
 ### Model A's negative corpus
 
@@ -151,10 +152,9 @@ and rolled back if machine labels turn out to hurt.
 
 ### Why not label with the legacy model
 
-It is available and it is tempting, but it only knows four Deggendorf classes and
-it is confidently diagonal on its own distribution. Using it as a teacher would
-propagate exactly the jurisdictional bias this project exists to remove. It is
-kept as a **baseline to beat**, not a labeller.
+It is available and it is tempting, but it only knows four Deggendorf classes.
+Using it as a teacher would propagate exactly the jurisdictional bias this
+project exists to remove. It is kept as a **baseline to beat**, not a labeller.
 
 ## 4. Human adjudication
 
@@ -184,36 +184,23 @@ provenance: source, region, capture date, label origin
 
 ### Seeding from the legacy dataset
 
-The predecessor's archive is **not** laid out the way its own README claims. The
-actual structure, verified 2026-08-01:
+The predecessor's hand-labelled photographs are the seed of both datasets.
 
-```
-cv_garbage/
-├── labeled/{Alex,Fares,Sameer}/     427 images, umlaut filenames  ← the images
-├── YOLO_Dataset/
-│   ├── labels/{train,val}/          401 label files, 436 boxes    ← the labels
-│   └── images/{train,val}/          only 16 images                ← nearly empty
-└── models/                          9 training runs + best.pt
-```
+**Structure, contents and class balance are not yet established.** The archive
+available when this document was first written turned out to be incomplete, and
+every figure derived from it has been retracted – see
+[08-legacy-audit § 7](08-legacy-audit.md#7-measurement-pending).
 
-Labels and images are in different trees, linked by a hash suffix in the
-filename; `_pairs.json` at the archive root holds 368 of those mappings and the
-rest resolve by hash. `ml/src/sbr/dataset/legacy_import.py` reconstructs it.
+Before writing the import, establish and record:
 
-What the legacy data actually contains:
+- where images live, where labels live, and how a label is linked to its image
+- how many labels resolve to an image, and how many do not
+- how many images contain more than one bin – this decides how much deliberate
+  multi-bin collection is needed
+- class balance, and which classes are under-represented
 
-| | |
-|---|---|
-| Label files | 401 |
-| Boxes | 436 |
-| Images with >1 bin | **31 of 401** |
-| Class balance | Restmüll 180 · Papier 112 · Biomüll 99 · **Glas 45** |
-
-Two things follow. **Multi-bin scenes are essentially absent** – 92 % of images
-have exactly one bin – so the predecessor's one-bin-at-a-time behaviour was
-partly a data property, not only a UI choice; new collection must deliberately
-target banks and rows of containers. And **Glas is under-represented 4:1**, which
-matches the deck naming it the hardest class.
+`ml/src/sbr/dataset/legacy_import.py` exists but was written against the
+incomplete archive; its resolution logic must be re-validated before use.
 
 ## 6. Training
 
@@ -234,10 +221,11 @@ vCPUs. Budgets: A ≤ 50 ms @ 448, B ≤ 25 ms per crop.
 
 ## 7. Evaluation
 
-The predecessor reported mAP@0.5 = 95.2 % on a random split of 466 photos from
-one city in one week. Re-measured here on CPU, its own val split gives recall
-0.985 with a perfectly diagonal confusion matrix – which confirms the number is
-real *and* that it measures memorisation.
+The predecessor reported mAP@0.5 = 95.2 % on a random split of 466 photos taken
+in one city in one week. Even if that number reproduces, it measures
+memorisation of one distribution, not generalisation – so it is not this
+project's baseline. It has not been independently reproduced here; see
+[08-legacy-audit § 7](08-legacy-audit.md#7-measurement-pending).
 
 Three splits, always reported together:
 

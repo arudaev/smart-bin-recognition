@@ -162,77 +162,22 @@ before any number ships in this repo. See
 
 ---
 
-## 7. Measured on CPU, 2026-08-01
+## 7. Measurement: pending
 
-`waste_detector_best.pt` was run locally on a Surface Pro 11 (Snapdragon X, ARM64,
-Python under x64 emulation, **no GPU**) against the 64 images of its own
-validation split. Model: yolov8s, 11.14 M params, 22.6 MB.
+The predecessor's model and dataset have **not** been independently measured yet.
+An earlier pass in this repository reported CPU latency, recall and a confusion
+matrix; those numbers were produced against an **incomplete copy** of the archive
+and have been retracted in full. Nothing derived from them survives in these
+docs.
 
-### Latency
+Once the complete archive is available, re-measure and record here:
 
-| Input size | Median | p90 | Throughput |
-|---|---|---|---|
-| 448 px | 143 ms | 153 ms | 7.0 fps |
-| 640 px | 213 ms | 240 ms | 4.7 fps |
-| 960 px | 373 ms | 406 ms | 2.7 fps |
+- CPU latency at 448 / 640 / 960 px
+- Precision, recall and per-class confusion on a defined split
+- The archive's true structure: image count, label count, how the two are
+  linked, images containing more than one bin, and class balance
 
-Sobering in a useful way: even an emulated ARM laptop CPU manages ~7 fps on an
-11 M-param model. A YOLO11n validator (~2.6 M) on a non-emulated x86 service CPU
-has ample headroom. This is the measurement that makes the server-side design in
-[01-architecture](01-architecture.md) credible rather than hopeful.
-
-### Accuracy on its own validation split
-
-Class-aware, count-matched, `conf=0.25`, `imgsz=960`:
-
-```
-TP 67   FP 19   FN 1
-precision 0.779    recall 0.985
-images with >=1 detection:  64/64 = 100.0 %
-
-confusion (single-bin images, ground truth -> top prediction)
-              Biomüll      Glas    Papier  Restmüll
-  Biomüll          11         0         0         0
-  Glas              0        10         0         0
-  Papier            0         0        15         0
-  Restmüll          0         0         0        24
-```
-
-**Three findings, and they shape this project's architecture:**
-
-1. **Detection is effectively solved.** Every validation image produced at least
-   one box; recall 0.985. Finding a bin is not the hard problem.
-2. **Classification is perfect – and that is the warning.** A flawless diagonal
-   on 60 images means memorisation of one week's bins in one town, not
-   generalisation. It is exactly the number you would expect from an
-   in-distribution split, and exactly the number that will collapse in Passau.
-3. **Precision 0.779 – 19 false positives.** The model over-fires on things that
-   are not labelled bins. Some are probably real unlabelled bins in frame; the
-   rest are the hard negatives a dedicated validator needs to be trained against.
-
-Together these are the empirical case for the two-model split in
-[01-architecture § 3](01-architecture.md#3-two-models-and-why): keep the
-near-saturated detection as a **trustworthy validator**, and treat identification
-as the fragile part that the improvement loop exists to feed.
-
-### What the archive actually contains
-
-The layout does not match the predecessor's own README:
-
-| | |
-|---|---|
-| Images | 427, in `labeled/{Alex,Fares,Sameer}/` – **not** in the YOLO tree |
-| Labels | 401 files, 436 boxes, in `YOLO_Dataset/labels/` |
-| `YOLO_Dataset/images/` | 16 files – effectively empty |
-| Link between the two | hash suffix in filename; `_pairs.json` holds 368 mappings |
-| Images with >1 bin | **31 of 401 (7.7 %)** |
-| Class balance | Restmüll 180 · Papier 112 · Biomüll 99 · **Glas 45** |
-
-The last two rows matter for planning. **Multi-bin scenes are nearly absent from
-the training data**, so the predecessor's one-bin-at-a-time behaviour was partly a
-data property and not purely a UI limitation – new collection has to deliberately
-target banks and rows of containers. And **Glas is under-represented 4:1**
-against Restmüll, which is consistent with the deck calling it the biggest
-problem.
-
-Reproduce with `ml/scripts/benchmark_legacy.py`.
+Until that is done, the only numbers about the predecessor in this document are
+the ones in § 1, which come from its own source code and presentation deck, and
+§ 6 still applies to all of them: treat published figures with suspicion until
+independently reproduced.

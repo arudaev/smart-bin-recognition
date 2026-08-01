@@ -77,11 +77,12 @@ time-limited. That is the specific reason inference does not live on Vercel.
 recognising *which* bin it is are different problems with different difficulty,
 and fusing them is what made the predecessor brittle.
 
-Measured on the legacy model and its own validation split (see
-[08-legacy-audit § 7](08-legacy-audit.md#7-measured-on-cpu-2026-08-01)):
-**100 % of validation images produced at least one detection, recall 0.985, and
-the class confusion matrix was perfectly diagonal.** Detection is close to
-saturated. Identification is the part that will break in a new city.
+The working hypothesis is that **detection is far easier than identification**:
+finding a bin-shaped object generalises across cities, while knowing which bin it
+is does not. This is stated as a hypothesis on purpose – it has **not** been
+measured yet, and the phase-2 spike exists to test it
+([07-roadmap](07-roadmap.md)). If it turns out false, the split still costs
+little; if it holds, it is what makes the improvement loop work.
 
 So:
 
@@ -167,9 +168,7 @@ Realistic scan: ~5 s of streaming, ~15 frames, ~450 KB, then lock.
 
 ### Latency budget
 
-Measured on the legacy yolov8s (11.1 M params) on this machine's CPU:
-143 ms @ 448 px, 213 ms @ 640, 373 ms @ 960. A YOLO11n validator (~2.6 M params)
-on a non-emulated x86 Space CPU should land far below that.
+Target budget, to be confirmed by measurement in phase 2:
 
 | Stage | Budget |
 |---|---|
