@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Secrets
+.env
+.env.local
+kaggle.json
+
+# Data + artefacts – never committed. Datasets live on HF Hub, models on the CDN.
+data/legacy/
+data/pool/
+artifacts/
+runs/
+*.pt
+*.onnx
+*.zip
+!data/taxonomy/**
+
+# Node / web
+node_modules/
+.next/
+.vercel/
+web/dist/
+web/public/models/*.onnx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Legacy dataset from the predecessor's Google Drive (2.1 GB). Local reference
+# only - it is a stepping stone, not part of this project. Never committed;
+# the resized/remapped derivative lives on HF Hub.
+cv_garbage/
+_pairs.json

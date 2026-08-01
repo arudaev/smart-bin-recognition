@@ -1,0 +1,155 @@
+{
+  "$schema": "../region-pack.schema.json",
+  "region_id": "de-by-deggendorf",
+  "pack_version": "0.1.0",
+  "taxonomy_version": "1.0.0",
+  "updated": "2026-08-01",
+  "status": "draft",
+
+  "name": "Deggendorf",
+  "country": "DE",
+  "admin_path": ["DE", "BY", "Niederbayern", "Landkreis Deggendorf"],
+  "default_locale": "de",
+  "bbox": [12.8850, 48.7900, 13.0350, 48.8850],
+  "geohash_tiles": ["u2853", "u2856"],
+
+  "operator": {
+    "name": "ZAW Donau-Wald",
+    "url": "https://www.awg.de/",
+    "note_key": "region.de_by_deggendorf.operator_note"
+  },
+
+  "sources": [
+    {
+      "title": "ZAW Donau-Wald – Abfalltrennung / Wertstoffe",
+      "url": "https://www.awg.de/",
+      "retrieved": null,
+      "verified_by": null,
+      "note": "TODO: pin exact deep links and retrieval date before this pack leaves draft status. Nothing in this pack may be shown to a user as authoritative until every rule below cites a retrieved municipal source."
+    }
+  ],
+
+  "rules": [
+    {
+      "id": "deg-residual-wheelie",
+      "match": { "form_factor": ["wheelie_small", "wheelie_large"], "lid_color": ["black", "grey"] },
+      "stream": "residual",
+      "local_name": "Restmüll",
+      "confidence": 0.90
+    },
+    {
+      "id": "deg-paper-wheelie",
+      "match": { "form_factor": ["wheelie_small", "wheelie_large"], "lid_color": ["blue"] },
+      "stream": "paper",
+      "local_name": "Papier / Papiertonne",
+      "confidence": 0.94
+    },
+    {
+      "id": "deg-bio-wheelie",
+      "match": { "form_factor": ["wheelie_small", "wheelie_large"], "lid_color": ["brown"] },
+      "stream": "bio",
+      "local_name": "Biomüll / Biotonne",
+      "confidence": 0.92
+    },
+    {
+      "id": "deg-packaging-sack",
+      "match": { "form_factor": ["sack"], "body_color": ["yellow"] },
+      "stream": "packaging",
+      "local_name": "Gelber Sack",
+      "confidence": 0.95
+    },
+    {
+      "id": "deg-packaging-wheelie",
+      "match": { "form_factor": ["wheelie_small", "wheelie_large"], "lid_color": ["yellow"] },
+      "stream": "packaging",
+      "local_name": "Gelbe Tonne",
+      "confidence": 0.88
+    },
+    {
+      "id": "deg-glass-igloo-generic",
+      "match": { "form_factor": ["igloo"] },
+      "stream": "glass_mixed",
+      "local_name": "Glascontainer",
+      "confidence": 0.55,
+      "requires_disambiguation": true,
+      "disambiguation": {
+        "prompt_key": "disambiguation.glass_color",
+        "options": ["glass_clear", "glass_green", "glass_brown"],
+        "note_key": "disambiguation.glass_color.note"
+      }
+    },
+    {
+      "id": "deg-glass-igloo-clear",
+      "match": { "form_factor": ["igloo"], "body_color": ["white", "transparent"] },
+      "stream": "glass_clear",
+      "local_name": "Weißglas",
+      "confidence": 0.80
+    },
+    {
+      "id": "deg-glass-igloo-green",
+      "match": { "form_factor": ["igloo"], "body_color": ["green"] },
+      "stream": "glass_green",
+      "local_name": "Grünglas",
+      "confidence": 0.80
+    },
+    {
+      "id": "deg-glass-igloo-brown",
+      "match": { "form_factor": ["igloo"], "body_color": ["brown"] },
+      "stream": "glass_brown",
+      "local_name": "Braunglas",
+      "confidence": 0.80
+    },
+    {
+      "id": "deg-textiles",
+      "match": { "form_factor": ["textile_bank"] },
+      "stream": "textiles",
+      "local_name": "Altkleidercontainer",
+      "confidence": 0.90
+    },
+    {
+      "id": "deg-street-basket",
+      "match": { "form_factor": ["street_basket"] },
+      "stream": "street_litter",
+      "local_name": "Papierkorb",
+      "confidence": 0.93
+    }
+  ],
+
+  "local_names": {
+    "residual": "Restmüll",
+    "paper": "Papier",
+    "bio": "Biomüll",
+    "packaging": "Gelber Sack / Gelbe Tonne",
+    "glass_clear": "Weißglas",
+    "glass_green": "Grünglas",
+    "glass_brown": "Braunglas",
+    "glass_mixed": "Altglas",
+    "textiles": "Altkleider",
+    "ewaste": "Elektrokleingeräte",
+    "batteries": "Altbatterien",
+    "deposit_return": "Pfandrückgabe",
+    "bulky": "Sperrmüll",
+    "hazardous": "Problemabfall",
+    "street_litter": "Papierkorb"
+  },
+
+  "overrides": {
+    "packaging": {
+      "note_key": "region.de_by_deggendorf.packaging_note",
+      "accepted_add": [],
+      "rejected_add": []
+    }
+  },
+
+  "collection_schedule": {
+    "status": "not_implemented",
+    "note": "Schema reserved for v3. See docs/07-roadmap.md. The shape is intentionally present so that region packs do not need a breaking version bump when schedules land.",
+    "streams": {}
+  },
+
+  "notes": [
+    "DRAFT. Rules were transcribed from the predecessor project's four hard-coded classes plus general German practice – they are a starting point, not a verified source.",
+    "Deggendorf household setups observed by the original project: residual and paper bins next to houses, sometimes inside a locked shed; glass only at communal banks, typically near offices or larger buildings.",
+    "Glass banks are the known hard case. The predecessor's deck names Glas as 'the biggest problem'. Body colour alone is unreliable because many banks are a uniform green shell with per-aperture colour coding – hence requires_disambiguation on the generic rule until aperture detection lands in v2."
+  ]
+}

@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sbr"
+version = "0.1.0"
+description = "Smart Bin Recognition – dataset, training and export pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Alexander Rudaev" }]
+
+dependencies = [
+    "pyyaml>=6.0",
+    "pillow>=10.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# Heavy – only needed where training or export actually happens (Kaggle, CI).
+train = [
+    "ultralytics>=8.3.0",
+    "torch>=2.2",
+    "huggingface_hub>=0.24.0",
+]
+export = [
+    "onnx>=1.16.0",
+    "onnxruntime>=1.18.0",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "python-dotenv>=1.0",
+    "kaggle>=1.6",
+    "jsonschema>=4.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+no_strict_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

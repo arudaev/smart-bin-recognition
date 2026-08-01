@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-bin-recognition/schema/waste-streams.schema.json",
+  "title": "Smart Bin Recognition – canonical waste-stream taxonomy",
+  "type": "object",
+  "required": ["version", "updated", "colors", "form_factors", "families", "streams", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver. MAJOR bumps when a stream id is removed or its meaning changes – clients must handle unknown ids gracefully rather than break."
+    },
+    "updated": { "type": "string", "format": "date" },
+    "description": { "type": "string" },
+
+    "colors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "hex_ref"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/definitions/slug" },
+          "hex_ref": {
+            "type": ["string", "null"],
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "Reference swatch only. Used for UI chips and as the CIELAB anchor for on-device colour classification – NEVER as a literal expectation about a physical bin."
+          }
+        }
+      }
+    },
+
+    "form_factors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "i18n_key"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/definitions/slug" },
+          "i18n_key": { "type": "string" },
+          "capacity_l": {
+            "type": ["array", "null"],
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "note": { "type": "string" }
+        }
+      }
+    },
+
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "i18n_key"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/definitions/slug" },
+          "i18n_key": { "type": "string" }
+        }
+      }
+    },
+
+    "streams": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "family", "i18n_key", "icon", "typical_colors", "accepted", "rejected"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/definitions/slug" },
+          "family": { "$ref": "#/definitions/slug" },
+          "i18n_key": { "type": "string" },
+          "icon": { "$ref": "#/definitions/slug" },
+          "typical_colors": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/slug" },
+            "description": "Weak prior only. Regions override. Must not be used to assert a stream without a region rule."
+          },
+          "accepted": { "$ref": "#/definitions/itemList" },
+          "rejected": { "$ref": "#/definitions/itemList" },
+          "common_mistakes": {
+            "$ref": "#/definitions/itemList",
+            "description": "Subset of rejected worth surfacing prominently – the errors people actually make."
+          },
+          "confusable_with": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/slug" },
+            "description": "Other stream ids. Drives the 'not sure? it might also be…' affordance and the evaluation confusion matrix."
+          },
+          "note_key": { "type": "string" }
+        }
+      }
+    },
+
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/slug" },
+      "description": "Closed vocabulary. Every id in accepted/rejected/common_mistakes MUST appear here, and every id here MUST have a translation in every shipped locale. This closure is what bounds translation cost – see docs/06-i18n.md."
+    }
+  },
+
+  "definitions": {
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "itemList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/slug" }
+    }
+  }
+}

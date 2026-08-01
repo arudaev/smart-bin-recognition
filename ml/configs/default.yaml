@@ -1,0 +1,81 @@
+# Smart Bin Recognition – base configuration.
+# Every other config inherits from this via `_defaults_: default.yaml`.
+# Nothing that influences a run may be hard-coded in source.
+
+project:
+  name: smart-bin-recognition
+  seed: 42
+
+data:
+  # HF dataset repo. Pin `revision` to a commit hash for reproducible runs –
+  # `main` is only acceptable during early development.
+  repo_id: arudaev/smart-bin-detect
+  revision: main
+  imgsz: 640
+  # Group-aware splitting: two photos of the same physical bin must never
+  # straddle a split, or the eval numbers become the predecessor's numbers.
+  split:
+    strategy: group_by_capture_cluster
+    train: 0.70
+    val: 0.15
+    test: 0.15
+  # Held-out cities never appear in train or val, at any ratio. This is the
+  # only split that predicts launch behaviour. See docs/04-ml-pipeline.md § 5.
+  holdout_regions: []
+
+model:
+  arch: yolo11n
+  pretrained: true
+
+training:
+  epochs: 60
+  batch: 32
+  optimizer: AdamW
+  lr0: 0.001
+  lrf: 0.01
+  momentum: 0.937
+  weight_decay: 0.0005
+  warmup_epochs: 3.0
+  patience: 20
+  workers: 2
+  cos_lr: true
+
+# Tuned for the real failure modes: rain, dusk, oblique angles, occlusion by
+# cars and by other bins. Note `hsv_h` is kept tight – colour is not a learnt
+# class, but hue-shifting still degrades the shape priors the model builds
+# around coloured lids.
+augment:
+  hsv_h: 0.010
+  hsv_s: 0.70
+  hsv_v: 0.50
+  degrees: 8.0
+  translate: 0.12
+  scale: 0.55
+  shear: 2.0
+  perspective: 0.0005
+  flipud: 0.0
+  fliplr: 0.5
+  mosaic: 1.0
+  close_mosaic: 10
+  mixup: 0.05
+  erasing: 0.2
+
+export:
+  imgsz: 448
+  opset: 17
+  quantise: int8
+  calibration_images: 200
+  # Hard ship gates – mirrored in sbr/export/onnx_export.py. A build that
+  # violates any of these fails; it does not warn.
+  gates:
+    max_bytes: 6291456
+    max_map_drop: 0.02
+    max_median_latency_ms: 120
+
+hub:
+  model_repo: arudaev/smart-bin-detect
+  private: false
+
+logging:
+  checkpoint_dir: /kaggle/working/checkpoints
+  history_file: history.json

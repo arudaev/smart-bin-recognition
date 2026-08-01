@@ -1,0 +1,170 @@
+/* ============================================================================
+ * Smart Bin Recognition – design tokens
+ *
+ * Starting point for Claude Design, and the contract the generated components
+ * are expected to honour. Values may be refined during design; the STRUCTURE
+ * is fixed:
+ *
+ *   1. The chrome palette is monochrome. Black, white, a grey ramp. Nothing else.
+ *   2. The ONLY colour in the interface is --bin-* , set per detected bin.
+ *   3. There is no brand colour, accent colour or gradient. Do not add one.
+ *   4. All spacing/direction tokens are LOGICAL, never physical – RTL is a
+ *      launch requirement, not a later port.
+ *
+ * See DESIGN-BRIEF.md § 2.
+ * ========================================================================= */
+
+:root {
+  /* --- Chrome: the entire palette ---------------------------------------- */
+  --ink:            #000000;
+  --ink-secondary:  rgba(0, 0, 0, 0.62);
+  --ink-tertiary:   rgba(0, 0, 0, 0.42);
+  --ink-disabled:   rgba(0, 0, 0, 0.26);
+
+  --surface:        #FFFFFF;
+  --surface-sunken: #F4F4F4;
+  --surface-raised: #FFFFFF;
+
+  --rule:           rgba(0, 0, 0, 0.12);   /* hairline divider – the primary separator */
+  --rule-strong:    rgba(0, 0, 0, 0.90);   /* the deck's full-width timeline rule */
+
+  --overlay-scrim:  rgba(0, 0, 0, 0.55);   /* over the viewfinder only */
+
+  /* --- Bin colours: the only colour in the app ---------------------------
+   * Set --bin-color / --bin-ink per result from the measured colour of the
+   * physical bin. Reference swatches mirror data/taxonomy/waste-streams.json.
+   * --bin-ink is the text colour that meets AA on that chip.
+   * `unknown` deliberately has NO colour – absence is the signal. */
+  --bin-blue:        #1F4FA8;
+  --bin-green:       #1E7A3C;
+  --bin-brown:       #6B4423;
+  --bin-black:       #1A1A1A;
+  --bin-grey:        #8A8A8A;
+  --bin-yellow:      #F2C200;
+  --bin-orange:      #E8720C;
+  --bin-red:         #C1272D;
+  --bin-white:       #F2F2F2;
+  --bin-metal:       #9BA3A8;
+  --bin-transparent: transparent;
+  --bin-unknown:     transparent;          /* no colour. Dashed grey outline instead. */
+
+  --bin-color: var(--bin-unknown);         /* overridden per card / per box */
+  --bin-ink:   var(--ink);
+
+  /* --- Semantic: permitted ONLY in the ✅/❌ rule lists ------------------
+   * Glyph and label carry the meaning; colour reinforces. Never colour alone. */
+  --yes: #14722F;
+  --no:  #A81E1E;
+  --caution: #8A6100;
+
+  /* --- Type ------------------------------------------------------------- */
+  --font-sans: "Inter", "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-arabic: "Noto Sans Arabic", var(--font-sans);
+  --font-devanagari: "Noto Sans Devanagari", var(--font-sans);
+
+  --w-regular: 400;
+  --w-medium:  500;
+  --w-bold:    700;
+  --w-black:   800;   /* display only – the deck's headline weight */
+
+  /* Fluid scale. Body never drops below 15px on mobile: much of the audience
+     is reading a second or third language. */
+  --t-display: clamp(2.25rem, 7vw, 3.5rem);   /* result headline, section breaks */
+  --t-title:   clamp(1.5rem, 4.5vw, 2rem);    /* screen titles */
+  --t-heading: 1.25rem;                        /* card headings */
+  --t-body:    1rem;                           /* 16px */
+  --t-small:   0.9375rem;                      /* 15px – the floor */
+  --t-eyebrow: 0.8125rem;                      /* 13px, bold – the deck's signature */
+  --t-micro:   0.75rem;                        /* timestamps, metadata only */
+
+  --lh-display: 1.05;
+  --lh-title:   1.15;
+  --lh-body:    1.55;   /* generous – second-language readers */
+
+  --tracking-display: -0.02em;
+  --tracking-eyebrow:  0.01em;
+
+  /* --- Space: 4px base -------------------------------------------------- */
+  --s-1: 0.25rem;  --s-2: 0.5rem;   --s-3: 0.75rem;  --s-4: 1rem;
+  --s-5: 1.5rem;   --s-6: 2rem;     --s-7: 3rem;     --s-8: 4rem;
+  --s-9: 6rem;
+
+  /* The deck's generous left margin. Content starts inside the frame and is
+     never centred. Logical, so it mirrors under RTL. */
+  --margin-inline: clamp(var(--s-4), 6vw, var(--s-8));
+
+  --measure: 68ch;   /* max line length for body copy */
+
+  /* --- Shape ------------------------------------------------------------ */
+  --r-none: 0;
+  --r-sm:   4px;
+  --r-md:   10px;    /* the deck's image cards */
+  --r-lg:   16px;    /* bottom sheets */
+  --r-full: 999px;   /* colour chips */
+
+  --hairline: 1px;
+
+  /* Cards are defined by whitespace and a single rule. Not by borders,
+     not by elevation. There is exactly one shadow, for the bottom sheet. */
+  --shadow-sheet: 0 -2px 24px rgba(0, 0, 0, 0.10);
+
+  /* --- Motion ----------------------------------------------------------- */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --d-fast:   120ms;   /* detection box settle – stability over responsiveness */
+  --d-normal: 180ms;
+  --d-slow:   240ms;
+
+  /* --- Targets ---------------------------------------------------------- */
+  --tap-min: 48px;       /* outdoors, wet screen, one hand */
+  --focus-ring: 2px solid var(--ink);
+  --focus-offset: 2px;
+}
+
+/* --- Dark: a true dark, not grey. Outdoors at night, and battery. --------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:            #FFFFFF;
+    --ink-secondary:  rgba(255, 255, 255, 0.66);
+    --ink-tertiary:   rgba(255, 255, 255, 0.46);
+    --ink-disabled:   rgba(255, 255, 255, 0.30);
+
+    --surface:        #000000;
+    --surface-sunken: #0E0E0E;
+    --surface-raised: #161616;
+
+    --rule:           rgba(255, 255, 255, 0.16);
+    --rule-strong:    rgba(255, 255, 255, 0.90);
+
+    --bin-black:      #4A4A4A;   /* a black bin must stay visible on black */
+    --bin-white:      #E8E8E8;
+
+    --yes: #4ED07A;
+    --no:  #FF7B7B;
+    --caution: #E8B84B;
+
+    --focus-ring: 2px solid var(--ink);
+    --shadow-sheet: 0 -2px 24px rgba(0, 0, 0, 0.60);
+  }
+}
+
+/* Explicit user override must win in both directions. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+/* --- Reduced motion: boxes stop transitioning, everything else stops ----- */
+@media (prefers-reduced-motion: reduce) {
+  :root { --d-fast: 0ms; --d-normal: 0ms; --d-slow: 0ms; }
+}
+
+/* --- Staleness: a consistent, reusable weakening ------------------------ *
+ * Applied to any registry-derived fact as it ages. Never the only signal –
+ * always paired with a relative timestamp. */
+[data-staleness="fresh"]  { opacity: 1;    }
+[data-staleness="aging"]  { opacity: 0.72; }
+[data-staleness="stale"]  { opacity: 0.48; }
+[data-staleness="stale"] .bin-chip { background: transparent; border: 1px dashed var(--rule-strong); }
+
+/* --- RTL: logical properties only --------------------------------------- *
+ * If a physical property (margin-left, padding-right, left, right, text-align:
+ * left) appears anywhere in the generated CSS, it is a bug. Arabic is a launch
+ * locale, not a later port. */

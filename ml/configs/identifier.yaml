@@ -1,0 +1,59 @@
+_defaults_: default.yaml
+
+# Model B – the IDENTIFIER. "What kind of bin is it?"
+#
+# Runs ONLY on crops produced by the validator, never on a full frame. Three
+# consequences, all good:
+#   1. a smaller model reaches higher accuracy on the same data
+#   2. colour is measured from the object (ideally from the SAM 2 mask), not
+#      from whatever was behind it
+#   3. multi-bin scenes are free – N crops, N independent identifications
+#
+# Its classes are physical FORM FACTORS, not waste categories. What a blue lid
+# means lives in a region pack. See docs/02-waste-taxonomy.md § 1.
+
+run_name: identifier
+
+model:
+  arch: yolo11s           # larger than the validator: this is the hard problem
+  pretrained: true
+
+data:
+  repo_id: arudaev/smart-bin-identify
+  imgsz: 320              # crops, not frames
+  # Classes come from data/taxonomy/waste-streams.json `form_factors`, in file
+  # order. That order is the ONNX class index – never reorder without retraining.
+  classes_from_taxonomy: true
+
+  crops:
+    source: validator_boxes
+    padding: 0.12         # a little context helps distinguish 240 L from 1100 L
+    min_box_px: 64
+
+  # Label provenance is tracked so its contribution can be measured – and rolled
+  # back if machine labels turn out to hurt.
+  label_sources: ["human", "machine_agreed", "legacy"]
+
+training:
+  epochs: 100
+  batch: 64
+
+# Note hsv_h is TIGHT. Colour is not a learnt class, but hue-shifting the
+# training data still degrades the shape priors the model builds around
+# coloured lids.
+augment:
+  hsv_h: 0.008
+  hsv_s: 0.6
+  hsv_v: 0.45
+  degrees: 8.0
+  scale: 0.4
+  fliplr: 0.5
+  mosaic: 0.0             # crops – mosaic would destroy the framing signal
+  erasing: 0.25           # occlusion by cars, people, other bins
+
+export:
+  imgsz: 320
+  quantise: int8
+  budget:
+    max_median_latency_ms: 25       # per crop, service CPU
+    min_formfactor_acc_heldout_city: 0.85

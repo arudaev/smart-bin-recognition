@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smart-bin-recognition/schema/region-pack.schema.json",
+  "title": "Smart Bin Recognition – region pack",
+  "description": "Maps observable bin appearance in one jurisdiction onto canonical waste streams. A region pack is the ONLY place a colour is allowed to mean something. Packs are static JSON, served from the CDN, cached on device, and versioned independently of the app.",
+  "type": "object",
+  "required": ["region_id", "pack_version", "taxonomy_version", "updated", "status", "name", "country", "bbox", "sources", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "region_id": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[a-z0-9]+)+$",
+      "description": "Stable id, lowercase, ISO-3166 country first: <country>-<subdivision>-<locality>, e.g. de-by-deggendorf."
+    },
+    "pack_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "taxonomy_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Taxonomy version this pack was authored against. A client with an older taxonomy MUST refuse a pack whose MAJOR is higher."
+    },
+    "updated": { "type": "string", "format": "date" },
+    "status": {
+      "enum": ["draft", "review", "published", "deprecated"],
+      "description": "Only 'published' packs may be served to end users. 'draft' means rules are unverified against a municipal source."
+    },
+
+    "name": { "type": "string" },
+    "country": { "type": "string", "pattern": "^[A-Z]{2}$" },
+    "admin_path": { "type": "array", "items": { "type": "string" } },
+    "default_locale": { "type": "string" },
+    "bbox": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "[minLon, minLat, maxLon, maxLat]"
+    },
+    "geohash_tiles": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[0-9b-hjkmnp-z]{5}$" },
+      "description": "Geohash precision 5 (~5x5 km) tiles this pack covers. The client fetches by tile, so a pack may span several."
+    },
+
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "note_key": { "type": "string" }
+      }
+    },
+
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Provenance. A pack MUST NOT reach 'published' status with any source lacking a URL and a retrieval date – every rule shown to a user is traceable to the municipality's own guidance.",
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "url": { "type": ["string", "null"] },
+          "retrieved": { "type": ["string", "null"], "format": "date" },
+          "verified_by": { "type": ["string", "null"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+
+    "rules": {
+      "type": "array",
+      "description": "Evaluated most-specific-first: a rule with more match constraints wins over one with fewer; ties broken by higher confidence, then by array order. The resolver is pure and must be deterministic.",
+      "items": {
+        "type": "object",
+        "required": ["id", "match", "stream", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "match": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "form_factor": { "type": "array", "items": { "type": "string" } },
+              "body_color": { "type": "array", "items": { "type": "string" } },
+              "lid_color": { "type": "array", "items": { "type": "string" } },
+              "aperture_color": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "v2. Reserved for glass banks with per-slot colour coding."
+              },
+              "text_hint": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "v2. Optional OCR token match, e.g. 'Papier'. Never required – the app must work for users who cannot read the local script."
+              }
+            }
+          },
+          "stream": { "type": "string" },
+          "local_name": {
+            "type": "string",
+            "description": "The word printed on the physical object, in the local language. Always shown alongside the translation, never instead of it."
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "requires_disambiguation": { "type": "boolean" },
+          "disambiguation": {
+            "type": "object",
+            "required": ["prompt_key", "options"],
+            "additionalProperties": false,
+            "properties": {
+              "prompt_key": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "note_key": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "local_names": {
+      "type": "object",
+      "description": "stream id -> local-language name, for streams present in this region.",
+      "additionalProperties": { "type": "string" }
+    },
+
+    "overrides": {
+      "type": "object",
+      "description": "Per-stream local deltas on the canonical rules. Additive only – a region may add accepted/rejected items and a note, but may not silently redefine what a stream means.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "note_key": { "type": "string" },
+          "accepted_add": { "type": "array", "items": { "type": "string" } },
+          "rejected_add": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "collection_schedule": {
+      "type": "object",
+      "description": "v3. Present in the schema from v1 so schedules can land without a breaking pack version.",
+      "additionalProperties": true,
+      "properties": {
+        "status": { "enum": ["not_implemented", "partial", "complete"] },
+        "note": { "type": "string" },
+        "streams": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

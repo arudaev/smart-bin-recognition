@@ -1,0 +1,64 @@
+_defaults_: default.yaml
+
+# Model A – the VALIDATOR. "Is there a bin, and where?"
+#
+# One class. Class-agnostic on purpose: it must fire on a bin type it has never
+# seen, because that is exactly the case the improvement loop depends on
+# detecting. See docs/01-architecture.md § 3.
+#
+# The majority of its training data is NOT bins. A detector trained only on
+# photos of bins learns that everything is a bin; the negative corpus is what
+# buys precision, and precision is what makes "the identifier disagrees with me"
+# a trustworthy signal rather than noise.
+
+run_name: validator
+
+model:
+  arch: yolo11n
+  pretrained: true
+
+data:
+  repo_id: arudaev/smart-bin-detect
+  imgsz: 448              # matches the frame size the client uploads
+  classes: ["bin"]
+  classes_from_taxonomy: false
+
+  negatives:
+    # Roughly 30:1 negatives to positives. The ratio is the point.
+    open_corpus:
+      source: open-images
+      query: ["street", "urban", "sidewalk", "residential", "parking"]
+      count: 15000
+    hard_negatives:
+      # The things that actually get mistaken for bins.
+      classes: ["postbox", "planter", "utility_cabinet", "parked_car",
+                "wheeled_luggage", "air_conditioner", "gas_meter",
+                "recycling_logo_on_non_bin"]
+      count: 2500
+    # Harvested automatically: frames where the validator fired but a
+    # contributor said "there is no bin here".
+    mined_false_positives: true
+
+training:
+  epochs: 80
+  batch: 32
+
+# Wider than the identifier's: the validator must survive rain, dusk and odd
+# angles, and it has no colour semantics to protect.
+augment:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.5
+  degrees: 10.0
+  scale: 0.6
+  mosaic: 1.0
+  mixup: 0.10
+
+export:
+  imgsz: 448
+  quantise: int8
+  budget:
+    # Concurrency is the cost ceiling, so latency IS the budget.
+    max_median_latency_ms: 50     # service CPU, single frame
+    min_recall_heldout_city: 0.97
+    min_precision_on_negatives: 0.97
