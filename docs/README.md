@@ -18,10 +18,8 @@ Read in order on a first pass. After that, use the "read it when" column.
 
 | Doc | For |
 |---|---|
-| [../handoff/DESIGN-SYSTEM.md](../handoff/DESIGN-SYSTEM.md) | the visual language – attach to a Claude Design **Design System** project |
-| [../handoff/PROTOTYPE.md](../handoff/PROTOTYPE.md) | screens and states – attach to a Claude Design **Prototype** project |
-| [../handoff/README.md](../handoff/README.md) | how to run the handoff, including both prompts |
-| [../handoff/tokens.css](../handoff/tokens.css) | the token contract generated components must honour |
+| [../handoff/DESIGN-FOUNDATION.md](../handoff/DESIGN-FOUNDATION.md) | the creative brief – attach to both Claude Design projects |
+| [../handoff/README.md](../handoff/README.md) | how the handoff works, including both prompts |
 
 ## The short version
 

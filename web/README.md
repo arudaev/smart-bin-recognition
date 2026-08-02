@@ -14,7 +14,7 @@ web/
 │   ├── features/     scan / result / map / registry / rules / contribute / settings
 │   ├── components/   design-system components (generated)
 │   ├── i18n/         <locale>.json bundles – 9 locales at launch
-│   └── styles/       tokens, from handoff/tokens.css
+│   └── styles/       tokens, imported from the Claude Design system
 └── api/              Vercel serverless: pack.ts, sighting.ts, escalate.ts
 
 Inference is NOT here – it lives in service/ and is reached over a WebSocket.
@@ -24,10 +24,10 @@ Inference is NOT here – it lives in service/ and is reached over a WebSocket.
 
 Read, in order:
 
-1. [`handoff/DESIGN-SYSTEM.md`](../handoff/DESIGN-SYSTEM.md) – the visual
-   language and its non-negotiables
-2. [`handoff/PROTOTYPE.md`](../handoff/PROTOTYPE.md) – every screen and,
-   more importantly, every state
+1. [`handoff/DESIGN-FOUNDATION.md`](../handoff/DESIGN-FOUNDATION.md) – the
+   creative brief the design was made from
+2. the conventions file written after import – the component vocabulary and
+   styling idiom actually available to you
 3. [`docs/01-architecture.md`](../docs/01-architecture.md) – streaming protocol,
    client-side gating, device tiers
 4. [`docs/02-waste-taxonomy.md`](../docs/02-waste-taxonomy.md) – the resolver

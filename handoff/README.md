@@ -1,115 +1,130 @@
 # Claude Design handoff
 
-Everything needed to hand this project to Claude Design. Two projects, in order:
-a **Design System**, then a **Prototype** with that system assigned.
+Two files go up as guidelines, plus two prompts. That is the whole handoff.
 
-```
-handoff/
-├── DESIGN-SYSTEM.md   → attach to the Design System project
-├── PROTOTYPE.md       → attach to the Prototype project
-├── tokens.css         → the token contract; also the source of truth for web/
-└── README.md          → this file, including both prompts
-```
+| File | Role |
+|---|---|
+| [DESIGN-FOUNDATION.md](DESIGN-FOUNDATION.md) | The creative brief – product, people, feeling, references, principles, real constraints, quality bar |
+| [../docs/02-waste-taxonomy.md](../docs/02-waste-taxonomy.md) | Domain facts – what a waste stream is, what a region pack is, why "unknown" exists |
 
-Both markdown files are **self-contained**. They do not link back into `docs/`,
-because Claude Design will not follow those links.
+Deliberately **not** here: a palette, a type scale, a token file, a component
+inventory, or per-screen state tables. Those were here in an earlier draft and
+were wrong – see [Why this is short](#why-this-is-short).
 
 ---
 
-## Step 1 – Design System
+## How the two projects work
 
-Create a **Design System** project. Attach `DESIGN-SYSTEM.md` (and `tokens.css`).
-Paste:
+Claude Design has two project types, and the type is fixed at creation.
 
-> Build a design system for **Smart Bin**, a civic utility web app that identifies
-> waste bins from a phone camera and explains what may be thrown in them, in the
-> user's own language.
->
-> The attached specification is authoritative – follow it rather than improving on
-> it. The single most important rule is in §2: **the interface is monochrome, and
-> the only colour anywhere in the product is the colour of the bin being looked
-> at.** No brand colour, no accent colour, no gradients, no coloured buttons.
-> Structure comes from typographic weight, hairline rules and whitespace – never
-> from boxes, borders or shadows. There is exactly one shadow in the entire system.
->
-> Users are outdoors, one-handed, often in bright sun or rain, on phones up to six
-> years old, reading their second or third language. So: high contrast, 48 px
-> minimum targets, body text never below 15 px, generous line height.
->
-> Four things I will check first, so please treat them as requirements rather than
-> polish:
-> 1. **Logical CSS properties only** (`margin-inline-start`, never `margin-left`).
->    Arabic is a launch language and the system must mirror cleanly. Any physical
->    direction property is a bug.
-> 2. **Colour is never the only signal.** Every bin colour is paired with a text
->    label and a form-factor icon.
-> 3. **True dark mode** (`#000` surface), not dark grey – it is used outdoors at
->    night and on OLED screens.
-> 4. **No emoji as iconography.** Line icons, single weight, legible at 20 px.
->
-> Deliver the primitives and composites listed in §4, with all their states, plus
-> the icon set. Show every component in light and dark, and show at least the
-> result card mirrored for RTL.
->
-> Please avoid anything that reads as "eco branding" – leaves, recycling arrows,
-> green palettes, sustainability gradients. The monochrome rule exists partly to
-> make that impossible.
+**1. Design system** – a project holding real, rendered components plus
+guideline documents. It can be created two ways:
 
-## Step 2 – Prototype
+- *From a brief*, when no component library exists yet. **This is our case** –
+  `web/` is empty, so Claude Design invents the system.
+- *Synced up from existing code*, when a library already exists. That is what
+  `PROJECTS/12-kaffeelisten` does: `.design-sync/config.json` points at real
+  `.tsx` files and pushes them into a design-system project, with
+  `guidelinesGlob` sending the briefs up alongside. Worth reading as the
+  eventual round-trip, but it is the opposite direction from where we are now.
 
-Create a **Prototype** project. **Assign the Smart Bin design system.** Attach
-`PROTOTYPE.md`. Paste:
+**2. Prototype** – a normal project where the app is designed. A design system
+may be bound to it at creation, or not bound at all.
 
-> Design the **Smart Bin** app using the assigned design system. The attached spec
-> is authoritative.
->
-> The product: someone who has just moved to a new country points their phone at a
-> waste bin and is told what it is and what may go in it, in their own language.
-> They are standing outside holding rubbish. One answer, fast, trustworthy.
->
-> Three things about this app that are easy to get wrong:
->
-> 1. **Inference happens on a server, not the phone.** So scanning needs a
->    connection and the design must own that honestly – there is a connecting
->    state, sometimes a "waking up" state (~30 s), and under load the service
->    degrades in visible steps down to tap-to-scan. Offline is a designed state
->    with a plain message, never a red error banner. The rules browser still works
->    offline; the camera and map do not.
->
-> 2. **A scan ends.** Once the answer is stable the stream stops and the result
->    locks. That resolved, calm state is the normal successful path – please design
->    it as a destination, not as a paused video.
->
-> 3. **"We don't know this bin yet" is a good result.** In a new city it is the
->    most common one for months, and it is the entry point to the contribution flow
->    that makes the product improve. It must feel useful and dignified, never like
->    a failure.
->
-> Two hard requirements: **multiple bins must be handled simultaneously** – a bank
-> of six containers renders as six boxes and six cards (the previous version of
-> this project could only do one at a time, and it was its most visible flaw) – and
-> **devices without a rear camera must show no camera UI at all**, not disabled,
-> absent. Desktop instead gets the richer surface: map, registry, rules search,
-> moderation.
->
-> Work through §4 screen by screen, and treat the state tables as the actual
-> deliverable – a screen designed only in its happy path is not done. Please
-> include dark mode throughout and an Arabic RTL proof of at least the scan result
-> and the desktop map.
+For Smart Bin Recognition the order is: **design system first, then a prototype
+bound to it, then import down into `web/`** via the MCP link. That is the
+direction `PROJECTS/08-THD-Room-Finder` went – its `src/components/` mirror a
+Claude Design source, and its `src/styles/tokens/` came down from it.
 
 ---
 
-## Then
+## Step 1 – the design system
 
-Claude Design returns a link. Connect it over the MCP server and import into
-`web/`. Constraints that apply to the imported code are in
-[`../web/README.md`](../web/README.md) – chiefly: `domain/` imports no framework,
-tokens instead of hard-coded colour, and logical CSS properties only.
+Create a **design system** project. Attach `DESIGN-FOUNDATION.md`.
 
-## Why this shape
+> Read DESIGN-FOUNDATION.md. It is a creative brief, not a specification – it
+> describes the product, the people and the bar, and deliberately leaves the
+> visual system to you.
+>
+> Build the design system for Smart Bin Recognition: a camera-first web app that
+> tells someone what a waste bin is and what may go in it, in their own
+> language, anywhere. The person using it is standing outdoors in bad light,
+> holding rubbish in one hand, and cannot read the word printed on the lid.
+>
+> You have complete freedom over palette, typography, scale, shape, motion,
+> iconography and the component set. I have opinions but no requirements about
+> any of them.
+>
+> Three things are genuinely fixed, because they come from users rather than
+> taste: it must work in nine languages including right-to-left Arabic and
+> Devanagari; it must be legible in direct sunlight and usable one-handed on an
+> old phone; and meaning must never be carried by colour alone.
+>
+> One thing I would like you to take seriously as a design problem rather than
+> a decision I have already made: the objects this app looks at are already
+> colour-coded in the real world – blue lids, brown lids, green glass banks,
+> yellow sacks. There is a relationship to be found between the colour of the
+> interface and the colour of the thing it is pointed at. I do not know what the
+> right answer is. Find one.
+>
+> Show me the foundations and a component set you think this product needs. If
+> the brief and the best design disagree, follow the design and tell me why.
 
-The user's earlier instinct was right: a `docs/design/` directory is the wrong
-handoff surface. Claude Design reads what is attached, not a repository tree, and
-a brief split across several linked files silently loses whatever is not
-followed. Hence two self-contained files and two prompts, kept deliberately short
-enough to actually be read.
+## Step 2 – the prototype
+
+Create a **prototype** project bound to the design system. Attach
+`DESIGN-FOUNDATION.md` and `docs/02-waste-taxonomy.md`.
+
+> Design the Smart Bin Recognition app using the bound design system.
+>
+> Someone points their phone at a bin. Every bin in frame is identified – often
+> several at once, sometimes a bank of six containers. Each gets an answer: what
+> it is, what it is called locally, what may go in it, what may not, and the
+> mistakes people actually make. In their language.
+>
+> Often we will not know. In a city we have not covered yet, "we don't know this
+> bin" is the most common outcome for months. That screen matters more than the
+> happy path, and it is where contributing starts.
+>
+> Laptops and tablets get no camera interface at all – not disabled, simply
+> absent. They get the planning surface instead: a map of bins with how recently
+> each was confirmed, a searchable rules browser, and tools for contributors.
+>
+> The screen list in the brief is a starting point. Restructure the flow if you
+> see a better one.
+>
+> The states are the real work: searching, low confidence, needing a clarifying
+> question, unknown, stale, offline, connecting, camera denied, submitted but
+> not yet published. Recognition runs on a server over a streamed connection, so
+> connection states are ordinary and should feel calm rather than alarming.
+
+## Step 3 – import
+
+Pull the result into `web/` through the MCP link, then record the component
+vocabulary and styling idiom in a conventions file – the equivalent of
+Kaffeelisten's `.design-sync/conventions.md`, which is what makes later code
+sessions build *with* the system instead of around it.
+
+---
+
+## Why this is short
+
+The first version of this handoff specified a monochrome palette with hex
+values, a type scale, motion durations, radii, an exact component list and a
+per-screen state table. Its prompt said *"the attached specification is
+authoritative – follow it rather than improving on it."*
+
+That is an engineer telling a designer how to do their job. It would have
+produced exactly the design already imagined here and nothing better – which is
+the one thing a tool this capable should never be used for.
+
+The distinction worth keeping: **constrain the problem, not the solution.**
+
+- *A constraint:* Arabic is a launch language. Users are outdoors, one-handed.
+  Desktop has no camera. Six bins can appear at once. – Facts about the world.
+- *Not a constraint:* the interface is monochrome; body text is 15 px; boxes
+  ease in over 120 ms. – Design decisions wearing a requirement's clothes.
+
+The model for this is `PROJECTS/12-kaffeelisten/docs/design-foundation.md`,
+which sets mood, references with a learn-from/do-not-copy split, colour *roles*
+rather than values, and a quality bar written as outcomes.

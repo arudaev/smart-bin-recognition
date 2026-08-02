@@ -50,7 +50,7 @@ cached data all reference it.
 **`unknown` is a real stream, not an error.** It has a UI, a design, and a
 call to action. A large share of scans in an uncovered city will land here, and
 the app has to be good when it does. See
-[handoff/PROTOTYPE § 4.5](../handoff/PROTOTYPE.md).
+[handoff/DESIGN-FOUNDATION](../handoff/DESIGN-FOUNDATION.md).
 
 ### Why glass is split by colour
 

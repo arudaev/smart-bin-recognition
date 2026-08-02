@@ -119,7 +119,7 @@ in a demo, meaningless in production, and the kind of thing that has to go.
 | 466 labelled images | **Keep – this is the crown jewel.** Real, local, hand-labelled data. | Seed of the HF dataset, after resize + relabel. See [04-ml-pipeline](04-ml-pipeline.md). |
 | YOLO bounding-box labels | **Keep, remap.** Four German class names → canonical form-factor + colour attributes. | `ml/src/sbr/dataset/legacy_import.py` |
 | `waste_detector_best.pt` | **Keep as a baseline to beat, not a labeller.** It knows only four Deggendorf classes; using it as a teacher would propagate the jurisdictional bias this project exists to remove. | Benchmark reference |
-| The presentation deck | **Keep – it is the design brief.** Problem statement, method, and visual language. | [handoff/DESIGN-SYSTEM.md](../handoff/DESIGN-SYSTEM.md) |
+| The presentation deck | **Keep as a reference, not a specification.** Problem statement, method, and evidence of taste. | [handoff/DESIGN-FOUNDATION.md](../handoff/DESIGN-FOUNDATION.md) |
 | Disposal rules dict | **Concept keeps, data does not.** Becomes a versioned, translated, location-aware taxonomy. | [02-waste-taxonomy](02-waste-taxonomy.md) |
 | Streamlit app | **Delete.** Wrong runtime, wrong deployment model, wrong language strategy. | – |
 | Server-side PyTorch inference | **Keep the idea, fix the execution.** Inference is still server-side – but on a persistent process with a streaming protocol and hard client-side gating, not a request-per-frame round trip to a sleeping container. | [01-architecture](01-architecture.md) |

@@ -68,9 +68,8 @@ ml/                      Python: dataset, training dispatch, export
 
 web/                     React + TS + Vite client – EMPTY, pending Claude Design
 service/                 FastAPI + ONNX inference service (HF Space) – EMPTY
-handoff/                 Claude Design handoff: DESIGN-SYSTEM.md, PROTOTYPE.md, tokens.css
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
-handoff/                 Claude Design handoff: DESIGN-SYSTEM.md, PROTOTYPE.md, tokens.css
+handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two prompts
 ```
 
 ## Documentation map
@@ -86,7 +85,7 @@ handoff/                 Claude Design handoff: DESIGN-SYSTEM.md, PROTOTYPE.md, 
 | [06-i18n](docs/06-i18n.md) | adding user-visible text |
 | [07-roadmap](docs/07-roadmap.md) | planning |
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
-| [handoff/DESIGN-SYSTEM](handoff/DESIGN-SYSTEM.md) + [handoff/PROTOTYPE](handoff/PROTOTYPE.md) | any UI work |
+| [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) | any UI work |
 
 ## Build & Run
 
@@ -120,7 +119,8 @@ python scripts/dispatch.py status detector
 **TypeScript** (once `web/` exists):
 - Layering `features → components → data → domain`; **`domain/` imports no
   framework**. The resolver lives there and is unit-tested without a browser.
-- Style via design tokens (`handoff/tokens.css`), never hard-coded colour.
+- Style via the design system's own tokens, never hard-coded colour. The token
+  set is Claude Design's to define; record it in a conventions file after import.
 - **Logical CSS properties only** (`margin-inline-start`). Arabic is a launch
   locale; a physical direction property anywhere is a bug.
 - One `t()` key per string. Never concatenate translated fragments.
