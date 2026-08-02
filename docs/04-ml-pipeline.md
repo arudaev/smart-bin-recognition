@@ -196,10 +196,40 @@ The complete archive has now been inventoried –
   useful grouping key – annotator style is a plausible confound and can be held
   out to check for it.
 
+### Multi-bin coverage: effectively zero
+
+Counted 2026-08-02 over all 466 label files:
+
+| boxes in frame | images |
+|---|---|
+| 1 | **430 (92.3 %)** |
+| 2 | 30 |
+| 3 | 6 |
+| **4 or more** | **0** |
+
+**There is not one photograph of a bank of containers in the entire dataset.**
+The most crowded frame holds three household wheelie bins.
+
+This is a product risk, not a data footnote. Multi-bin is a v1 headline
+capability – [00-PRD](00-product-requirements.md) calls a bank of six containers
+"a normal input, not an edge case" – and the identifier would currently be
+trained almost entirely on a single, centred, close-range bin. It also explains
+the slide-08 failure in
+[08-legacy-audit § 7.5](08-legacy-audit.md#75-the-result-that-matters-most):
+three real bins at small scale inside a layout, all missed. A model shown one
+big centred bin 92 % of the time has no reason to learn anything else.
+
+Consequences, both now committed:
+
+- **Deliberate multi-bin capture is a priority for the first collection round**,
+  not an optional extra. Target banks, kerbside rows, and underground clusters
+  specifically, and photograph them from the distance a user actually stands at.
+- **Scale and count belong in the evaluation split.** Report detection recall
+  bucketed by bins-per-frame, so a model that only works on the easy case cannot
+  hide behind an aggregate number.
+
 Still to establish before the import is trusted:
 
-- how many images contain more than one bin – this decides how much deliberate
-  multi-bin collection is needed
 - class balance, and which classes are under-represented
 - whether `labeled/` and `YOLO_Dataset/` disagree anywhere
 
