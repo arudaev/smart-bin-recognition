@@ -1,0 +1,31 @@
+/* 4px base. Outdoor tap targets are 56px, not 44px: the reference user has one
+   hand free, wet fingers, and is not looking carefully. 44px is the desk-only
+   floor and 36px is allowed solely inside contributor tools. */
+:root {
+  --space-0: 0px;
+  --space-05: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
+  --space-11: 96px;
+
+  --tap-outdoor: 56px;
+  --tap-min: 44px;
+  --tap-dense: 36px;
+
+  --gutter-phone: var(--space-5);
+  --gutter-desk: var(--space-8);
+  --measure-read: 62ch;
+  --measure-answer: 22ch;
+
+  --sheet-max: 560px;
+  --desk-rail: 288px;
+  --desk-panel: 400px;
+}

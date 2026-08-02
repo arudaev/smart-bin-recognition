@@ -1,0 +1,61 @@
+/* THE INTERFACE IS ACHROMATIC.
+   Paper and ink carry every interface meaning. The only chromatic value the
+   design owns is --signal, a violet chosen because no waste container in the
+   world is violet: see tokens/bin-color.css. Real-world colour is *quoted*,
+   never authored – it may only appear inside a ColorQuote swatch.
+   There is deliberately no semantic green or red: green is a glass bank and
+   red is a hazardous bin. Yes / no / caution are carried by glyph, word and
+   weight instead. */
+:root {
+  /* Paper – warm neutral, never pure white on a phone in daylight */
+  --paper-0: #fcfbf8;
+  --paper-1: #f6f4ef;
+  --paper-2: #ebe8e1;
+  --paper-3: #dcd8cf;
+  --paper-4: #c7c2b7;
+
+  /* Ink – cool near-black ramp */
+  --ink-0: #16181c;
+  --ink-1: #2e3238;
+  --ink-2: #5a6068;
+  --ink-3: #8a9098;
+  --ink-4: #b6bbc1;
+  --ink-inverse: #fcfbf8;
+
+  /* Signal – the one colour the interface owns */
+  --signal: #5b2e91;
+  --signal-hover: #4a2477;
+  --signal-press: #3a1c5e;
+  --signal-tint: #ece5f6;
+  --signal-on: #ffffff;
+
+  /* Semantic surfaces */
+  --surface-page: var(--paper-1);
+  --surface-card: var(--paper-0);
+  --surface-sunk: var(--paper-2);
+  --surface-inverse: var(--ink-0);
+  --surface-overlay: rgba(22, 24, 28, 0.55);
+  --surface-scrim: linear-gradient(to top, rgba(22, 24, 28, 0.86), rgba(22, 24, 28, 0));
+
+  /* Semantic text */
+  --text-strong: var(--ink-0);
+  --text-body: var(--ink-1);
+  --text-muted: var(--ink-2);
+  --text-faint: var(--ink-3);
+  --text-inverse: var(--ink-inverse);
+  --text-link: var(--signal);
+  --text-link-hover: var(--signal-hover);
+
+  /* Lines */
+  --line-hair: var(--paper-3);
+  --line-strong: var(--ink-0);
+  --line-quiet: var(--paper-2);
+  --focus-ring: var(--signal);
+
+  /* Rule verdicts – intentionally NOT hue-coded. Weight and glyph do the work. */
+  --verdict-yes: var(--ink-0);
+  --verdict-no: var(--ink-0);
+  --verdict-watch: var(--signal);
+  --verdict-yes-face: var(--paper-2);
+  --verdict-no-face: var(--paper-0);
+}

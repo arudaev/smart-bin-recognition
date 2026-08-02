@@ -43,3 +43,9 @@ Thumbs.db
 # the resized/remapped derivative lives on HF Hub.
 cv_garbage/
 _pairs.json
+
+# Camera frames from the predecessor archive - see web/public/photos/README.md
+web/public/photos/*.jpg
+web/node_modules/
+web/tsconfig.tsbuildinfo
+web/dist/

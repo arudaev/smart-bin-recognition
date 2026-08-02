@@ -1,0 +1,41 @@
+/* QUOTED COLOUR.
+   These eleven values are measurements of the physical world, taken verbatim
+   from data/taxonomy/waste-streams.json in this repository. They are the only
+   chromatic values in the system and they obey one rule:
+
+     A quoted colour may only appear inside a bounded swatch that also carries
+     the colour's name and a glyph. It is never a background fill, never text,
+     never a border, never a state.
+
+   That is why --signal is violet – the one hue this list does not contain, so
+   the interface can never be mistaken for the object it is pointed at. */
+:root {
+  --bin-blue: #1f4fa8;
+  --bin-green: #1e7a3c;
+  --bin-brown: #6b4423;
+  --bin-black: #1a1a1a;
+  --bin-grey: #8a8a8a;
+  --bin-yellow: #f2c200;
+  --bin-orange: #e8720c;
+  --bin-red: #c1272d;
+  --bin-white: #f2f2f2;
+  --bin-metal: #9ba3a8;
+  --bin-transparent: repeating-linear-gradient(45deg, #ffffff 0 5px, #d8dade 5px 10px);
+
+  /* Ink colour to place on top of a quoted swatch (contrast-checked) */
+  --on-bin-blue: #ffffff;
+  --on-bin-green: #ffffff;
+  --on-bin-brown: #ffffff;
+  --on-bin-black: #ffffff;
+  --on-bin-grey: #16181c;
+  --on-bin-yellow: #16181c;
+  --on-bin-orange: #16181c;
+  --on-bin-red: #ffffff;
+  --on-bin-white: #16181c;
+  --on-bin-metal: #16181c;
+  --on-bin-transparent: #16181c;
+
+  /* Set per detected bin at runtime; defaults to nothing so a missing
+     measurement renders as an absence rather than a guess. */
+  --bin-color: var(--paper-3);
+}

@@ -1,56 +1,66 @@
-# web/ – the progressive web app
+# web/ – the client
 
-**Empty by design.** This directory is filled by Claude Design in phase 1, then
-imported here via the MCP link. See [`docs/07-roadmap.md`](../docs/07-roadmap.md).
+React + TypeScript + Vite. The design was made in Claude Design and imported
+here; see [`CONVENTIONS.md`](CONVENTIONS.md) for the component vocabulary and
+the styling idiom, and [`../handoff/`](../handoff/) for why the design is the
+way it is.
 
-## What goes here
-
-```
-web/
-├── src/
-│   ├── capture/      camera, downscale, motion gate, WS client, result lock
-│   ├── domain/       resolver, taxonomy types, geo – framework-free, unit-tested
-│   ├── data/         region-pack client, IndexedDB cache, contribution queue
-│   ├── features/     scan / result / map / registry / rules / contribute / settings
-│   ├── components/   design-system components (generated)
-│   ├── i18n/         <locale>.json bundles – 9 locales at launch
-│   └── styles/       tokens, imported from the Claude Design system
-└── api/              Vercel serverless: pack.ts, sighting.ts, escalate.ts
-
-Inference is NOT here – it lives in service/ and is reached over a WebSocket.
+```bash
+npm install
+npm run dev          # http://localhost:5173
+npm run build
+npm test             # resolver + freshness, no browser needed
+npm run typecheck
+npm run check:locales
 ```
 
-## Before writing any code here
+The lead camera frame is not committed – see
+[`public/photos/README.md`](public/photos/README.md). The app runs without it.
 
-Read, in order:
+## Layout
 
-1. [`handoff/DESIGN-FOUNDATION.md`](../handoff/DESIGN-FOUNDATION.md) – the
-   creative brief the design was made from
-2. the conventions file written after import – the component vocabulary and
-   styling idiom actually available to you
-3. [`docs/01-architecture.md`](../docs/01-architecture.md) – streaming protocol,
-   client-side gating, device tiers
-4. [`docs/02-waste-taxonomy.md`](../docs/02-waste-taxonomy.md) – the resolver
-   contract this app must implement
+```
+src/
+├── domain/       resolver, types, freshness – framework-free, unit-tested
+├── data/         taxonomy loader, region packs, camera frames, registry
+├── app/          session model: what the user has answered, confirmed, reported
+├── components/   the 26 design-system components
+├── features/     screens – scan, answer, rules, contribute, firstrun, desk
+├── i18n/         en / de / ar bundles and t()
+├── styles/       the design system's token layer
+└── dev/          the state director (development only)
+```
+
+Inference is **not** here. It lives in `service/` and is reached over a
+WebSocket.
+
+## What is real and what is staged
+
+| Real | Staged |
+|---|---|
+| The resolver, mirroring `ml/src/sbr/taxonomy.py` | The camera – frames come from `data/frames.ts` |
+| The Deggendorf region pack, read from `data/taxonomy/regions/` | The Munich pack, a demo fixture for the published state |
+| The taxonomy: 22 streams, 10 form factors, 136 items | The map tiles and the registry entries |
+| The English locale bundle, validated against the taxonomy | German and Arabic, about 60% complete |
 
 ## Constraints that will bite if ignored
 
 - **`domain/` imports no framework.** The resolver is the piece most likely to
-  be quietly wrong; it is tested without a browser. A Python mirror of it lives
-  in `ml/src/sbr/taxonomy.py` and the two must agree – the docs are the
+  be quietly wrong; it is tested without a browser. A Python mirror lives in
+  `ml/src/sbr/taxonomy.py` and the two must agree – the docs are the
   specification, not either implementation.
 - **Logical CSS properties only.** `margin-inline-start`, never `margin-left`.
-  Arabic is a launch locale. A physical direction property anywhere is a bug.
+  Arabic is a launch locale. The single documented exception is
+  `DetectionMarker`, which overlays a photograph and a photograph does not
+  mirror.
 - **No hard-coded colour, and colour is quoted rather than worn.** A real bin
-  colour appears only inside a `ColorQuote` – a bounded swatch carrying its
-  translated name. Never a coloured button, a tinted surface, or a status
-  colour, and never a bare swatch without its name. `unknown` gets no swatch at
-  all. See [`handoff/DECISIONS.md`](../handoff/DECISIONS.md) § 1.
+  colour appears only inside a `ColorQuote`. Never a coloured button, a tinted
+  surface, or a status colour. `unknown` gets no swatch at all.
 - **No camera code path on devices without a rear camera.** Not hidden – absent.
-- **The client never runs a model.** It captures, gates, sends, and draws. If a
-  component imports an inference runtime, it is in the wrong repository.
+  Decided by capability probe, never by viewport width.
+- **The client never runs a model.** It captures, gates, sends, and draws.
 - **The gates are not optional.** Motion gate, 4 fps cap, result lock, 20 s
   abort. They are what keeps the service inside its free tier; removing one is a
   cost regression, not a UX tweak.
 - **Scanning may require a network; the rules browser may not.** Every
-  connection state (connecting, waking, busy, offline) is designed and honest.
+  connection state is designed and honest.

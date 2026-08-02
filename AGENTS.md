@@ -17,8 +17,11 @@ name comes from that project's own presentation, slide 3: *"Our Solution – Sma
 Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
-**Status:** Phase 0 – foundation. Docs, taxonomy and ML skeleton exist; `web/`
-is empty pending design.
+**Status:** Phase 1 – the client exists. Docs, taxonomy and ML skeleton are in
+place, and `web/` holds the design imported from Claude Design: the design
+system, both surfaces, and every designed state. It runs against the real
+resolver and the real Deggendorf pack; the camera and the service are still
+staged. `service/` is empty.
 
 ## The three decisions that define this repo
 
@@ -66,7 +69,17 @@ ml/                      Python: dataset, training dispatch, export
 ├── scripts/                    dispatch.py, validate_taxonomy.py
 └── tests/
 
-web/                     React + TS + Vite client – EMPTY, pending Claude Design
+web/                     React + TS + Vite client – imported from Claude Design
+├── CONVENTIONS.md              READ FIRST for any UI work: vocabulary + idiom
+├── src/domain/                 resolver + types – TS mirror of sbr/taxonomy.py, no framework
+├── src/data/                   taxonomy loader, region packs, camera frames, registry
+├── src/app/                    session model: answered / confirmed / reported
+├── src/components/             the 26 design-system components
+├── src/features/               scan, answer, rules, contribute, firstrun, desk
+├── src/i18n/                   en (complete) + de/ar (~60%), and t()
+├── src/styles/tokens/          the design system's token layer
+└── src/dev/                    the state director – development only
+
 service/                 FastAPI + ONNX inference service (HF Space) – EMPTY
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
 handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two prompts
@@ -85,15 +98,23 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [06-i18n](docs/06-i18n.md) | adding user-visible text |
 | [07-roadmap](docs/07-roadmap.md) | planning |
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
-| [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) | any UI work |
+| [web/CONVENTIONS](web/CONVENTIONS.md) | **any UI work – read this first** |
+| [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) + [handoff/FLOW-NOTES](handoff/FLOW-NOTES.md) | why the UI is the way it is |
 
 ## Build & Run
 
 ```bash
+# Web side
+npm --prefix web install
+npm --prefix web run dev          # http://localhost:5173
+npm --prefix web test             # resolver + freshness, no browser
+npm --prefix web run typecheck
+npm --prefix web run check:locales
+
 # Python side
 cd ml && pip install -e ".[dev]"
 python -m pytest tests/ -q
-python scripts/validate_taxonomy.py --skip-locales   # drop the flag once web/ exists
+python scripts/validate_taxonomy.py --locales en   # de/ar bundles are incomplete
 ruff check src/ scripts/ tests/
 
 # Import the predecessor's dataset (needs cv_garbage.zip from the v1.0.0 release)
@@ -116,13 +137,17 @@ python scripts/dispatch.py status detector
   not reproduce its own model. Logic lives in `src/` or `scripts/`.
 - No local GPU training – `sbr.config.assert_cloud()` enforces it.
 
-**TypeScript** (once `web/` exists):
+**TypeScript** – the full account is [`web/CONVENTIONS.md`](web/CONVENTIONS.md);
+read it before any UI work. In short:
 - Layering `features → components → data → domain`; **`domain/` imports no
   framework**. The resolver lives there and is unit-tested without a browser.
-- Style via the design system's own tokens, never hard-coded colour. The token
-  set is Claude Design's to define; record it in a conventions file after import.
+- Style with inline style objects referencing the design system's CSS custom
+  properties. Never a hard-coded colour, size, radius or duration.
 - **Logical CSS properties only** (`margin-inline-start`). Arabic is a launch
-  locale; a physical direction property anywhere is a bug.
+  locale; a physical direction property is a bug everywhere except
+  `DetectionMarker`, which overlays a photograph and documents why.
+- Colour is **quoted, never worn**: a real bin colour appears only inside a
+  `ColorQuote` swatch carrying its translated name.
 - One `t()` key per string. Never concatenate translated fragments.
 
 **Data:**

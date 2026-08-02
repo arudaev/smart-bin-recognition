@@ -1,0 +1,50 @@
+/* Three modes, not two. "Sun" is not a dark-mode counterpart – it is the mode
+   the product was designed for: maximum contrast, heavier rules, no warm tint,
+   for a screen being read outdoors at noon. Night lowers luminance without ever
+   reaching pure white on pure black, which smears on cheap OLED. */
+[data-theme="sun"] {
+  --paper-0: #ffffff;
+  --paper-1: #ffffff;
+  --paper-2: #ededed;
+  --paper-3: #c9c9c9;
+  --paper-4: #a8a8a8;
+  --ink-0: #000000;
+  --ink-1: #000000;
+  --ink-2: #333333;
+  --ink-3: #5c5c5c;
+  --ink-4: #8f8f8f;
+  --signal: #43167c;
+  --signal-hover: #300f5c;
+  --signal-tint: #e7defa;
+  --line-hair: #000000;
+  --border-hair: 2px;
+  --border-rule: 3px;
+  --surface-card: #ffffff;
+  --surface-page: #ffffff;
+  --surface-sunk: #ededed;
+}
+[data-theme="night"] {
+  --paper-0: #1c1f24;
+  --paper-1: #14171b;
+  --paper-2: #262a30;
+  --paper-3: #363b43;
+  --paper-4: #464c55;
+  --ink-0: #ecebe7;
+  --ink-1: #d5d4d0;
+  --ink-2: #a2a7ae;
+  --ink-3: #7b8188;
+  --ink-4: #5b616a;
+  --ink-inverse: #14171b;
+  --signal: #b79ae8;
+  --signal-hover: #cbb5f0;
+  --signal-press: #9c7ad6;
+  --signal-tint: #2b2340;
+  --signal-on: #14171b;
+  --line-hair: #363b43;
+  --line-quiet: #262a30;
+  --line-strong: #ecebe7;
+  --surface-overlay: rgba(0, 0, 0, 0.7);
+  --verdict-yes-face: #262a30;
+  --verdict-no-face: #1c1f24;
+  --shadow-sheet: 0 -2px 0 0 #363b43, 0 -24px 48px -24px rgba(0, 0, 0, 0.7);
+}

@@ -1,0 +1,12 @@
+/* The design system's token layer, imported in the order it defines.
+   Nothing in src/ may hard-code a colour, size or duration; everything below
+   this line is the vocabulary. */
+@import url("./tokens/fonts.css");
+@import url("./tokens/color.css");
+@import url("./tokens/bin-color.css");
+@import url("./tokens/typography.css");
+@import url("./tokens/space.css");
+@import url("./tokens/shape.css");
+@import url("./tokens/motion.css");
+@import url("./tokens/modes.css");
+@import url("./tokens/base.css");

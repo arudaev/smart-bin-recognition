@@ -1,0 +1,93 @@
+/* Base layer. Logical properties only – Arabic is a launch locale, so a
+   physical direction anywhere in this system is a bug. */
+* {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-body);
+  font: var(--type-body);
+  text-wrap: pretty;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--text-strong);
+  letter-spacing: var(--track-display);
+  text-wrap: balance;
+}
+p {
+  margin: 0;
+}
+a {
+  color: var(--text-link);
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration-thickness: 2px;
+}
+a:active {
+  color: var(--signal-press);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-1);
+}
+::selection {
+  background: var(--signal-tint);
+  color: var(--text-strong);
+}
+
+/* Register voice: mono, uppercase, tracked. Used for anything that is a fact
+   about the record rather than an answer to the user – times, ids, counts. */
+.sbr-register {
+  font: var(--type-register);
+  letter-spacing: var(--track-register);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sbr-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The one animation in the product: the connection indicator. */
+@keyframes sbrPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [role="status"] svg {
+    animation: none !important;
+  }
+}

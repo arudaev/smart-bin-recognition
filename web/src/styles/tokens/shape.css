@@ -1,0 +1,25 @@
+/* Nearly square. Civic infrastructure is cut, not moulded. Radii exist to stop
+   corners looking accidental, not to look friendly.
+   Elevation is a hairline plus a paper step. Blur shadows wash out entirely in
+   direct sunlight, so only things that genuinely float above the page – sheets,
+   dialogs, the camera scrim – carry one. */
+:root {
+  --radius-0: 0px;
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 8px;
+  --radius-round: 999px;
+
+  --border-hair: 1px;
+  --border-rule: 2px;
+  --border-heavy: 3px;
+  --border-focus: 3px;
+  --focus-offset: 2px;
+
+  --shadow-none: none;
+  --shadow-sheet: 0 -2px 0 0 var(--ink-0), 0 -24px 48px -24px rgba(22, 24, 28, 0.45);
+  --shadow-dialog: 0 24px 64px -24px rgba(22, 24, 28, 0.5);
+  --shadow-marker: 0 1px 2px rgba(22, 24, 28, 0.6);
+
+  --hatch-unknown: repeating-linear-gradient(-45deg, transparent 0 7px, var(--paper-2) 7px 8px);
+}

@@ -1,0 +1,56 @@
+/* IBM Plex superfamily – one voice across all nine launch scripts.
+   Latin + Cyrillic + Greek from Plex Sans; Arabic and Devanagari from the
+   matching per-script siblings, so a switch to ar or hi changes the script,
+   not the typographic personality. Plex Mono carries the register voice
+   (times, ids, codes, region names).
+
+   THE DESIGN SYSTEM'S VERSION OF THIS FILE HOTLINKS GOOGLE FONTS. It is not
+   reproduced here. Germany is the launch market and a font request to a third
+   party is a personal-data transfer the user has not consented to – a German
+   court has already awarded damages over exactly this. The binaries are
+   self-hosted instead.
+
+   TO FINISH: drop the .woff2 files into web/public/fonts/ and uncomment the
+   @font-face block. Until then the stack falls through to the system UI font,
+   which is legible everywhere and costs no request. Nothing else changes –
+   every size, weight and leading token is unaffected. */
+
+/*
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-Variable.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  src: url("/fonts/IBMPlexSansArabic-Variable.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans Devanagari";
+  src: url("/fonts/IBMPlexSansDevanagari-Variable.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Variable.woff2") format("woff2-variations");
+  font-weight: 400 600;
+  font-display: swap;
+}
+*/
+
+:root {
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans Arabic", "IBM Plex Sans Devanagari", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-arabic: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+  --font-devanagari: "IBM Plex Sans Devanagari", "IBM Plex Sans", system-ui, sans-serif;
+}
+[dir="rtl"] {
+  --font-sans: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+}
+[lang="hi"] {
+  --font-sans: "IBM Plex Sans Devanagari", "IBM Plex Sans", system-ui, sans-serif;
+}
