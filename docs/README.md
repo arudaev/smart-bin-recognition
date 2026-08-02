@@ -20,6 +20,7 @@ Read in order on a first pass. After that, use the "read it when" column.
 |---|---|
 | [../handoff/DESIGN-FOUNDATION.md](../handoff/DESIGN-FOUNDATION.md) | the creative brief – attach to both Claude Design projects |
 | [../handoff/README.md](../handoff/README.md) | how the handoff works, including both prompts |
+| [../handoff/DECISIONS.md](../handoff/DECISIONS.md) | the design's answers – quoted colour, the wordmark, what was deferred |
 
 ## The short version
 

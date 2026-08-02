@@ -85,7 +85,7 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [06-i18n](docs/06-i18n.md) | adding user-visible text |
 | [07-roadmap](docs/07-roadmap.md) | planning |
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
-| [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) | any UI work |
+| [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) | any UI work |
 
 ## Build & Run
 

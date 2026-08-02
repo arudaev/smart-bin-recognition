@@ -6,6 +6,7 @@ Two files go up as guidelines, plus two prompts. That is the whole handoff.
 |---|---|
 | [DESIGN-FOUNDATION.md](DESIGN-FOUNDATION.md) | The creative brief – product, people, feeling, references, principles, real constraints, quality bar |
 | [../docs/02-waste-taxonomy.md](../docs/02-waste-taxonomy.md) | Domain facts – what a waste stream is, what a region pack is, why "unknown" exists |
+| [DECISIONS.md](DECISIONS.md) | What the design answered and what was ratified – written **after** the first round, not sent up as input |
 
 Deliberately **not** here: a palette, a type scale, a token file, a component
 inventory, or per-screen state tables. Those were here in an earlier draft and

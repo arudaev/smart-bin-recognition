@@ -41,8 +41,11 @@ Read, in order:
   specification, not either implementation.
 - **Logical CSS properties only.** `margin-inline-start`, never `margin-left`.
   Arabic is a launch locale. A physical direction property anywhere is a bug.
-- **No hard-coded colour.** Everything comes from tokens. The only colour in the
-  app is `--bin-color`, set per detected bin.
+- **No hard-coded colour, and colour is quoted rather than worn.** A real bin
+  colour appears only inside a `ColorQuote` – a bounded swatch carrying its
+  translated name. Never a coloured button, a tinted surface, or a status
+  colour, and never a bare swatch without its name. `unknown` gets no swatch at
+  all. See [`handoff/DECISIONS.md`](../handoff/DECISIONS.md) § 1.
 - **No camera code path on devices without a rear camera.** Not hidden – absent.
 - **The client never runs a model.** It captures, gates, sends, and draws. If a
   component imports an inference runtime, it is in the wrong repository.
