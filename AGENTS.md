@@ -17,11 +17,19 @@ name comes from that project's own presentation, slide 3: *"Our Solution – Sma
 Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
-**Status:** Phase 1 – the client exists. Docs, taxonomy and ML skeleton are in
-place, and `web/` holds the design imported from Claude Design: the design
-system, both surfaces, and every designed state. It runs against the real
-resolver and the real Deggendorf pack; the camera and the service are still
-staged. `service/` is empty.
+**Status:** Phase 1 – the client is a working PWA. Docs, taxonomy and the ML
+skeleton are in place. `web/` holds the design imported from Claude Design –
+the design system, both surfaces, every designed state – running against the
+real resolver and the real Deggendorf pack. On top of that it now has the
+camera, the four gates, the streaming client, a service worker with the offline
+split docs/01 § 6 states, an installable manifest, a settings surface, a
+performance budget, and 188 tests.
+
+**The one thing still missing is the service.** `service/` is empty, so with no
+`VITE_DETECT_WS` configured the client talks to an in-process mock and says so
+on the settings screen. Everything else on the client side is real: the loop
+that mock drives is the same loop a socket will drive, and swapping one for the
+other is one environment variable.
 
 ## The three decisions that define this repo
 
@@ -69,16 +77,25 @@ ml/                      Python: dataset, training dispatch, export
 ├── scripts/                    dispatch.py, validate_taxonomy.py
 └── tests/
 
-web/                     React + TS + Vite client – imported from Claude Design
+web/                     React + TS + Vite PWA – design imported from Claude Design
 ├── CONVENTIONS.md              READ FIRST for any UI work: vocabulary + idiom
-├── src/domain/                 resolver + types – TS mirror of sbr/taxonomy.py, no framework
-├── src/data/                   taxonomy loader, region packs, camera frames, registry
+├── api/                        Vercel edge functions: pack/[region], regions
+├── public/sw.js                the offline policy, hand-written and readable
+├── public/manifest.webmanifest installable; icons any / maskable / monochrome
+├── scripts/                    build-icons, check-locales, check-bundle
+├── src/domain/                 resolver, freshness, geohash – no framework, ever
+├── src/data/                   taxonomy, region packs + offline cache, frames, registry
+├── src/capture/                capability probe, camera, the four gates, encoder, loop
+├── src/transport/              the wire contract, socket, REST, and the in-process mock
+├── src/perf/                   metric vocabulary, budgets, web vitals
+├── src/pwa/                    registration, update flow, install prompt
 ├── src/app/                    session model: answered / confirmed / reported
 ├── src/components/             the 26 design-system components
-├── src/features/               scan, answer, rules, contribute, firstrun, desk
-├── src/i18n/                   en (complete) + de/ar (~60%), and t()
+├── src/features/               scan, answer, rules, contribute, firstrun, desk, settings
+├── src/i18n/                   en (complete) + de/ar (~65%), and t()
 ├── src/styles/tokens/          the design system's token layer
-└── src/dev/                    the state director – development only
+├── src/test/                   fake clock, fake camera, fake service; the discipline test
+└── src/dev/                    state director + metrics overlay – development only
 
 service/                 FastAPI + ONNX inference service (HF Space) – EMPTY
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
@@ -107,9 +124,14 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 # Web side
 npm --prefix web install
 npm --prefix web run dev          # http://localhost:5173
-npm --prefix web test             # resolver + freshness, no browser
-npm --prefix web run typecheck
-npm --prefix web run check:locales
+npm --prefix web run verify       # typecheck, tests, locales, build, bundle budget
+npm --prefix web test             # 188 tests, no browser
+npm --prefix web run preview      # a real build, so the service worker registers
+
+# Point the client at a service. With neither set it uses the in-process mock
+# and says so on the settings screen.
+#   VITE_DETECT_WS=wss://…/stream     live streaming scan
+#   VITE_DETECT_URL=https://…/detect  one frame per request
 
 # Python side
 cd ml && pip install -e ".[dev]"

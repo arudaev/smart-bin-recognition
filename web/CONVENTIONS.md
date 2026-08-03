@@ -113,13 +113,44 @@ En dashes (–), never em dashes (—). This holds in comments and copy alike.
 The exception is Arabic, which keeps its own dash conventions – three strings in
 `ar.json` use an em dash, correctly. Do not "fix" them.
 
+## Offline, and not lying about it
+
+`public/sw.js` is hand-written so the policy is readable in the file that
+enforces it. It implements docs/01 § 6 as routing:
+
+| Route | Strategy | Why |
+|---|---|---|
+| navigation | network-first, 3.5 s, then the cached shell | the app opens with no signal |
+| `/assets/*`, `/icons/*` | cache-first | content-hashed, so never stale |
+| `/api/pack/*` | stale-while-revalidate, in a cache that survives deploys | rules are data, not code |
+| `/detect`, `/stream` | **never intercepted** | a cached recognition is a stale opinion about a scene the camera is looking at *now* |
+
+That last row is the rule worth defending. A cached rule is a rule; a cached
+answer about what is in front of somebody is the product's worst failure with a
+timestamp on it.
+
+Updates are never applied on their own – a waiting worker raises a flag and
+settings offers a button. Reloading the page underneath somebody who is reading
+an answer off it is worse than being one deployment behind.
+
+## Performance
+
+`perf/metrics.ts` holds a **closed vocabulary**: add a metric there or not at
+all, because a typo'd name that silently creates a new series is how
+instrumentation stops being trusted. Budgets are judged at p95 (`vitals.cls` and
+`vitals.inp` at max, since both are already extremes).
+
+`scripts/check-bundle.mjs` is the transfer budget and it exits non-zero. Either
+growth is worth it and the budget moves in the same commit, or it is not.
+
 ## Commands
 
 ```bash
-npm --prefix web run dev
-npm --prefix web run build
-npm --prefix web test
-npm --prefix web run typecheck
+npm --prefix web run dev            # localhost:5173
+npm --prefix web run preview        # a real build; the service worker only registers here
+npm --prefix web run verify         # typecheck, tests, locales, build, bundle budget
+npm --prefix web run build:icons    # regenerate the app icon from its geometry
+npm --prefix web run check:bundle
 npm --prefix web run check:locales
 ```
 
@@ -129,13 +160,39 @@ The taxonomy validator is on the Python side and covers the locale bundles:
 python ml/scripts/validate_taxonomy.py --locales en
 ```
 
-## What this prototype is not
+## The camera path
 
-- **There is no camera.** `Scanner` renders fixtures from `data/frames.ts`. The
-  real client captures frames, gates them (motion, 4 fps cap, result lock, 20 s
-  abort) and streams them to the service over a WebSocket.
+`Scanner` renders from one of two sources and the same code draws both.
+
+| | Where the bins come from | When |
+|---|---|---|
+| Fixtures | `data/frames.ts`, played out on a timer | no camera, or the director panel's `Frames from: fixtures` |
+| Live | `capture/loop.ts` → `binsFromDetections` | a scanner-tier device with permission |
+
+If a live detection ever needs different markup from a fixture, the fixtures
+were lying about what the camera produces. Keep them the same type.
+
+**`capture/loop.ts` is the piece to be careful with.** It holds the four gates
+AGENTS.md calls load-bearing – motion, the 4 fps cap, the result lock, the 20 s
+abort – and it takes its clock, its scheduler, its pixels and its transport as
+arguments so all of it runs in `loop.test.ts` with no camera and no network.
+Adding a branch there means adding a test there; the awkward sequences (the lock
+closing and then the user turning around, a service shedding load mid-scan, the
+phone going into a pocket) are each one line in that file.
+
+**`transport/` never leaks upward.** Screens see `ScanState`, never a WebSocket.
+The mock is not scaffolding to delete: it is what lets the whole client be run,
+reviewed and tested before `service/` answers, and what the settings screen
+names honestly when nothing is configured.
+
+## What this is not
+
 - **There is no model.** If anything here imports an inference runtime it is in
-  the wrong repository.
+  the wrong repository. Enforced in `test/discipline.test.ts`.
+- **There is no analytics.** `perf/` records to a ring buffer on the device and
+  exports a JSON file when a person asks. Nothing is sent anywhere, because
+  there is no user identity in this architecture and adding an endpoint would be
+  the first thing in the product to transmit anything about anybody.
 - **The surface switch is a prototype affordance.** It is labelled by capability
   – scanner or viewer – rather than by screen size, because real detection is a
   probe for an environment-facing camera and never a viewport query. A shell
