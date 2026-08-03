@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-phase_0_foundation-1A1A1A?style=for-the-badge" alt="Status">
+  <img src="https://img.shields.io/badge/status-client_built_%7C_service_pending-1A1A1A?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/inference-streamed-1A1A1A?style=for-the-badge" alt="Streamed inference">
   <img src="https://img.shields.io/badge/models-validator%20%2B%20identifier-1A1A1A?style=for-the-badge" alt="Two models">
   <img src="https://img.shields.io/badge/License-MIT-1A1A1A?style=for-the-badge" alt="MIT">
@@ -88,7 +88,7 @@ Full analysis: [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 data/taxonomy/    21 canonical waste streams, 10 form factors, region packs
 ml/               Python – dataset import, auto-labelling, Kaggle dispatch, export
 service/          FastAPI + ONNX inference service (pending)
-web/              React + TypeScript client (pending design)
+web/              React + TypeScript PWA – both surfaces, offline rules, the scan loop
 docs/             architecture, PRD, cost model, i18n, roadmap, legacy audit
 handoff/          Claude Design handoff – design system, prototype spec, tokens
 ```
@@ -111,25 +111,42 @@ handoff/          Claude Design handoff – design system, prototype spec, token
 ## Development
 
 ```bash
+npm --prefix web install
+npm --prefix web run dev        # http://localhost:5173
+npm --prefix web run verify     # typecheck, tests, locales, build, bundle budget
+npm --prefix web run preview    # a real build, so the service worker registers
+```
+
+```bash
 cd ml
 pip install -e ".[dev]"
 python -m pytest tests/ -q
 python scripts/validate_taxonomy.py --skip-locales
 ```
 
-Agent guide: [`AGENTS.md`](AGENTS.md).
+Agent guide: [`AGENTS.md`](AGENTS.md). Before any UI work,
+[`web/CONVENTIONS.md`](web/CONVENTIONS.md).
 
 ## Status
 
-**Phase 0 – foundation.** Documentation, taxonomy and the ML skeleton are in
-place. The predecessor's model has been independently re-validated on CPU
-against the complete archive
+**The client is built; the service is not.** `web/` is an installable PWA with
+both surfaces, the camera path and its four gates, the offline rules browser, a
+performance budget that fails the build, and 188 tests that need no browser. It
+runs today against an in-process mock and the settings screen says so, because a
+client that implies a service exists is worse than one that admits it does not.
+`service/` is empty; swapping the mock for a socket is one environment variable.
+
+Documentation, taxonomy and the ML skeleton are in place. The predecessor's
+model has been independently re-validated on CPU against the complete archive
 ([results](docs/08-legacy-audit.md#7-measured-2026-08-01)): it scores 0.987
 mAP@0.5 in-distribution, and also hallucinates a glass container on a slide of
-plain text while missing three real bins in a photograph – which is the
-evidence the two-model design rests on. `web/` and `service/` await design and
-the vision spike. The Deggendorf region pack is `draft` and is not servable
-until its rules are verified against the operator's published guidance.
+plain text while missing three real bins in a photograph – which is the evidence
+the two-model design rests on. The vision spike is next.
+
+Known gaps, stated rather than discovered later: `de` and `ar` are at 65 % and
+fall back to English, six locales are not started, and the Deggendorf region
+pack is `draft` – not servable until its rules are verified against the
+operator's published guidance.
 
 ## Licence
 

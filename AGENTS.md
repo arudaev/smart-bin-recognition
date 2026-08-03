@@ -17,8 +17,10 @@ name comes from that project's own presentation, slide 3: *"Our Solution – Sma
 Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
-**Status:** Phase 1 – the client is a working PWA. Docs, taxonomy and the ML
-skeleton are in place. `web/` holds the design imported from Claude Design –
+**Status:** phase 1 (design) is done and phase 3's client half is done; the
+vision spike (phase 2) and the service are not. See
+[`docs/07-roadmap.md`](docs/07-roadmap.md) for the checklist. Docs, taxonomy and
+the ML skeleton are in place. `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline

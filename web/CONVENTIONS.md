@@ -103,7 +103,7 @@ avoids recycling triangles and leaf motifs; those are anti-references.
   logged as a gap.
 
 `en.json` is complete and is verified by `ml/scripts/validate_taxonomy.py`.
-`de.json` and `ar.json` are about 60% and fall back to English; run
+`de.json` and `ar.json` are at 65% and fall back to English; run
 `npm run check:locales` for the gap.
 
 ## Prose

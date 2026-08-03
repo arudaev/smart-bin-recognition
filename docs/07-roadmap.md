@@ -5,7 +5,7 @@ about that.
 
 ---
 
-## Phase 0 – Foundation ✅ *(this commit)*
+## Phase 0 – Foundation ✅
 
 - [x] Audit the predecessor; extract what carries forward → [08-legacy-audit](08-legacy-audit.md)
 - [x] Canonical waste-stream taxonomy + JSON schemas
@@ -18,16 +18,25 @@ about that.
 
 ---
 
-## Phase 1 – Design
+## Phase 1 – Design ✅
 
-- [ ] Claude Design builds the system, then the app, from [`handoff/`](../handoff/README.md)
-- [ ] Review against the device-capability matrix – especially: does the
-      no-camera desktop surface stand on its own?
-- [ ] Verify RTL (Arabic) and Devanagari at every breakpoint before accepting
-- [ ] Import generated components into `web/` via the Claude Design MCP link
-- [ ] Extract design tokens into `web/src/styles/`
+- [x] Claude Design builds the system, then the app, from [`handoff/`](../handoff/README.md)
+- [x] Review against the device-capability matrix – especially: does the
+      no-camera desktop surface stand on its own? It does, and it is what the
+      probe opens when it finds no environment-facing camera, rather than
+      something reached by resizing a window.
+- [x] Verify RTL (Arabic) at every breakpoint before accepting
+- [ ] Verify Devanagari – deferred with the locale itself; there is no `hi`
+      bundle to render yet, and checking the font stack against English text
+      proves nothing
+- [x] Import generated components into `web/` via the Claude Design MCP link
+- [x] Extract design tokens into `web/src/styles/`
 
-**Exit:** a clickable prototype whose empty, unknown and stale states are all designed.
+**Exit met.** Every designed state exists in `web/`, including the ones that are
+easy to skip: no pack, draft pack, `unknown`, stale sighting, camera refused,
+offline. What was ratified along the way is in
+[`handoff/DECISIONS.md`](../handoff/DECISIONS.md); what the flow review changed
+is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ---
 
@@ -46,20 +55,46 @@ thesis needs revisiting – which is why it is phase 2 and not phase 5.
 
 ---
 
-## Phase 3 – Core app
+## Phase 3 – Core app *(client done; the service is not)*
 
-- [ ] Vite + React + TS scaffold; service worker for the offline rules browser
-- [ ] FastAPI inference service on an HF Space: WS `/stream` + `POST /detect`
-- [ ] Capability probe; three device tiers
-- [ ] Scan loop: motion gate, 4 fps cap, **result lock**, 20 s abort, tap-to-scan
-- [ ] Resolver in `domain/`, framework-free, unit-tested against the pack schema
-- [ ] Multi-bin result cards
-- [ ] Nine locales, including RTL
-- [ ] Desktop surface: map, registry browser, rules search
+The client half ran ahead of phase 2, because it could: the loop takes its
+transport as an argument, so an in-process mock drives exactly the loop a socket
+will drive. Nothing here is waiting on a model to be reviewable.
+
+- [x] Vite + React + TS scaffold; service worker for the offline rules browser
+- [ ] **FastAPI inference service on an HF Space: WS `/stream` + `POST /detect`**
+      – `service/` is still empty. With neither `VITE_DETECT_WS` nor
+      `VITE_DETECT_URL` set, the client uses the mock and says so on the settings
+      screen rather than implying a service exists.
+- [x] Capability probe; three device tiers
+- [x] Scan loop: motion gate, 4 fps cap, **result lock**, 20 s abort, tap-to-scan
+- [x] Resolver in `domain/`, framework-free, unit-tested against the pack schema
+- [x] Multi-bin result cards
+- [ ] Nine locales, including RTL – `en` is complete (419 keys) and `de` / `ar`
+      are at 65 % and fall back to English; six locales are not started.
+      `npm --prefix web run check:locales` prints the gap.
+- [x] Desktop surface: map, registry browser, rules search – the surfaces are
+      real, the registry behind them is fixtures until phase 4
 - [ ] Deploy to Vercel
 
+Built in the same pass, beyond what this phase originally listed:
+
+- [x] Installable PWA: manifest, generated icon set, update flow that asks
+      rather than reloads under a person mid-answer
+- [x] Offline split as routing – rules cached, recognition never cached
+      (see [01-architecture § 6](01-architecture.md))
+- [x] Region packs over `api/pack/[region]`, cached in a store that survives
+      deploys
+- [x] Settings surface: which tier, which service, what is cached, which locale
+      is falling back
+- [x] Performance work: a metric vocabulary, web vitals, a transfer budget that
+      exits non-zero
+- [x] 188 tests, no browser – the gates, the protocol, the awkward loop
+      sequences, and a source-discipline test that enforces the conventions
+
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
-gets a correct answer in Ukrainian.
+gets a correct answer in Ukrainian. Blocked on the service, the Ukrainian
+bundle, and a Deggendorf pack that is still `draft`.
 
 ---
 
