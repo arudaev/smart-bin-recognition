@@ -5,9 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <title>Which Bin.</title>
+    <meta
+      name="description"
+      content="Point your phone at a bin. It tells you what goes in it, in your language, wherever you are."
+    />
+
+    <!-- Violet is the app, not the object: it is the one hue no waste container
+         in any pack we hold is painted. Night keeps the chrome off pure black,
+         which smears on the cheap OLED this product assumes. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#5B2E91" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14171B" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/icons/favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Which Bin." />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- The camera is the first thing the scanner needs and the slowest thing to
+         start, so the permission chrome and the fonts are not made to queue
+         behind a DNS lookup the browser could have started already. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      This app needs JavaScript to look at a camera frame. The waste rules it
+      uses are published by each local authority and are worth reading directly.
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
