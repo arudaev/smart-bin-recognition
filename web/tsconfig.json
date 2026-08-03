@@ -26,5 +26,5 @@
       "@taxonomy/*": ["../data/taxonomy/*"]
     }
   },
-  "include": ["src", "../data/taxonomy/*.json"]
+  "include": ["src", "api", "../data/taxonomy/*.json", "../data/taxonomy/regions/*.json"]
 }

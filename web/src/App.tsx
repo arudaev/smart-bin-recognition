@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { SegmentedControl } from "@/components";
+import { IconButton, SegmentedControl } from "@/components";
 import type { ContributionReport, LevelOverride, SessionState } from "@/app/answers";
 import { EMPTY_SESSION } from "@/app/answers";
+import { useScan } from "@/capture/useScan";
 import { FRAMES } from "@/data/frames";
 import type { Coverage } from "@/data/regions";
 import { REGIONS } from "@/data/regions";
 import { Action, DirectorPanel, Section, Segmented, Select, Toggle } from "@/dev/DirectorPanel";
+import { MetricsPanel } from "@/dev/MetricsPanel";
 import { Contribute, Sent } from "@/features/contribute/Contribute";
 import type { DeskView } from "@/features/desk/DeskShell";
 import { DeskShell, Wordmark } from "@/features/desk/DeskShell";
@@ -14,21 +16,30 @@ import { FirstRun } from "@/features/firstrun/FirstRun";
 import { PhoneRules } from "@/features/rules/PhoneRules";
 import type { ConnSetting } from "@/features/scan/Scanner";
 import { Scanner } from "@/features/scan/Scanner";
+import { Settings } from "@/features/settings/Settings";
 import type { Locale } from "@/i18n";
 import { dirFor, translator } from "@/i18n";
+import { createClient } from "@/transport";
 
-/* The prototype shell. Both surfaces stand side by side so they can be
-   compared, and the switch is labelled by CAPABILITY – scanner or viewer – not
-   by screen size. That distinction is load-bearing: real detection is a probe
-   for an environment-facing camera, never a viewport query, and a shell that
-   switched on width would teach the wrong model to whatever is built from it.
+/* The shell.
 
-   In the shipped app this component is replaced by that probe. */
+   Two jobs, and they used to be one. It decides which surface the device gets –
+   and that decision is now the real capability probe from docs/01-architecture
+   § 5, not a switch someone flipped – and it holds the session state that spans
+   screens. The switch in the header survives because reviewing both surfaces
+   side by side is the whole reason this shell exists, but it starts wherever
+   the probe puts it.
+
+   The distinction it is careful about: the surfaces are scanner and viewer, a
+   statement about what the device can do. They are never phone and desktop, and
+   the choice is never a viewport query. A tablet with a rear camera at narrow
+   width is a scanner; a phone in landscape is still a scanner. */
 
 type Surface = "scanner" | "viewer";
 type Mode = "paper" | "sun" | "night";
-type PhoneScreen = "first-run" | "scan" | "rules" | "contribute" | "sent";
+type PhoneScreen = "first-run" | "scan" | "rules" | "contribute" | "sent" | "settings";
 type CameraSetting = "granted" | "denied";
+type Source = "fixtures" | "live";
 
 const SCREEN_LABELS: Record<PhoneScreen, string> = {
   "first-run": "First run",
@@ -36,6 +47,7 @@ const SCREEN_LABELS: Record<PhoneScreen, string> = {
   rules: "Rules",
   contribute: "Contribute",
   sent: "Sent",
+  settings: "Settings",
 };
 
 const LEVEL_LABELS: Record<LevelOverride, string> = {
@@ -55,6 +67,13 @@ const CONN_LABELS: Record<ConnSetting, string> = {
   offline: "Offline",
 };
 
+/** The manifest declares a shortcut straight to the rules; honour it. */
+function initialScreen(): PhoneScreen {
+  if (typeof window === "undefined") return "first-run";
+  const requested = new URLSearchParams(window.location.search).get("screen");
+  return requested && requested in SCREEN_LABELS ? (requested as PhoneScreen) : "first-run";
+}
+
 export default function App() {
   const [surface, setSurface] = useState<Surface>("scanner");
   const [mode, setMode] = useState<Mode>("paper");
@@ -65,11 +84,33 @@ export default function App() {
   const [forceStale, setForceStale] = useState(false);
   const [conn, setConn] = useState<ConnSetting>("auto");
   const [camera, setCamera] = useState<CameraSetting>("granted");
-  const [screen, setScreen] = useState<PhoneScreen>("first-run");
+  const [screen, setScreen] = useState<PhoneScreen>(initialScreen);
   const [deskView, setDeskView] = useState<DeskView>("map");
+  const [source, setSource] = useState<Source>("fixtures");
 
   const [session, setSession] = useState<SessionState>(EMPTY_SESSION);
   const [contribBin, setContribBin] = useState<number | null>(null);
+
+  /* The camera only runs on the screen that shows it. Anywhere else – reading
+     the rules, filling in a contribution, sitting on settings – it is closed,
+     and the indicator light goes out with it. */
+  const live = useScan({
+    enabled: source === "live" && surface === "scanner" && screen === "scan",
+    locale,
+    debug: import.meta.env.DEV,
+  });
+
+  const transport = useMemo(() => createClient(live.tier).kind, [live.tier]);
+
+  /* Follow the probe, once, unless somebody has already chosen. A device with
+     no rear camera opens on the viewer instead of on a scanner it cannot use. */
+  const chosen = useRef(false);
+  useEffect(() => {
+    if (chosen.current) return;
+    if (live.capability.reason === "No camera API on this origin") return; // still probing
+    chosen.current = true;
+    setSurface(live.tier === "viewer" ? "viewer" : "scanner");
+  }, [live.capability, live.tier]);
 
   /* Session state is keyed by the bin's number in the current frame, and that
      number means nothing across a different frame or a different city – bin 1
@@ -78,13 +119,27 @@ export default function App() {
   useEffect(() => {
     setSession(EMPTY_SESSION);
     setContribBin(null);
-  }, [coverage, frameCount]);
+  }, [coverage, frameCount, source]);
 
   const t = translator(locale);
   const region = REGIONS[coverage];
   const frame = FRAMES[frameCount] ?? FRAMES[3];
   const dir = dirFor(locale);
   const theme = mode === "paper" ? undefined : mode;
+
+  const settingsPanel = (
+    <Settings
+      t={t}
+      locale={locale}
+      setLocale={setLocale}
+      mode={mode}
+      setMode={setMode}
+      region={region}
+      capability={live.capability}
+      transport={transport}
+      onClose={surface === "scanner" ? () => setScreen("scan") : undefined}
+    />
+  );
 
   const phone: Record<PhoneScreen, JSX.Element> = {
     "first-run": (
@@ -95,6 +150,7 @@ export default function App() {
         region={region}
         onAllow={() => {
           setCamera("granted");
+          if (source === "live") live.requestCamera();
           setScreen("scan");
         }}
         onBrowse={() => setScreen("rules")}
@@ -109,6 +165,7 @@ export default function App() {
         camera={camera}
         session={session}
         answerOptions={{ level, forceStale }}
+        live={source === "live" ? live : null}
         onBrowse={() => setScreen("rules")}
         onContribute={(n) => {
           setContribBin(n);
@@ -124,6 +181,7 @@ export default function App() {
           })
         }
         onAllowCamera={() => setCamera("granted")}
+        onSunlight={() => setMode((m) => (m === "sun" ? "paper" : "sun"))}
       />
     ),
     rules: <PhoneRules t={t} region={region} onClose={() => setScreen("scan")} />,
@@ -141,6 +199,7 @@ export default function App() {
       />
     ),
     sent: <Sent t={t} region={region} onClose={() => setScreen("scan")} />,
+    settings: settingsPanel,
   };
 
   return (
@@ -166,17 +225,29 @@ export default function App() {
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-4)" }}>
           <Wordmark size={22} />
-          <span className="sbr-register">{t("app.tagline")} · prototype</span>
+          <span className="sbr-register">{t("app.tagline")}</span>
         </div>
-        <SegmentedControl
-          size="dense"
-          value={surface}
-          onChange={setSurface}
-          items={[
-            { value: "scanner", label: t("ui.phone"), icon: "camera" },
-            { value: "viewer", label: t("ui.desk"), icon: "map" },
-          ]}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+          <SegmentedControl
+            size="dense"
+            value={surface}
+            onChange={setSurface}
+            items={[
+              { value: "scanner", label: t("ui.phone"), icon: "camera" },
+              { value: "viewer", label: t("ui.desk"), icon: "map" },
+            ]}
+          />
+          <IconButton
+            name="settings"
+            label={t("settings.title")}
+            variant="secondary"
+            size="dense"
+            onClick={() => {
+              if (surface === "scanner") setScreen("settings");
+              else setDeskView("settings");
+            }}
+          />
+        </div>
       </header>
 
       <div
@@ -219,7 +290,7 @@ export default function App() {
               boxShadow: "0 30px 70px -40px rgba(22,24,28,.55)",
             }}
           >
-            <DeskShell t={t} region={region} view={deskView} setView={setDeskView} />
+            <DeskShell t={t} region={region} view={deskView} setView={setDeskView} settings={settingsPanel} />
           </div>
         )}
       </div>
@@ -235,6 +306,25 @@ export default function App() {
           onChange={(l) => setLocale(l)}
         />
 
+        <Section label="Camera" />
+        <Segmented
+          label="Frames from"
+          value={source}
+          options={["fixtures", "live"] as const}
+          onChange={(v) => setSource(v)}
+        />
+        <Select
+          label="Bins in frame"
+          value={String(frameCount) as "1" | "3" | "6"}
+          options={[
+            { value: "1", label: "1 – 92% of the archive" },
+            { value: "3", label: "3 – densest verified frame" },
+            { value: "6", label: "6 – unverified probe" },
+          ]}
+          onChange={(v) => setFrameCount(Number(v) as 1 | 3 | 6)}
+        />
+        <Segmented label="Permission" value={camera} options={["granted", "denied"] as const} onChange={setCamera} />
+
         <Section label="Situation" />
         <Select
           label="Region coverage"
@@ -247,35 +337,17 @@ export default function App() {
           onChange={setCoverage}
         />
         <Select
-          label="Bins in frame"
-          value={String(frameCount) as "1" | "3" | "6"}
-          options={[
-            { value: "1", label: "1 – 92% of the archive" },
-            { value: "3", label: "3 – densest verified frame" },
-            { value: "6", label: "6 – unverified probe" },
-          ]}
-          onChange={(v) => setFrameCount(Number(v) as 1 | 3 | 6)}
-        />
-        <Select
           label="Lead answer"
           value={level}
           options={(Object.keys(LEVEL_LABELS) as LevelOverride[]).map((k) => ({ value: k, label: LEVEL_LABELS[k] }))}
           onChange={setLevel}
         />
         <Toggle label="Lead bin is stale" value={forceStale} onChange={setForceStale} />
-
-        <Section label="Connection and camera" />
         <Select
           label="Connection"
           value={conn}
           options={(Object.keys(CONN_LABELS) as ConnSetting[]).map((k) => ({ value: k, label: CONN_LABELS[k] }))}
           onChange={setConn}
-        />
-        <Segmented
-          label="Camera"
-          value={camera}
-          options={["granted", "denied"] as const}
-          onChange={setCamera}
         />
 
         <Section label="Jump to" />
@@ -295,6 +367,7 @@ export default function App() {
             { value: "map", label: "Map" },
             { value: "rules", label: "Rules browser" },
             { value: "queue", label: "Review queue" },
+            { value: "settings", label: "Settings" },
           ]}
           onChange={(v) => {
             setSurface("viewer");
@@ -303,6 +376,8 @@ export default function App() {
         />
         <Action label="Reset what I contributed" onClick={() => setSession(EMPTY_SESSION)} />
       </DirectorPanel>
+
+      <MetricsPanel />
     </div>
   );
 }

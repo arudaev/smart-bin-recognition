@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { Icon, StatusStrip, TopBar } from "@/components";
 import { REGISTRY, QUEUE } from "@/data/registry";
 import type { Region } from "@/data/regions";
@@ -19,18 +21,23 @@ import { DeskRules } from "./DeskRules";
    with a rear camera at narrow width is a scanner; a phone in landscape is
    still a scanner. See docs/01-architecture.md. */
 
-export type DeskView = "map" | "rules" | "queue";
+export type DeskView = "map" | "rules" | "queue" | "settings";
 
 export function DeskShell({
   t,
   region,
   view,
   setView,
+  settings,
 }: {
   t: T;
   region: Region;
   view: DeskView;
   setView: (v: DeskView) => void;
+  /* Passed in rather than built here. Settings needs the capability probe, the
+     install state and the locale setter, none of which the desk shell has any
+     business knowing about – it lays out a rail and a pane. */
+  settings?: ReactNode;
 }) {
   const place = REGION_PLACE[region.key];
   const rows = REGISTRY[region.key] ?? [];
@@ -39,16 +46,19 @@ export function DeskShell({
     map: t("desk.mapTitle", { place }),
     rules: t("desk.rules"),
     queue: t("desk.queue"),
+    settings: t("settings.title"),
   };
   const registers: Record<DeskView, string> = {
     map: `${rows.length} · ${REGION_ID[region.key]}`,
     rules: `${REGION_ID[region.key]} · ${t("rules.offline")}`,
     queue: `${QUEUE.length} · ${REGION_ID[region.key]}`,
+    settings: `${__APP_VERSION__} · ${__BUILD_TIME__}`,
   };
   const nav: [DeskView, string, string][] = [
     ["map", t("desk.map"), "map"],
     ["rules", t("desk.rules"), "list"],
     ["queue", t("desk.queue"), "layers"],
+    ["settings", t("settings.title"), "settings"],
   ];
 
   return (
@@ -131,6 +141,7 @@ export function DeskShell({
           {view === "map" && <DeskMap t={t} region={region} />}
           {view === "rules" && <DeskRules t={t} region={region} />}
           {view === "queue" && <DeskQueue t={t} />}
+          {view === "settings" && <div style={{ blockSize: "100%", overflow: "hidden" }}>{settings}</div>}
         </div>
       </main>
     </div>
