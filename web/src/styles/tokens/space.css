@@ -28,4 +28,66 @@
   --sheet-max: 560px;
   --desk-rail: 288px;
   --desk-panel: 400px;
+
+  /* The notch, the home indicator, and the rounded corners either side of a
+     phone in landscape. index.html sets viewport-fit=cover, so the app owns
+     those bands and has to keep its own controls out of them.
+
+     Given logical names here and only here: env() is defined in physical terms
+     and there is no logical form of it, so the mapping is done once rather than
+     at every use. */
+  --safe-block-start: env(safe-area-inset-top, 0px);
+  --safe-block-end: env(safe-area-inset-bottom, 0px);
+  --safe-inline-start: env(safe-area-inset-left, 0px);
+  --safe-inline-end: env(safe-area-inset-right, 0px);
+
+  /* The viewer's three layouts, as `grid-template` shorthands: rows / columns.
+
+     They are tokens rather than inline styles because a breakpoint cannot be
+     written in a style object, and the alternative – a resize listener in
+     React – would re-render the whole surface to learn something the browser
+     already knows. The components read one custom property; the breakpoints
+     live here, next to the sizes they override. */
+  --desk-shell: minmax(0, 1fr) / var(--desk-rail) minmax(0, 1fr);
+  --desk-split: minmax(0, 1fr) / minmax(0, 1fr) var(--desk-panel);
+  --desk-split-rev: minmax(0, 1fr) / var(--desk-panel) minmax(0, 1fr);
+
+  /* The rule between the two panes moves with them: down the inline edge while
+     they sit side by side, along the block edge once they stack. Declared as a
+     pair so a pane names both and the breakpoint decides which one is drawn. */
+  --desk-pane-rule-inline: var(--border-hair) solid var(--line-hair);
+  --desk-pane-rule-block: 0;
+}
+
+/* Arabic is a launch locale, so the inline pair swaps ends. Same specificity as
+   :root, so this has to come after it. */
+[dir="rtl"] {
+  --safe-inline-start: env(safe-area-inset-right, 0px);
+  --safe-inline-end: env(safe-area-inset-left, 0px);
+}
+
+/* Media queries have no logical form – `inline-size` is a container query
+   feature, not a media feature. `width` is correct regardless: every one of the
+   nine declared locales is written horizontally, so the viewport's inline axis
+   is its width in all of them. */
+@media (max-width: 1100px) {
+  :root {
+    --desk-rail: 240px;
+    --desk-panel: 340px;
+  }
+}
+
+/* Below this the rail keeps its icons and drops its labels, and the side panels
+   stop being side panels: a 340px pane against 300px of content is two things
+   that are both too narrow rather than one that is wide enough. */
+@media (max-width: 880px) {
+  :root {
+    --desk-rail: 76px;
+    --desk-split: minmax(0, 1.1fr) minmax(0, 1fr) / minmax(0, 1fr);
+    --desk-split-rev: minmax(0, 1fr) minmax(0, 1.3fr) / minmax(0, 1fr);
+    /* The rail's rows have nothing left to sit beside their icons. */
+    --desk-nav-justify: center;
+    --desk-pane-rule-inline: 0;
+    --desk-pane-rule-block: var(--border-hair) solid var(--line-hair);
+  }
 }
