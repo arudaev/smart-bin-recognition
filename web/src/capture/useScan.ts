@@ -34,6 +34,10 @@ export interface UseScanOptions {
 export interface UseScanResult {
   state: ScanState;
   capability: Capability;
+  /** The probe has answered. Before it has, `capability` is the VIEWER default
+   *  rather than a finding, and a shell that acted on it would put every phone
+   *  on the viewer surface for a frame and then take it back. */
+  probed: boolean;
   tier: Tier;
   camera: CameraStatus;
   cameraError: string | null;
@@ -67,6 +71,7 @@ export function useScan(options: UseScanOptions): UseScanResult {
 
   const [state, setState] = useState<ScanState>(INITIAL);
   const [capability, setCapability] = useState<Capability>(VIEWER);
+  const [probed, setProbed] = useState(false);
   const [camera, setCamera] = useState<CameraStatus>("idle");
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [setTorch, setSetTorch] = useState<((on: boolean) => Promise<void>) | null>(null);
@@ -83,9 +88,17 @@ export function useScan(options: UseScanOptions): UseScanResult {
 
   useEffect(() => {
     let live = true;
-    void probeCapability().then((c) => {
-      if (live) setCapability(c);
-    });
+    void probeCapability()
+      .then((c) => {
+        if (live) setCapability(c);
+      })
+      .finally(() => {
+        // Settled either way. A probe that threw is still an answer – the
+        // VIEWER default it leaves behind is the correct reading of a platform
+        // that cannot be asked – and leaving `probed` false would hold the
+        // shell on its blank frame forever.
+        if (live) setProbed(true);
+      });
     return () => {
       live = false;
     };
@@ -196,6 +209,7 @@ export function useScan(options: UseScanOptions): UseScanResult {
   return {
     state,
     capability,
+    probed,
     tier: capability.tier,
     camera,
     cameraError,
