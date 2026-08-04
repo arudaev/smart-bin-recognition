@@ -14,12 +14,13 @@ export function DeskQueue({ t }: { t: T }) {
   const c = QUEUE[sel];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr var(--desk-panel)", blockSize: "100%", minBlockSize: 0 }}>
+    <div style={{ display: "grid", gridTemplate: "var(--desk-split)", blockSize: "100%", minBlockSize: 0 }}>
       <div
         style={{
           overflowY: "auto",
           background: "var(--surface-card)",
-          borderInlineEnd: "var(--border-hair) solid var(--line-hair)",
+          borderInlineEnd: "var(--desk-pane-rule-inline)",
+          borderBlockEnd: "var(--desk-pane-rule-block)",
         }}
       >
         <div

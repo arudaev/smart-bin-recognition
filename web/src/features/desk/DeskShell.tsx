@@ -62,10 +62,14 @@ export function DeskShell({
   ];
 
   return (
+    /* One grid token instead of a column template, because the breakpoints are
+       in tokens/space.css: at 1100px the rail and the panels narrow, and at
+       880px the rail drops to icons. A resize listener here would re-render the
+       whole surface to learn something the browser already knows. */
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "var(--desk-rail) 1fr",
+        gridTemplate: "var(--desk-shell)",
         blockSize: "100%",
         background: "var(--surface-page)",
         minBlockSize: 0,
@@ -80,7 +84,11 @@ export function DeskShell({
           minBlockSize: 0,
         }}
       >
+        {/* The masthead is the first thing to go when the rail collapses: a
+            wordmark broken across three lines in 76px is worse than no
+            wordmark, and the document title already says the same word. */}
         <div
+          className="sbr-rail-masthead"
           style={{
             padding: "var(--space-6) var(--space-5) var(--space-5)",
             borderBlockEnd: "var(--border-hair) solid var(--line-hair)",
@@ -99,9 +107,11 @@ export function DeskShell({
               type="button"
               onClick={() => setView(k)}
               aria-current={view === k ? "page" : undefined}
+              title={label}
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "var(--desk-nav-justify, flex-start)",
                 gap: "var(--space-3)",
                 minBlockSize: "var(--tap-min)",
                 paddingInline: "var(--space-3)",
@@ -116,22 +126,31 @@ export function DeskShell({
               }}
             >
               <Icon name={icon} size={19} />
-              {label}
+              {/* Hidden, not removed, below 880px: it is the button's
+                  accessible name, and a rail of bare icons is a rail nobody
+                  can read. See tokens/base.css. */}
+              <span className="sbr-rail-label">{label}</span>
             </button>
           ))}
         </div>
 
-        <div
-          style={{
-            padding: "var(--space-4)",
-            display: "grid",
-            gap: "var(--space-3)",
-            borderBlockStart: "var(--border-hair) solid var(--line-hair)",
-            justifyItems: "start",
-          }}
-        >
-          <CoverageTag region={region} t={t} />
-          <StatusStrip state="live" message={`${place} · ${region.bins}`} style={{ inlineSize: "100%" }} />
+        {/* Which pack, which place, how many bins. Clipped rather than dropped
+            when the rail collapses – it is the only statement of coverage on
+            this surface, and a screen reader should still reach it. The class
+            sits on a bare wrapper because an inline padding would survive it. */}
+        <div className="sbr-rail-label">
+          <div
+            style={{
+              padding: "var(--space-4)",
+              display: "grid",
+              gap: "var(--space-3)",
+              borderBlockStart: "var(--border-hair) solid var(--line-hair)",
+              justifyItems: "start",
+            }}
+          >
+            <CoverageTag region={region} t={t} />
+            <StatusStrip state="live" message={`${place} · ${region.bins}`} style={{ inlineSize: "100%" }} />
+          </div>
         </div>
       </nav>
 

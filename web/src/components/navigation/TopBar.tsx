@@ -18,8 +18,13 @@ export function TopBar({ title, register, backLabel, onBack, actions, style, ...
         display: "flex",
         alignItems: "center",
         gap: "var(--space-3)",
-        minBlockSize: 60,
-        paddingInline: "var(--space-4)",
+        minBlockSize: "calc(60px + var(--safe-block-start))",
+        /* The bar is the top of the viewport now that the shell fills it, so
+           it owns the notch band: the padding grows by the inset and the
+           60px of bar stays 60px of bar underneath it. */
+        paddingBlockStart: "var(--safe-block-start)",
+        paddingInlineStart: "calc(var(--space-4) + var(--safe-inline-start))",
+        paddingInlineEnd: "calc(var(--space-4) + var(--safe-inline-end))",
         background: "var(--surface-card)",
         borderBlockEnd: "var(--border-rule) solid var(--ink-0)",
         ...style,

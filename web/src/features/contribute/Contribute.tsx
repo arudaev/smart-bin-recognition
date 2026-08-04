@@ -131,7 +131,13 @@ export function Contribute({
         )}
       </div>
 
-      <div style={{ padding: "var(--gutter-phone)", borderBlockStart: "var(--border-hair) solid var(--line-hair)" }}>
+      <div
+        style={{
+          padding: "var(--gutter-phone)",
+          paddingBlockEnd: "calc(var(--gutter-phone) + var(--safe-block-end))",
+          borderBlockStart: "var(--border-hair) solid var(--line-hair)",
+        }}
+      >
         {step === 2 ? (
           <Button variant="signal" size="outdoor" block icon="send" onClick={() => onSent({ form, color, count })}>
             {t("contribute.send")}
