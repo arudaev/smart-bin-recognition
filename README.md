@@ -130,8 +130,9 @@ Agent guide: [`AGENTS.md`](AGENTS.md). Before any UI work,
 ## Status
 
 **The client is built; the service is not.** `web/` is an installable PWA with
-both surfaces, the camera path and its four gates, the offline rules browser, a
-performance budget that fails the build, and 188 tests that need no browser. It
+both surfaces, real URLs, the camera path and its four gates, the offline rules
+browser, a performance budget that fails the build, and 236 tests that need no
+browser. It
 runs today against an in-process mock and the settings screen says so, because a
 client that implies a service exists is worse than one that admits it does not.
 `service/` is empty; swapping the mock for a socket is one environment variable.

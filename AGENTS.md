@@ -25,7 +25,11 @@ the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline
 split docs/01 § 6 states, an installable manifest, a settings surface, a
-performance budget, and 188 tests.
+performance budget, and 236 tests. The shell around all of it is a real
+application shell as of `refactor/web-app-shell`: real URLs on a hand-rolled
+History API router, the theme on `<html>`, `100dvh` and safe-area insets rather
+than a drawn phone, and the state director dynamically imported so it leaves
+the production bundle entirely.
 
 **The one thing still missing is the service.** `service/` is empty, so with no
 `VITE_DETECT_WS` configured the client talks to an in-process mock and says so
@@ -91,13 +95,20 @@ web/                     React + TS + Vite PWA – design imported from Claude D
 ├── src/transport/              the wire contract, socket, REST, and the in-process mock
 ├── src/perf/                   metric vocabulary, budgets, web vitals
 ├── src/pwa/                    registration, update flow, install prompt
-├── src/app/                    session model: answered / confirmed / reported
+├── src/app/                    what spans screens: routes, theme, preferences, session
+│   ├── routes.ts               the URL map and every redirect – no framework
+│   ├── useRoute.ts             the History API half, and only that
+│   ├── theme.ts                data-theme / dir / lang / theme-color on <html>
+│   ├── preferences.ts          mode + locale + onboarded, localStorage, guarded
+│   └── answers.ts              answered / confirmed / reported
 ├── src/components/             the 26 design-system components
 ├── src/features/               scan, answer, rules, contribute, firstrun, desk, settings
 ├── src/i18n/                   en (complete) + de/ar (~65%), and t()
 ├── src/styles/tokens/          the design system's token layer
 ├── src/test/                   fake clock, fake camera, fake service; the discipline test
-└── src/dev/                    state director + metrics overlay – development only
+└── src/dev/                    state director + metrics overlay – development only,
+                                and enforced so: dynamically imported behind a DEV
+                                branch, and check-bundle.mjs fails if it reaches dist
 
 service/                 FastAPI + ONNX inference service (HF Space) – EMPTY
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
@@ -127,7 +138,7 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 npm --prefix web install
 npm --prefix web run dev          # http://localhost:5173
 npm --prefix web run verify       # typecheck, tests, locales, build, bundle budget
-npm --prefix web test             # 188 tests, no browser
+npm --prefix web test             # 236 tests, no browser
 npm --prefix web run preview      # a real build, so the service worker registers
 
 # Point the client at a service. With neither set it uses the in-process mock
@@ -173,6 +184,9 @@ read it before any UI work. In short:
 - Colour is **quoted, never worn**: a real bin colour appears only inside a
   `ColorQuote` swatch carrying its translated name.
 - One `t()` key per string. Never concatenate translated fragments.
+- Every state has a **URL**, and every correction to one is `replaceState`.
+- The theme goes on `<html>`, never on a wrapper. `app/theme.ts` is the only
+  thing that writes it.
 
 **Data:**
 - Stream ids and form-factor ids are **permanent**. Never rename a published id
@@ -200,6 +214,17 @@ Things that must not happen, and why:
 - **Never remove the client-side gates** (motion gate, 4 fps cap, result lock,
   20 s abort). They are load-bearing infrastructure, not polish – without them a
   single user can consume a third of total capacity.
+- **Never choose the surface by viewport width or user-agent.** It is
+  `routes.ts:surfaceFor` over the capability probe, and only `tier: "viewer"`
+  gets the viewer. A tablet with a rear camera at narrow width is a scanner and
+  a phone in landscape is still a scanner; deciding on width gives the right
+  answer for the wrong reason and is wrong the first time somebody rotates a
+  device. The override in `dev/DevTools.tsx` is the single exception and cannot
+  reach a build.
+- **Never let development-only code into the bundle.** Not "rendered only in
+  dev" – *absent*. Panels that return null still carry their props, and the
+  director's labels are every state name in the product. Dynamic import behind
+  an `import.meta.env.DEV` branch; `scripts/check-bundle.mjs` fails the build.
 - **Never quote the predecessor's 95.2 % mAP** as this project's baseline. It
   was measured on a random split of one week's photos in one city. See
   [08-legacy-audit § 6](docs/08-legacy-audit.md#6-numbers-to-treat-with-suspicion).

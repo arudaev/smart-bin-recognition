@@ -29,7 +29,7 @@ Imports point one way only.
 | `data/` | taxonomy loader, region packs, fixtures | Reads JSON. No components. |
 | `components/` | the 26 design-system components | No domain logic, no `t()` calls – strings arrive as props. |
 | `features/` | screens | Composes everything. Where `t()` is called. |
-| `app/` | session model that spans screens | `answerFor` lives here because it joins resolver output to session state. |
+| `app/` | what spans screens: the router, the theme, preferences, the session | `answerFor` lives here because it joins resolver output to session state. `routes.ts`, `theme.ts` and `preferences.ts` are framework-free for the same reason `domain/` is – all three are policy, and policy is worth testing without a browser. |
 | `dev/` | the state director | Dev-only. Not part of the system; styled deliberately unlike it. |
 
 `domain/resolver.ts` is a mirror of `ml/src/sbr/taxonomy.py`. **The docs are the
@@ -69,10 +69,58 @@ Rules that are not negotiable:
 
 ### Theming
 
-Three modes, set with `data-theme` on an ancestor: unset (paper), `sun`,
+Three modes, set with `data-theme` **on `<html>`**: unset (paper), `sun`,
 `night`. `sun` is not a light-mode default – it is a higher-contrast, heavier-
-ruled mode for reading outdoors at noon. Direction comes from `dir` on the same
-element and `lang` drives the font stack.
+ruled mode for reading outdoors at noon. `dir` and `lang` go on the same
+element; `lang` drives the font stack.
+
+The document element and not a wrapper div, because the browser reads it for
+everything the app does not draw: the scrollbar, the overscroll gutter past the
+end of a list, the rubber-band background, and the platform's own form
+controls. `app/theme.ts` writes all three, plus `--theme-color` to **every**
+`meta[name="theme-color"]` – there are two, media-scoped, and writing one means
+the mode changes and the browser chrome does not.
+
+Mode and locale persist in `sbr.prefs` and are applied at the top of
+`main.tsx`, before `createRoot().render()`. Not from an inline `<script>`:
+`vercel.json` sets `script-src 'self'` with no `unsafe-inline` and no hashes,
+so one would work in dev and be blocked in production. The frame before that
+line runs is covered by a `prefers-color-scheme` background in
+`tokens/modes.css`, which is a guess and says so.
+
+### Routing
+
+Real paths, hand-rolled over the History API in `app/routes.ts` (all the
+policy, no framework) and `app/useRoute.ts` (the History API, forty lines). No
+router dependency: ~10 kB gzip against a 115 kB budget buys nested routes and
+loaders that nothing here wants.
+
+`/` `/scan` `/rules` `/contribute` `/settings` are the scanner's;
+`/viewer` `/viewer/rules` `/viewer/queue` `/viewer/settings` are the viewer's.
+The names are the surfaces – scanner and viewer, never phone and desktop – and
+a URL keeps whatever word it is given.
+
+Corrections are **always `replaceState`**. A redirect written with `pushState`
+leaves the wrong URL in the history stack, and the back button lands on it and
+is bounced off again.
+
+### Filling the viewport
+
+The shell is `.sbr-app-root`: `100dvh` with a `100vh` line above it as the
+fallback, in `tokens/base.css` rather than an inline style because a style
+object cannot declare a property twice. `dvh` matters because `vh` is measured
+with the mobile URL bar retracted.
+
+Safe-area insets have logical names – `--safe-block-start` and the other three,
+with the inline pair swapped under `[dir="rtl"]` – because `env()` is defined
+in physical terms and there is no logical form of it. The scanner takes none of
+them at the shell: it is full-bleed and the camera runs under the notch, so the
+controls pinned over it carry their own insets instead.
+
+Breakpoints live in the token layer. `--desk-shell`, `--desk-split` and
+`--desk-split-rev` are `grid-template` shorthands redefined at 1100px and
+880px, so a component reads one custom property and a media query stays
+possible inside an inline-style idiom.
 
 ## The component set
 
@@ -193,11 +241,14 @@ names honestly when nothing is configured.
   exports a JSON file when a person asks. Nothing is sent anywhere, because
   there is no user identity in this architecture and adding an endpoint would be
   the first thing in the product to transmit anything about anybody.
-- **The surface switch is a prototype affordance.** It is labelled by capability
-  – scanner or viewer – rather than by screen size, because real detection is a
-  probe for an environment-facing camera and never a viewport query. A shell
-  that switched on width would teach the wrong model to whatever is built from
-  it.
+- **There is no surface switch.** The surface is `routes.ts:surfaceFor` applied
+  to the capability probe, and nothing else – never a viewport query, never a
+  user-agent. Only `tier: "viewer"` gets the viewer; `capture` gets the scanner,
+  because it means either a phone that has not been asked for permission yet or
+  a laptop whose front-facing camera the scanner already has a designed state
+  for. The switch survives in `dev/DevTools.tsx` alone, where it overrides the
+  probe so a reviewer on a machine with the camera blocked can still see both
+  surfaces. `import.meta.env.DEV` folds it out of anything shipped.
 - **`de-by-muenchen-demo` is not a real region pack.** It exists in
   `data/regions.ts` so the published-coverage state can be seen, and it must
   never be moved into `data/taxonomy/regions/`.
