@@ -186,26 +186,36 @@ provenance: source, region, capture date, label origin
 
 The predecessor's hand-labelled photographs are the seed of both datasets.
 
-The complete archive has now been inventoried –
+The published archive has now been inventoried from the release asset itself –
 [08-legacy-audit § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is):
 
-- `YOLO_Dataset/` holds **466** images with a 1:1 label file, 372 / 94 train/val,
-  no orphans on either side.
-- `raw_images/` holds 470; four never made it through labelling.
-- `labeled/` is split by annotator (Alex 156, Fares 161, Sameer 149), which is a
-  useful grouping key – annotator style is a plausible confound and can be held
-  out to check for it.
+- `cv_garbage.zip` is a **partial copy**. It ships 401 of 466 label files and
+  **16** of 466 images under `YOLO_Dataset/`; the pixels are in `labeled/`.
+- **370 labels pair with an image.** That is the usable seed – not 466.
+- `labeled/` is split by annotator (Alex 118, Fares 161, Sameer 148 present;
+  101 / 135 / 132 of them pairable), which is a useful grouping key – annotator
+  style is a plausible confound and can be held out to check for it.
+- Class balance over the 403 usable boxes: Restmüll 171, Papier 101, Biomüll 87,
+  **Glas 44**. Glas is under-represented and is the only class mapping to
+  `igloo`.
+- `labeled/` and `YOLO_Dataset/` disagree in exactly **2** of 370 frames.
+
+The full 466 existed at training time – the Ultralytics caches inside the
+archive say so – and the publishing step lost them. The layout is now a contract
+in `ml/configs/legacy_archive.yaml`, verified by `sbr.dataset.archive`; the
+import refuses to run against a copy that does not match.
 
 ### Multi-bin coverage: effectively zero
 
-Counted 2026-08-02 over all 466 label files:
+Re-counted 2026-08-06 over the 370 pairable frames (the earlier count was over a
+466-file set that is not in the published archive; the finding is unchanged):
 
-| boxes in frame | images |
-|---|---|
-| 1 | **430 (92.3 %)** |
-| 2 | 30 |
-| 3 | 6 |
-| **4 or more** | **0** |
+| boxes in frame | images | over all 401 label files |
+|---|---|---|
+| 1 | **341 (92.2 %)** | 370 |
+| 2 | 25 | 27 |
+| 3 | 4 | 4 |
+| **4 or more** | **0** | **0** |
 
 **There is not one photograph of a bank of containers in the entire dataset.**
 The most crowded frame holds three household wheelie bins.
@@ -228,13 +238,20 @@ Consequences, both now committed:
   bucketed by bins-per-frame, so a model that only works on the easy case cannot
   hide behind an aggregate number.
 
-Still to establish before the import is trusted:
+Both of the things that were still open here – class balance, and whether
+`labeled/` and `YOLO_Dataset/` disagree – are answered above and recorded in
+[08-legacy-audit § 7.1.1](08-legacy-audit.md#711-class-balance-and-internal-disagreement).
 
-- class balance, and which classes are under-represented
-- whether `labeled/` and `YOLO_Dataset/` disagree anywhere
+`ml/src/sbr/dataset/legacy_import.py` has been re-validated against the real
+layout. It pairs on the eight-hex join key, refuses to run when
+`sbr.dataset.archive.verify` reports a mismatch, and carries provenance on every
+record.
 
-`ml/src/sbr/dataset/legacy_import.py` was written against the incomplete archive;
-its path resolution must be re-validated against the real layout above before use.
+**Seven of the ten form factors have no legacy data at all.** The four legacy
+classes can only ever reach `wheelie_small`, `wheelie_large` and `igloo`;
+`underground`, `textile_bank`, `street_basket`, `sack`, `crate`, `wall_unit`
+and `container_bank` start from zero. Together with the multi-bin gap, that is
+what the out-of-city harvest in phase 2 exists to fill.
 
 ## 6. Training
 

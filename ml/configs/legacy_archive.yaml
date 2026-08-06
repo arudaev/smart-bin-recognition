@@ -62,10 +62,11 @@ expected:
     Glas: 44
     Papier: 101
     Restmüll: 171
-  # Answers the multi-bin question, and confirms docs/08 § 7.2 on the usable
-  # subset: 92.2 % of frames hold exactly one bin and NOT ONE holds four or
-  # more. `container_bank` is defined as a row of three or more containers and
-  # has no training data at all.
+  # Over the 370 pairable frames. Confirms docs/04 § 5 on the usable subset:
+  # 92.2 % hold exactly one bin and NOT ONE holds four or more. (Over all 401
+  # label files, pairable or not, it is 370 / 27 / 4 and still no 4+.)
+  # `container_bank` is defined as a row of three or more containers and has no
+  # training data at all.
   bins_per_frame:
     1: 341
     2: 25
