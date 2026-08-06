@@ -1,4 +1,4 @@
-import { Button, EmptyState, TopBar } from "@/components";
+import { Button, EmptyState, IconButton, TopBar } from "@/components";
 import type { Region } from "@/data/regions";
 import { REGION_ID } from "@/data/regions";
 import type { T } from "@/i18n";
@@ -12,12 +12,16 @@ export function CameraOff({
   onBrowse,
   onAllow,
   onContribute,
+  onSettings,
 }: {
   t: T;
   region: Region;
   onBrowse: () => void;
   onAllow: () => void;
   onContribute: () => void;
+  /** Settings explains what "blocked" means and how to undo it, so it has to
+   *  be reachable from the screen that says the camera is blocked. */
+  onSettings: () => void;
 }) {
   return (
     <div
@@ -29,7 +33,11 @@ export function CameraOff({
         overflow: "hidden",
       }}
     >
-      <TopBar title={t("camera.deniedTitle")} register={REGION_ID[region.key].toUpperCase()} />
+      <TopBar
+        title={t("camera.deniedTitle")}
+        register={REGION_ID[region.key].toUpperCase()}
+        actions={<IconButton name="settings" label={t("nav.settings")} variant="quiet" onClick={onSettings} />}
+      />
 
       <div
         style={{
@@ -53,7 +61,13 @@ export function CameraOff({
         </div>
       </div>
 
-      <div style={{ padding: "var(--gutter-phone)", borderBlockStart: "var(--border-hair) solid var(--line-hair)" }}>
+      <div
+        style={{
+          padding: "var(--gutter-phone)",
+          paddingBlockEnd: "calc(var(--gutter-phone) + var(--safe-block-end))",
+          borderBlockStart: "var(--border-hair) solid var(--line-hair)",
+        }}
+      >
         <Button size="outdoor" block icon="camera" onClick={onAllow}>
           {t("camera.enable")}
         </Button>

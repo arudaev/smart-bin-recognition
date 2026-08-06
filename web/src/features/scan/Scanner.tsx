@@ -58,6 +58,9 @@ interface Props {
   /** Present when a real camera is running. Absent in fixture playback. */
   live?: UseScanResult | null;
   onBrowse: () => void;
+  /** The only route to settings from the scanner, now that the shell draws no
+   *  chrome of its own. It lives with the other controls over the frame. */
+  onSettings: () => void;
   onContribute: (n: number | null) => void;
   onConfirm: (n: number) => void;
   onAnswer: (n: number, stream: string | null) => void;
@@ -185,6 +188,7 @@ export function Scanner(p: Props) {
         onBrowse={p.onBrowse}
         onAllow={live ? live.requestCamera : p.onAllowCamera}
         onContribute={() => p.onContribute(null)}
+        onSettings={p.onSettings}
       />
     );
   }
@@ -192,7 +196,10 @@ export function Scanner(p: Props) {
   const visible = live ? bins : bins.slice(0, shown);
   const openBin = open != null ? (bins.find((b) => b.n === open) ?? null) : null;
   const peekMedia = live ? 420 : frame.photo ? 390 : 520;
-  const sheetH = open != null ? "84%" : `calc(100% - ${peekMedia}px)`;
+  /* Floored, because the shell fills the viewport now rather than a fixed
+     812px box. On a phone in landscape `100% - 420px` is negative, and the
+     sheet – which is where every answer is – would vanish. */
+  const sheetH = open != null ? "84%" : `max(38%, calc(100% - ${peekMedia}px))`;
 
   return (
     <div style={{ position: "relative", blockSize: "100%", background: "var(--ink-1)", overflow: "hidden" }}>
@@ -254,11 +261,15 @@ export function Scanner(p: Props) {
         </div>
       </div>
 
+      {/* Pinned over the camera, so these two carry the safe-area insets
+          themselves. The frame behind them is deliberately full-bleed and runs
+          under the notch; the controls must not. */}
       <div
         style={{
           position: "absolute",
-          insetBlockStart: "var(--space-3)",
-          insetInline: "var(--space-3)",
+          insetBlockStart: "calc(var(--space-3) + var(--safe-block-start))",
+          insetInlineStart: "calc(var(--space-3) + var(--safe-inline-start))",
+          insetInlineEnd: "calc(var(--space-3) + var(--safe-inline-end))",
           display: "grid",
           gap: "var(--space-2)",
         }}
@@ -269,8 +280,8 @@ export function Scanner(p: Props) {
       <div
         style={{
           position: "absolute",
-          insetBlockStart: 68,
-          insetInlineEnd: "var(--space-3)",
+          insetBlockStart: "calc(68px + var(--safe-block-start))",
+          insetInlineEnd: "calc(var(--space-3) + var(--safe-inline-end))",
           display: "grid",
           gap: "var(--space-2)",
         }}
@@ -291,6 +302,13 @@ export function Scanner(p: Props) {
           />
         ) : null}
         <IconButton name="list" label={t("scan.browse")} variant="onCamera" size="outdoor" onClick={p.onBrowse} />
+        <IconButton
+          name="settings"
+          label={t("nav.settings")}
+          variant="onCamera"
+          size="outdoor"
+          onClick={p.onSettings}
+        />
       </div>
 
       <div

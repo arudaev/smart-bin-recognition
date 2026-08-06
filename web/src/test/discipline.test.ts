@@ -65,8 +65,6 @@ const ALPHA_EXCEPTIONS = new Set([
   // A one-pixel inner highlight, so a black swatch still has an edge against a
   // dark card. It is a property of the quote, not of the colour being quoted.
   "components/domain/ColorQuote.tsx",
-  // The shell's device frames. Chrome around the prototype, not product surface.
-  "App.tsx",
 ]);
 
 /* The marker positions its box with physical left/top because it overlays a
@@ -164,6 +162,32 @@ describe("layering", () => {
   it("keeps domain/ and data/ from importing features/", () => {
     const lower = PRODUCT.filter((f) => f.rel.startsWith("domain/") || f.rel.startsWith("data/"));
     expect(offenders(lower, /from "@\/features/)).toEqual([]);
+  });
+});
+
+describe("the shell fills the viewport", () => {
+  /* App.tsx was a prototype viewer for one phase: a 390x812 bordered box with a
+     drop shadow, centred on a page. Removing it once is not the same as it
+     staying removed – a fixed-width card is what a prototype shell looks like
+     on the way in, and it arrives one plausible commit at a time. */
+  const shell = () => ALL.find((f) => f.rel === "App.tsx")!;
+
+  it("sizes nothing in the shell with a bare number", () => {
+    expect(offenders([shell()], /\b(inline|block)Size:\s*\d/)).toEqual([]);
+  });
+
+  it("uses no vh in the shell", () => {
+    // 100vh is measured against the viewport with the mobile URL bar retracted,
+    // so a 100vh scanner is a screen and a bit tall and the bottom of the sheet
+    // sits under the browser's own chrome. The shell is 100dvh, declared in
+    // tokens/base.css because a style object cannot carry the vh fallback.
+    expect(offenders([shell()], /\dvh\b/)).toEqual([]);
+  });
+
+  it("draws no frame around the surface", () => {
+    // The border and the drop shadow were the device mockup. Neither belongs to
+    // a shell whose whole job is to get out of the way of a screen.
+    expect(offenders([shell()], /\b(border|boxShadow):/)).toEqual([]);
   });
 });
 

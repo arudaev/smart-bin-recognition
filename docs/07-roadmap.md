@@ -89,8 +89,14 @@ Built in the same pass, beyond what this phase originally listed:
       is falling back
 - [x] Performance work: a metric vocabulary, web vitals, a transfer budget that
       exits non-zero
-- [x] 188 tests, no browser – the gates, the protocol, the awkward loop
-      sequences, and a source-discipline test that enforces the conventions
+- [x] 236 tests, no browser – the gates, the protocol, the awkward loop
+      sequences, the router, the theme, and a source-discipline test that
+      enforces the conventions
+- [x] A real application shell, replacing the imported prototype viewer: real
+      URLs on a hand-rolled History API router, the theme on `<html>`, `100dvh`
+      and safe-area insets instead of a drawn 390x812 phone, a viewer surface
+      that works from a small laptop to a wide monitor, and the state director
+      out of the production bundle by construction
 
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
 gets a correct answer in Ukrainian. Blocked on the service, the Ukrainian

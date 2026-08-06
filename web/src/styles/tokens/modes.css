@@ -22,6 +22,9 @@
   --surface-card: #ffffff;
   --surface-page: #ffffff;
   --surface-sunk: #ededed;
+  /* Sun is for reading in direct light. A violet browser bar above a white page
+     is the one dark band left on the screen, so the chrome goes white too. */
+  --theme-color: #ffffff;
 }
 [data-theme="night"] {
   --paper-0: #1c1f24;
@@ -47,4 +50,28 @@
   --verdict-yes-face: #262a30;
   --verdict-no-face: #1c1f24;
   --shadow-sheet: 0 -2px 0 0 #363b43, 0 -24px 48px -24px rgba(0, 0, 0, 0.7);
+  --theme-color: #14171b;
+}
+
+/* THE PRE-MOUNT PAINT.
+ *
+ * main.tsx sets data-theme from the stored preference before React renders, but
+ * the stylesheet lands before any script runs: for a frame or two the document
+ * has no theme at all and paints paper. On a phone that is a full-screen white
+ * flash in front of somebody who chose night.
+ *
+ * There is no way to fix that from JavaScript – an inline <script> in the head
+ * would do it, and vercel.json sets script-src 'self' with no unsafe-inline and
+ * no hashes, so it would work in dev and be blocked in production. So the guess
+ * is made in CSS instead, and the system preference is the only evidence
+ * available that early. It is a guess: a paper-mode user on a dark system gets
+ * one dark frame. That is the cheaper of the two mistakes.
+ *
+ * Background only. Nothing else is guessed, and the moment data-theme lands
+ * this stops matching.
+ */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    background: #14171b;
+  }
 }

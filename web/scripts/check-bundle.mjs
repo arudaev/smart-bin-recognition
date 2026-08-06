@@ -86,6 +86,25 @@ if (process.argv.includes("--json")) {
   process.exit(0);
 }
 
+/* The other kind of budget: things that must not be in the bundle at all.
+ *
+ * src/dev/DevTools.tsx used to be a static import in App.tsx. Both panels
+ * returned null in production, but their props – every state label in the
+ * product, "densest verified frame" and the rest – were constructed either way,
+ * so the copy shipped to every user. It is reached through a DEV-only dynamic
+ * import now, which is a claim about what the bundler does with a folded
+ * constant. This is where the claim is checked. */
+const FORBIDDEN = [{ marker: "sbr-dev-only-do-not-ship", what: "the state director (src/dev/)" }];
+
+const smuggled = [];
+for (const row of rows) {
+  if (row.group !== "js" && row.group !== "css") continue;
+  const text = readFileSync(join(DIST, row.rel), "utf8");
+  for (const { marker, what } of FORBIDDEN) {
+    if (text.includes(marker)) smuggled.push(`  ${row.rel} contains ${what}`);
+  }
+}
+
 const kb = (n) => `${(n / 1024).toFixed(1)} kB`;
 
 console.log("first load, gzip\n");
@@ -103,6 +122,13 @@ for (const [name, budgetKb] of Object.entries(BUDGETS)) {
   if (over) failed += 1;
   const pct = ((actual / budget) * 100).toFixed(0);
   console.log(`  ${over ? "OVER" : "ok  "} ${name.padEnd(14)} ${kb(actual).padStart(9)} / ${kb(budget).padStart(9)}  ${pct}%`);
+}
+
+if (smuggled.length > 0) {
+  console.error("\nDevelopment-only code reached the bundle:\n");
+  console.error(smuggled.join("\n"));
+  console.error("\nIt must be behind a dynamic import on an import.meta.env.DEV branch.");
+  process.exit(1);
 }
 
 if (failed > 0) {

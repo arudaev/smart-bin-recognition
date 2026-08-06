@@ -5,6 +5,11 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
+  /* The document element carries the theme, so it carries the paint the app
+     does not draw: overscroll past the end of a list, the rubber-band gutter,
+     and the frame before React mounts. tokens/modes.css guesses this one from
+     the system preference for the pre-mount frame. */
+  background: var(--paper-1);
 }
 body {
   margin: 0;
@@ -55,6 +60,55 @@ textarea {
 ::selection {
   background: var(--signal-tint);
   color: var(--text-strong);
+}
+
+/* THE SHELL'S HEIGHT, and the one piece of layout in this app that is not an
+   inline style object.
+ *
+ * A style object cannot declare the same property twice, so an inline `100dvh`
+ * has no fallback. `dvh` is Safari 16.4 and Chrome 108; below those the
+ * declaration is dropped, the root falls back to `auto`, and every screen
+ * inside it – all of which size themselves at `blockSize: 100%` – collapses to
+ * nothing. A five-year-old phone is the reference device here, so that is the
+ * regression rather than a rounding error.
+ *
+ * `100vh` first as the floor, `100dvh` second for the browsers that understand
+ * it. The difference is the mobile URL bar: `vh` is measured against the
+ * viewport with the bar retracted, so a `100vh` scanner is a screen and a bit
+ * tall and the bottom of the sheet sits underneath the browser's own chrome.
+ * The two-declaration cascade is the only construct that says both things, and
+ * CSS is where it belongs. */
+.sbr-app-root {
+  block-size: 100vh;
+  block-size: 100dvh;
+  overflow: hidden;
+}
+
+/* The viewer's rail collapses to icons on a narrow window.
+ *
+ * Two kinds of hiding, because these are two different things. A nav button's
+ * label stays in the DOM – it is the button's accessible name, and a rail of
+ * unlabelled icons is a rail nobody can read – so it is clipped exactly the way
+ * .sbr-visually-hidden clips. The masthead is a wordmark repeating what the
+ * document title already says, and it simply goes.
+ *
+ * Put .sbr-rail-label only on an element with no inline padding of its own: an
+ * inline style beats the `padding: 0` below and leaves a clipped but still-sized
+ * box behind, and an invisible box is a thing that can take a click. */
+@media (max-width: 880px) {
+  .sbr-rail-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .sbr-rail-masthead {
+    display: none;
+  }
 }
 
 /* Register voice: mono, uppercase, tracked. Used for anything that is a fact

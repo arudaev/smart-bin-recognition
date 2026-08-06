@@ -22,13 +22,14 @@ export function DeskRules({ t, region }: { t: T; region: Region }) {
   const hits = LOOKUP.filter((r) => t(`item.${r.item}`).toLowerCase().includes(needle));
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "var(--desk-panel) 1fr", blockSize: "100%", minBlockSize: 0 }}>
+    <div style={{ display: "grid", gridTemplate: "var(--desk-split-rev)", blockSize: "100%", minBlockSize: 0 }}>
       <div
         style={{
           display: "grid",
           gridTemplateRows: "auto 1fr",
           minBlockSize: 0,
-          borderInlineEnd: "var(--border-hair) solid var(--line-hair)",
+          borderInlineEnd: "var(--desk-pane-rule-inline)",
+          borderBlockEnd: "var(--desk-pane-rule-block)",
           background: "var(--surface-card)",
         }}
       >

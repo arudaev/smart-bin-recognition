@@ -110,6 +110,7 @@ export function FirstRun({
       <div
         style={{
           padding: "var(--gutter-phone)",
+          paddingBlockEnd: "calc(var(--gutter-phone) + var(--safe-block-end))",
           borderBlockStart: "var(--border-hair) solid var(--line-hair)",
           display: "grid",
           gap: "var(--space-3)",

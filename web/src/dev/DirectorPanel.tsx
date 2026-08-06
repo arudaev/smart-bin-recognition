@@ -11,12 +11,13 @@ import { useEffect, useState, type ReactNode } from "react";
  * So both routes exist. Every state is reachable by ordinary use, and this
  * panel is the shortcut. It renders only when import.meta.env.DEV is true.
  *
- * It is NOT tree-shaken out of a production build – the module is imported
- * statically by App.tsx, so roughly 3 KB of inert markup and CSS travels with
- * it. That is acceptable because App.tsx is itself the prototype shell: the
- * shipped client replaces the whole thing with the capability probe described
- * in docs/01-architecture.md, and this file goes with it. If the shell ever
- * survives into production, move this behind a dynamic import first.
+ * It is also absent from a production build, which it did not used to be. It
+ * was imported statically by App.tsx, and while both panels returned null in
+ * production their props – every state label in this product – were built
+ * either way, so the copy shipped to every user. It is reached through
+ * dev/DevTools.tsx now, behind a dynamic import on a DEV branch that a build
+ * folds away, and scripts/check-bundle.mjs fails if any of it reappears in
+ * dist. Add controls here freely: none of it can reach a user.
  *
  * Rebuilt from the Claude Design prototype's tweaks panel, minus the host
  * protocol that talked to the design canvas – there is no canvas here.

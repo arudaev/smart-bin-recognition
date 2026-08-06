@@ -73,7 +73,22 @@ export function Sheet({ children, title, register, onClose, closeLabel = "Close"
         </div>
         {onClose ? <IconButton name="x" label={closeLabel} variant="quiet" onClick={onClose} /> : null}
       </header>
-      <div style={{ overflowY: "auto", padding: "var(--space-5)", paddingBlockStart: "var(--space-4)" }}>{children}</div>
+      {/* The sheet is pinned to the bottom of a viewport-filling shell, so the
+          last row of a scrolled list would otherwise sit under the home
+          indicator. The inset is added to the scrolling box rather than to the
+          sheet, so the paper still runs to the edge of the screen. */}
+      <div
+        style={{
+          overflowY: "auto",
+          padding: "var(--space-5)",
+          paddingBlockStart: "var(--space-4)",
+          paddingBlockEnd: "calc(var(--space-5) + var(--safe-block-end))",
+          paddingInlineStart: "calc(var(--space-5) + var(--safe-inline-start))",
+          paddingInlineEnd: "calc(var(--space-5) + var(--safe-inline-end))",
+        }}
+      >
+        {children}
+      </div>
     </section>
   );
 }

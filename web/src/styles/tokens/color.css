@@ -52,6 +52,13 @@
   --line-quiet: var(--paper-2);
   --focus-ring: var(--signal);
 
+  /* What the browser paints outside the document: the address bar, the task
+     switcher card, the status bar of an installed app. Read by app/theme.ts and
+     written to every meta[name=theme-color], so the chrome follows the mode
+     instead of following the system preference the app deliberately ignores.
+     Violet in paper, because it is the app rather than the object. */
+  --theme-color: var(--signal);
+
   /* Rule verdicts – intentionally NOT hue-coded. Weight and glyph do the work. */
   --verdict-yes: var(--ink-0);
   --verdict-no: var(--ink-0);

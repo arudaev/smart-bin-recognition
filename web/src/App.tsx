@@ -1,116 +1,123 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { IconButton, SegmentedControl } from "@/components";
-import type { ContributionReport, LevelOverride, SessionState } from "@/app/answers";
+import type { ContributionReport, SessionState } from "@/app/answers";
 import { EMPTY_SESSION } from "@/app/answers";
+import type { DirectorState } from "@/app/director";
+import { PRODUCTION_DIRECTOR } from "@/app/director";
+import { readPreferences, writePreferences } from "@/app/preferences";
+import { PATH, normalisePath, resolveRoute } from "@/app/routes";
+import type { Mode } from "@/app/theme";
+import { applyThemeToDocument } from "@/app/theme";
+import { useRouter } from "@/app/useRoute";
+import type { Tier } from "@/capture/capability";
 import { useScan } from "@/capture/useScan";
 import { FRAMES } from "@/data/frames";
-import type { Coverage } from "@/data/regions";
 import { REGIONS } from "@/data/regions";
-import { Action, DirectorPanel, Section, Segmented, Select, Toggle } from "@/dev/DirectorPanel";
-import { MetricsPanel } from "@/dev/MetricsPanel";
 import { Contribute, Sent } from "@/features/contribute/Contribute";
-import type { DeskView } from "@/features/desk/DeskShell";
-import { DeskShell, Wordmark } from "@/features/desk/DeskShell";
+import { DeskShell } from "@/features/desk/DeskShell";
 import { FirstRun } from "@/features/firstrun/FirstRun";
 import { PhoneRules } from "@/features/rules/PhoneRules";
-import type { ConnSetting } from "@/features/scan/Scanner";
 import { Scanner } from "@/features/scan/Scanner";
 import { Settings } from "@/features/settings/Settings";
 import type { Locale } from "@/i18n";
-import { dirFor, translator } from "@/i18n";
+import { translator } from "@/i18n";
 import { createClient } from "@/transport";
 
-/* The shell.
+/* THE SHELL.
+ *
+ * It used to be a prototype viewer: a 390x812 bordered box with a drop shadow
+ * and a scanner/viewer switch in a header. Installed to a home screen, the app
+ * drew a picture of a phone inside itself.
+ *
+ * What it does now is the four things a shell owes the screens under it.
+ *
+ *   1. A URL for every state. app/routes.ts holds the whole map and the whole
+ *      redirect policy; app/useRoute.ts is the forty lines of History API that
+ *      make it real. Hand-rolled on purpose: a router library is ~10 kB gzip
+ *      against a 115 kB budget, for nested routes and loaders nothing here
+ *      wants.
+ *
+ *   2. The theme on <html>, not on a div. See app/theme.ts for why the browser
+ *      chrome, the scrollbar and the overscroll gutter depend on it.
+ *
+ *   3. The viewport, filled. Exactly 100dvh via .sbr-app-root, and no padding
+ *      on the scanner: the camera is a full-bleed surface, and the controls
+ *      floating over it hold themselves out of the safe-area bands instead.
+ *
+ *   4. The surface, from the capability probe and from nothing else – never a
+ *      viewport query, never a user-agent. routes.ts:surfaceFor says which of
+ *      the three tiers gets which of the two surfaces, and why.
+ *
+ * What it deliberately does not do is draw anything. There is no chrome here:
+ * no header, no wordmark, no switch. Every pixel belongs to a screen.
+ */
 
-   Two jobs, and they used to be one. It decides which surface the device gets –
-   and that decision is now the real capability probe from docs/01-architecture
-   § 5, not a switch someone flipped – and it holds the session state that spans
-   screens. The switch in the header survives because reviewing both surfaces
-   side by side is the whole reason this shell exists, but it starts wherever
-   the probe puts it.
-
-   The distinction it is careful about: the surfaces are scanner and viewer, a
-   statement about what the device can do. They are never phone and desktop, and
-   the choice is never a viewport query. A tablet with a rear camera at narrow
-   width is a scanner; a phone in landscape is still a scanner. */
-
-type Surface = "scanner" | "viewer";
-type Mode = "paper" | "sun" | "night";
-type PhoneScreen = "first-run" | "scan" | "rules" | "contribute" | "sent" | "settings";
-type CameraSetting = "granted" | "denied";
-type Source = "fixtures" | "live";
-
-const SCREEN_LABELS: Record<PhoneScreen, string> = {
-  "first-run": "First run",
-  scan: "Scanner",
-  rules: "Rules",
-  contribute: "Contribute",
-  sent: "Sent",
-  settings: "Settings",
-};
-
-const LEVEL_LABELS: Record<LevelOverride, string> = {
-  auto: "As resolved",
-  assert: "Certain",
-  hedge: "Most likely",
-  ask: "Needs a question",
-  unknown: "Unknown",
-};
-
-const CONN_LABELS: Record<ConnSetting, string> = {
-  auto: "Play it out",
-  live: "Connected",
-  connecting: "Connecting",
-  waking: "Waking",
-  busy: "Busy",
-  offline: "Offline",
-};
-
-/** The manifest declares a shortcut straight to the rules; honour it. */
-function initialScreen(): PhoneScreen {
-  if (typeof window === "undefined") return "first-run";
-  const requested = new URLSearchParams(window.location.search).get("screen");
-  return requested && requested in SCREEN_LABELS ? (requested as PhoneScreen) : "first-run";
-}
+/* The DEV branch is the only place this module is named, so a production build
+   folds the condition away and the import becomes unreachable. What must not
+   come back is a static import: the panels return null in production, but
+   their props – every state label in the product – were built either way, and
+   ~3 kB of director copy shipped to every user. scripts/check-bundle.mjs greps
+   dist for the sentinel in that file and fails the build if it reappears. */
+const DevTools = import.meta.env.DEV ? lazy(() => import("@/dev/DevTools")) : null;
 
 export default function App() {
-  const [surface, setSurface] = useState<Surface>("scanner");
-  const [mode, setMode] = useState<Mode>("paper");
-  const [locale, setLocale] = useState<Locale>("en");
-  const [coverage, setCoverage] = useState<Coverage>("draft");
-  const [frameCount, setFrameCount] = useState<1 | 3 | 6>(3);
-  const [level, setLevel] = useState<LevelOverride>("auto");
-  const [forceStale, setForceStale] = useState(false);
-  const [conn, setConn] = useState<ConnSetting>("auto");
-  const [camera, setCamera] = useState<CameraSetting>("granted");
-  const [screen, setScreen] = useState<PhoneScreen>(initialScreen);
-  const [deskView, setDeskView] = useState<DeskView>("map");
-  const [source, setSource] = useState<Source>("fixtures");
+  const { path, navigate } = useRouter();
+
+  /* Read once, synchronously, before the first render. main.tsx has already
+     applied the same values to <html>; this is the copy React renders from. */
+  const stored = useRef(readPreferences()).current;
+  const [mode, setMode] = useState<Mode>(stored.mode);
+  const [locale, setLocale] = useState<Locale>(stored.locale);
+  const [onboarded, setOnboarded] = useState(stored.onboarded);
+
+  const [director, setDirector] = useState<DirectorState>(PRODUCTION_DIRECTOR);
+  const patch = useCallback((next: Partial<DirectorState>) => setDirector((d) => ({ ...d, ...next })), []);
+
+  /* The one override of the probe, and it exists only in development.
+     Every state in this product is reachable by ordinary use except one: the
+     surface a device does not have. A laptop with the camera blocked can never
+     see the scanner, and a reviewer who cannot reach a surface cannot judge it.
+     `import.meta.env.DEV` folds to false in a build, so what ships reads the
+     probe and nothing else – see routes.ts:surfaceFor. */
+  const [devTier, setDevTier] = useState<Tier | null>(null);
 
   const [session, setSession] = useState<SessionState>(EMPTY_SESSION);
   const [contribBin, setContribBin] = useState<number | null>(null);
+  const [sent, setSent] = useState(false);
 
-  /* The camera only runs on the screen that shows it. Anywhere else – reading
-     the rules, filling in a contribution, sitting on settings – it is closed,
-     and the indicator light goes out with it. */
+  /* The camera runs on one path and nowhere else, and it is keyed off the path
+     rather than off the resolved route to keep this out of a cycle: the route
+     needs the tier, the tier comes from the probe, and the probe lives here.
+     Anywhere but /scan the camera is closed and the indicator light is out. */
   const live = useScan({
-    enabled: source === "live" && surface === "scanner" && screen === "scan",
+    enabled: director.source === "live" && normalisePath(path) === PATH.scan,
     locale,
     debug: import.meta.env.DEV,
   });
 
   const transport = useMemo(() => createClient(live.tier).kind, [live.tier]);
 
-  /* Follow the probe, once, unless somebody has already chosen. A device with
-     no rear camera opens on the viewer instead of on a scanner it cannot use. */
-  const chosen = useRef(false);
+  /* Nothing is placed until the probe has answered. It is one enumerateDevices
+     call and resolves in a microtask, and holding one frame is much better than
+     the alternative: `capability` starts at VIEWER, so guessing would put every
+     phone on the viewer surface and then snatch it away. */
+  const tier = import.meta.env.DEV && devTier ? devTier : live.tier;
+  const placement = live.probed ? resolveRoute(path, { tier, onboarded }) : null;
+  const redirect = placement?.redirect ?? null;
+
   useEffect(() => {
-    if (chosen.current) return;
-    if (live.capability.reason === "No camera API on this origin") return; // still probing
-    chosen.current = true;
-    setSurface(live.tier === "viewer" ? "viewer" : "scanner");
-  }, [live.capability, live.tier]);
+    // replaceState, never push. A redirect in the history stack is a URL the
+    // back button lands on and is immediately bounced off again.
+    if (redirect) navigate(redirect, { replace: true });
+  }, [redirect, navigate]);
+
+  useEffect(() => {
+    applyThemeToDocument(mode, locale);
+  }, [mode, locale]);
+
+  useEffect(() => {
+    writePreferences({ mode, locale, onboarded });
+  }, [mode, locale, onboarded]);
 
   /* Session state is keyed by the bin's number in the current frame, and that
      number means nothing across a different frame or a different city – bin 1
@@ -119,15 +126,13 @@ export default function App() {
   useEffect(() => {
     setSession(EMPTY_SESSION);
     setContribBin(null);
-  }, [coverage, frameCount, source]);
+  }, [director.coverage, director.frameCount, director.source]);
 
   const t = translator(locale);
-  const region = REGIONS[coverage];
-  const frame = FRAMES[frameCount] ?? FRAMES[3];
-  const dir = dirFor(locale);
-  const theme = mode === "paper" ? undefined : mode;
+  const region = REGIONS[director.coverage];
+  const frame = FRAMES[director.frameCount] ?? FRAMES[3];
 
-  const settingsPanel = (
+  const settingsPanel = (onClose?: () => void) => (
     <Settings
       t={t}
       locale={locale}
@@ -137,11 +142,64 @@ export default function App() {
       region={region}
       capability={live.capability}
       transport={transport}
-      onClose={surface === "scanner" ? () => setScreen("scan") : undefined}
+      onClose={onClose}
     />
   );
 
-  const phone: Record<PhoneScreen, JSX.Element> = {
+  const devTools =
+    DevTools && placement ? (
+      <Suspense fallback={null}>
+        <DevTools
+          path={normalisePath(path)}
+          navigate={navigate}
+          surface={placement.route.surface}
+          setTier={setDevTier}
+          probedTier={live.tier}
+          mode={mode}
+          setMode={setMode}
+          locale={locale}
+          setLocale={setLocale}
+          director={director}
+          patch={patch}
+          onResetSession={() => setSession(EMPTY_SESSION)}
+        />
+      </Suspense>
+    ) : null;
+
+  /* One themed frame while the probe answers. The background is already on
+     <html>, so this is a held breath rather than a white flash. */
+  if (!placement) return <div className="sbr-app-root" />;
+
+  const { route } = placement;
+
+  if (route.surface === "viewer") {
+    return (
+      <div
+        className="sbr-app-root"
+        style={{
+          background: "var(--surface-page)",
+          paddingBlockStart: "var(--safe-block-start)",
+          paddingBlockEnd: "var(--safe-block-end)",
+          paddingInlineStart: "var(--safe-inline-start)",
+          paddingInlineEnd: "var(--safe-inline-end)",
+        }}
+      >
+        <DeskShell
+          t={t}
+          region={region}
+          view={route.view}
+          setView={(view) => navigate(view === "map" ? PATH.viewer : `${PATH.viewer}/${view}`)}
+          settings={settingsPanel()}
+        />
+        {devTools}
+      </div>
+    );
+  }
+
+  /* The scanner gets no padding. It is a full-bleed surface and the camera runs
+     under the notch; the controls pinned over it carry the safe-area insets
+     themselves, which is the only way to have both. */
+  const screens: Record<typeof route.screen, JSX.Element> = {
     "first-run": (
       <FirstRun
         t={t}
@@ -149,11 +207,15 @@ export default function App() {
         setLocale={setLocale}
         region={region}
         onAllow={() => {
-          setCamera("granted");
-          if (source === "live") live.requestCamera();
-          setScreen("scan");
+          setOnboarded(true);
+          patch({ camera: "granted" });
+          if (director.source === "live") live.requestCamera();
+          navigate(PATH.scan);
         }}
-        onBrowse={() => setScreen("rules")}
+        onBrowse={() => {
+          setOnboarded(true);
+          navigate(PATH.rules);
+        }}
       />
     ),
     scan: (
@@ -161,15 +223,17 @@ export default function App() {
         t={t}
         region={region}
         frame={frame}
-        conn={conn}
-        camera={camera}
+        conn={director.conn}
+        camera={director.camera}
         session={session}
-        answerOptions={{ level, forceStale }}
-        live={source === "live" ? live : null}
-        onBrowse={() => setScreen("rules")}
+        answerOptions={{ level: director.level, forceStale: director.forceStale }}
+        live={director.source === "live" ? live : null}
+        onBrowse={() => navigate(PATH.rules)}
+        onSettings={() => navigate(PATH.settings)}
         onContribute={(n) => {
           setContribBin(n);
-          setScreen("contribute");
+          setSent(false);
+          navigate(PATH.contribute);
         }}
         onConfirm={(n) => setSession((s) => ({ ...s, confirmed: { ...s.confirmed, [n]: true } }))}
         onAnswer={(n, stream) =>
@@ -180,204 +244,43 @@ export default function App() {
             return { ...s, answered };
           })
         }
-        onAllowCamera={() => setCamera("granted")}
-        onSunlight={() => setMode((m) => (m === "sun" ? "paper" : "sun"))}
+        onAllowCamera={() => patch({ camera: "granted" })}
+        onSunlight={() => setMode(mode === "sun" ? "paper" : "sun")}
       />
     ),
-    rules: <PhoneRules t={t} region={region} onClose={() => setScreen("scan")} />,
-    contribute: (
+    rules: <PhoneRules t={t} region={region} onClose={() => navigate(PATH.scan)} />,
+    /* `sent` is a state of this screen and not a route of its own. A URL
+       somebody can arrive at cold must not tell them they just sent something,
+       and back from here leads wherever /contribute was reached from. */
+    contribute: sent ? (
+      <Sent
+        t={t}
+        region={region}
+        onClose={() => {
+          setSent(false);
+          navigate(PATH.scan);
+        }}
+      />
+    ) : (
       <Contribute
         t={t}
         region={region}
-        onClose={() => setScreen("scan")}
+        onClose={() => navigate(PATH.scan)}
         onSent={(report: ContributionReport) => {
           if (contribBin != null) {
             setSession((s) => ({ ...s, pending: { ...s.pending, [contribBin]: report } }));
           }
-          setScreen("sent");
+          setSent(true);
         }}
       />
     ),
-    sent: <Sent t={t} region={region} onClose={() => setScreen("scan")} />,
-    settings: settingsPanel,
+    settings: settingsPanel(() => navigate(PATH.scan)),
   };
 
   return (
-    <div
-      style={{
-        minBlockSize: "100vh",
-        background: "var(--paper-2)",
-        display: "grid",
-        gridTemplateRows: "auto 1fr",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "var(--space-5)",
-          flexWrap: "wrap",
-          padding: "var(--space-5) var(--space-7)",
-          borderBlockEnd: "var(--border-hair) solid var(--paper-4)",
-          background: "var(--paper-1)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-4)" }}>
-          <Wordmark size={22} />
-          <span className="sbr-register">{t("app.tagline")}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-          <SegmentedControl
-            size="dense"
-            value={surface}
-            onChange={setSurface}
-            items={[
-              { value: "scanner", label: t("ui.phone"), icon: "camera" },
-              { value: "viewer", label: t("ui.desk"), icon: "map" },
-            ]}
-          />
-          <IconButton
-            name="settings"
-            label={t("settings.title")}
-            variant="secondary"
-            size="dense"
-            onClick={() => {
-              if (surface === "scanner") setScreen("settings");
-              else setDeskView("settings");
-            }}
-          />
-        </div>
-      </header>
-
-      <div
-        style={{
-          display: "grid",
-          placeItems: "start center",
-          padding: "var(--space-8) var(--space-6)",
-          overflow: "auto",
-        }}
-      >
-        {surface === "scanner" ? (
-          <div
-            data-theme={theme}
-            dir={dir}
-            lang={locale}
-            style={{
-              inlineSize: 390,
-              blockSize: 812,
-              borderRadius: 22,
-              border: "6px solid var(--ink-0)",
-              overflow: "hidden",
-              background: "var(--surface-page)",
-              boxShadow: "0 30px 70px -40px rgba(22,24,28,.55)",
-            }}
-          >
-            {phone[screen]}
-          </div>
-        ) : (
-          <div
-            data-theme={theme}
-            dir={dir}
-            lang={locale}
-            style={{
-              inlineSize: "min(1280px, 100%)",
-              blockSize: 800,
-              border: "6px solid var(--ink-0)",
-              borderRadius: 10,
-              overflow: "hidden",
-              background: "var(--surface-page)",
-              boxShadow: "0 30px 70px -40px rgba(22,24,28,.55)",
-            }}
-          >
-            <DeskShell t={t} region={region} view={deskView} setView={setDeskView} settings={settingsPanel} />
-          </div>
-        )}
-      </div>
-
-      <DirectorPanel>
-        <Section label="Surface" />
-        <Segmented label="Capability" value={surface} options={["scanner", "viewer"] as const} onChange={setSurface} />
-        <Segmented label="Mode" value={mode} options={["paper", "sun", "night"] as const} onChange={setMode} />
-        <Segmented
-          label="Language"
-          value={locale as "en" | "de" | "ar"}
-          options={["en", "de", "ar"] as const}
-          onChange={(l) => setLocale(l)}
-        />
-
-        <Section label="Camera" />
-        <Segmented
-          label="Frames from"
-          value={source}
-          options={["fixtures", "live"] as const}
-          onChange={(v) => setSource(v)}
-        />
-        <Select
-          label="Bins in frame"
-          value={String(frameCount) as "1" | "3" | "6"}
-          options={[
-            { value: "1", label: "1 – 92% of the archive" },
-            { value: "3", label: "3 – densest verified frame" },
-            { value: "6", label: "6 – unverified probe" },
-          ]}
-          onChange={(v) => setFrameCount(Number(v) as 1 | 3 | 6)}
-        />
-        <Segmented label="Permission" value={camera} options={["granted", "denied"] as const} onChange={setCamera} />
-
-        <Section label="Situation" />
-        <Select
-          label="Region coverage"
-          value={coverage}
-          options={[
-            { value: "published", label: "Published – München" },
-            { value: "draft", label: "Draft – Deggendorf" },
-            { value: "none", label: "No pack – Plattling" },
-          ]}
-          onChange={setCoverage}
-        />
-        <Select
-          label="Lead answer"
-          value={level}
-          options={(Object.keys(LEVEL_LABELS) as LevelOverride[]).map((k) => ({ value: k, label: LEVEL_LABELS[k] }))}
-          onChange={setLevel}
-        />
-        <Toggle label="Lead bin is stale" value={forceStale} onChange={setForceStale} />
-        <Select
-          label="Connection"
-          value={conn}
-          options={(Object.keys(CONN_LABELS) as ConnSetting[]).map((k) => ({ value: k, label: CONN_LABELS[k] }))}
-          onChange={setConn}
-        />
-
-        <Section label="Jump to" />
-        <Select
-          label="Phone screen"
-          value={screen}
-          options={(Object.keys(SCREEN_LABELS) as PhoneScreen[]).map((k) => ({ value: k, label: SCREEN_LABELS[k] }))}
-          onChange={(v) => {
-            setSurface("scanner");
-            setScreen(v);
-          }}
-        />
-        <Select
-          label="Desk view"
-          value={deskView}
-          options={[
-            { value: "map", label: "Map" },
-            { value: "rules", label: "Rules browser" },
-            { value: "queue", label: "Review queue" },
-            { value: "settings", label: "Settings" },
-          ]}
-          onChange={(v) => {
-            setSurface("viewer");
-            setDeskView(v);
-          }}
-        />
-        <Action label="Reset what I contributed" onClick={() => setSession(EMPTY_SESSION)} />
-      </DirectorPanel>
-
-      <MetricsPanel />
+    <div className="sbr-app-root" style={{ background: "var(--surface-page)" }}>
+      {screens[route.screen]}
+      {devTools}
     </div>
   );
 }
