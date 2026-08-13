@@ -36,7 +36,10 @@ KAGGLE_SECRET_PATHS = (
 #: Changing a pin means the next training run sees different data. That is a
 #: deliberate act and belongs in its own commit, with the reason in the message.
 PINS: dict[str, str] = {
-    "arudaev/smart-bin-detect": "",
+    # legacy subset only: 370 usable frames, 403 boxes, one city, one week.
+    # Pushed 2026-08-13 from cv_garbage.zip sha256 028b1f55…96ea3.
+    "arudaev/smart-bin-detect": "581eedae78c69fbaa02c2db77687d030e309b5ed",
+    # Needs the human pass first - there are no adjudicated crops yet.
     "arudaev/smart-bin-identify": "",
     "arudaev/smart-bin-raw": "",
 }
