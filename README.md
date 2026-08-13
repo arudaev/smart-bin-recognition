@@ -106,6 +106,8 @@ handoff/          Claude Design handoff – design system, prototype spec, token
 | [Internationalisation](docs/06-i18n.md) | 9 locales, static bundles, why not runtime translation |
 | [Roadmap](docs/07-roadmap.md) | phases, gates, kill criteria |
 | [Legacy audit](docs/08-legacy-audit.md) | what the predecessor was, what survived |
+| [Hackathon screening](docs/09-hackathon-strategy-2026-08-11.md) | event research, hosting and product boundaries |
+| [Hacksocial 2026 participation](docs/10-hacksocial-2026-participation.md) | committed entry, solo eligibility and published requirements |
 | [Design handoff](handoff/README.md) | design system, prototype spec, and the prompts |
 
 ## Development
@@ -148,6 +150,16 @@ Known gaps, stated rather than discovered later: `de` and `ar` are at 65 % and
 fall back to English, six locales are not started, and the Deggendorf region
 pack is `draft` – not servable until its rules are verified against the
 operator's published guidance.
+
+## Current hackathon participation
+
+Smart Bin Recognition will enter [Hacksocial
+2026](https://hacksocial2026.devpost.com/) as a solo project. Solo participation
+is permitted; the event is online and closes on 31 August at 17:00 EDT. The
+commitment, eligibility and published submission requirements are recorded in
+[`docs/10-hacksocial-2026-participation.md`](docs/10-hacksocial-2026-participation.md).
+The later Devpost playbook will define the event scope and demo; this decision
+does not itself change the canonical roadmap.
 
 ## Licence
 
