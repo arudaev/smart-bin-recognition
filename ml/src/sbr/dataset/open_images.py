@@ -1,0 +1,266 @@
+"""Open Images V7: the validator's negative corpus, and free out-of-city bins.
+
+Model A's training data is mostly **not** bins. A detector trained only on
+photographs of bins learns that everything is a bin – which is exactly what
+happened to the predecessor, and why it fires ``Glas`` at 0.39 on a slide of
+black text on white (08-legacy-audit § 7.5). The negative corpus is what buys
+precision, and precision is what makes "the identifier disagrees with me" a
+trustworthy signal instead of noise.
+
+Open Images also turns out to carry a boxable class ``Waste container`` with
+human-verified boxes, photographed worldwide. That is out-of-city bin data with
+labels already on it, which the legacy archive – one city, one week – cannot
+provide at any price, and it contains frames with four or more bins, of which
+the legacy archive has exactly zero.
+
+**The exclusion is not optional.** An image holding a waste container can never
+be a negative. Letting one through teaches the validator that a bin is not a
+bin, and it would be invisible in every aggregate metric afterwards.
+
+Everything here streams. The train annotation CSV is 2.2 GB and the images are
+downloaded by the thousand, so this is built to run on a Kaggle kernel with
+internet rather than on a laptop – the laptop's jobs are ``push`` and ``output``.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import logging
+import random
+import urllib.request
+from collections import defaultdict
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+SPLITS = ("train", "validation", "test")
+STREAM_CHUNK = 1 << 20
+
+
+class OpenImagesError(RuntimeError):
+    """Raised when the vocabulary or the corpus is not what the config assumes."""
+
+
+# --------------------------------------------------------------------------- #
+# Vocabulary
+# --------------------------------------------------------------------------- #
+
+
+def load_class_index(source: Path | str, timeout: int = 120) -> dict[str, str]:
+    """Map display name -> MID from the boxable class descriptions CSV."""
+    if isinstance(source, Path):
+        text = source.read_text(encoding="utf-8")
+    else:
+        with urllib.request.urlopen(source, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+    index = {name: mid for mid, name in csv.reader(io.StringIO(text)) if name}
+    if not index:
+        raise OpenImagesError(f"no classes parsed from {source}")
+    logger.info("open images vocabulary: %d boxable classes", len(index))
+    return index
+
+
+def resolve_mids(names: list[str], index: dict[str, str]) -> dict[str, str]:
+    """Names to MIDs, failing loudly on anything the vocabulary does not have.
+
+    Silently dropping an unknown class is how a "2 500 hard negative" corpus
+    quietly becomes 900 and nobody notices until the false-positive rate does
+    not move.
+    """
+    missing = [name for name in names if name not in index]
+    if missing:
+        raise OpenImagesError(
+            f"not Open Images boxable classes: {missing}. "
+            "Check ml/configs/open_images.yaml against the descriptions CSV; "
+            "postboxes and vending machines genuinely are not in this vocabulary "
+            "and come from the Commons harvest instead."
+        )
+    return {name: index[name] for name in names}
+
+
+# --------------------------------------------------------------------------- #
+# Annotations
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Box:
+    """One annotated box, in Open Images' normalised xmin/xmax/ymin/ymax."""
+
+    x_min: float
+    x_max: float
+    y_min: float
+    y_max: float
+    is_group_of: bool = False
+
+    def to_yolo(self) -> tuple[float, float, float, float]:
+        """Convert to YOLO's centre-x, centre-y, width, height."""
+        return (
+            (self.x_min + self.x_max) / 2,
+            (self.y_min + self.y_max) / 2,
+            self.x_max - self.x_min,
+            self.y_max - self.y_min,
+        )
+
+    @property
+    def is_degenerate(self) -> bool:
+        return self.x_max <= self.x_min or self.y_max <= self.y_min
+
+
+@dataclass
+class Scan:
+    """What one pass over a bbox CSV found."""
+
+    positives: dict[str, list[Box]] = field(default_factory=lambda: defaultdict(list))
+    street: set[str] = field(default_factory=set)
+    hard: set[str] = field(default_factory=set)
+    rows: int = 0
+
+    def negatives(self, exclude_positives: bool = True) -> tuple[set[str], set[str]]:
+        """Street and hard-negative image ids, with every bin image removed."""
+        banned = set(self.positives) if exclude_positives else set()
+        return self.street - banned, self.hard - banned
+
+
+def open_csv(source: Path | str, timeout: int = 600):
+    """Open a CSV from disk or over HTTP, as a text stream."""
+    if isinstance(source, Path):
+        return source.open("r", encoding="utf-8", newline="")
+    response = urllib.request.urlopen(source, timeout=timeout)
+    return io.TextIOWrapper(response, encoding="utf-8", newline="")
+
+
+def scan_boxes(
+    source: Path | str,
+    positive_mid: str,
+    street_mids: set[str],
+    hard_mids: set[str],
+    drop_group_of: bool = True,
+) -> Scan:
+    """One streaming pass over a bbox CSV.
+
+    One pass, not three: the train file is 2.2 GB and the exclusion needs the
+    positives anyway, so everything is collected together.
+    """
+    scan = Scan()
+    with open_csv(source) as handle:
+        for row in csv.DictReader(handle):
+            scan.rows += 1
+            label = row["LabelName"]
+            image_id = row["ImageID"]
+
+            if label == positive_mid:
+                group = row.get("IsGroupOf", "0") == "1"
+                if group and drop_group_of:
+                    # A group-of box covers a crowd with one rectangle instead of
+                    # localising anything. Still records that the image HAS bins,
+                    # so it stays excluded from the negatives below.
+                    scan.positives.setdefault(image_id, [])
+                    continue
+                box = Box(
+                    x_min=float(row["XMin"]), x_max=float(row["XMax"]),
+                    y_min=float(row["YMin"]), y_max=float(row["YMax"]),
+                    is_group_of=group,
+                )
+                if not box.is_degenerate:
+                    scan.positives[image_id].append(box)
+            elif label in street_mids:
+                scan.street.add(image_id)
+            elif label in hard_mids:
+                scan.hard.add(image_id)
+
+    logger.info(
+        "scanned %d rows: %d images with a waste container, %d street, %d hard",
+        scan.rows, len(scan.positives), len(scan.street), len(scan.hard),
+    )
+    return scan
+
+
+# --------------------------------------------------------------------------- #
+# Images
+# --------------------------------------------------------------------------- #
+
+
+def image_url(base: str, split: str, image_id: str) -> str:
+    if split not in SPLITS:
+        raise OpenImagesError(f"unknown split {split!r}")
+    return f"{base.rstrip('/')}/{split}/{image_id}.jpg"
+
+
+def load_attribution(source: Path | str, wanted: set[str]) -> dict[str, dict[str, str]]:
+    """Photographer, licence and original URL, for the images we keep.
+
+    Open Images is CC-BY: attribution is a licence condition, not a nicety, so
+    it is collected at build time rather than reconstructed later.
+    """
+    attribution: dict[str, dict[str, str]] = {}
+    with open_csv(source) as handle:
+        for row in csv.DictReader(handle):
+            image_id = row.get("ImageID")
+            if image_id in wanted:
+                attribution[image_id] = {
+                    "author": row.get("Author", ""),
+                    "author_profile": row.get("AuthorProfileURL", ""),
+                    "title": row.get("Title", ""),
+                    "licence": row.get("License", ""),
+                    "original_url": row.get("OriginalURL", ""),
+                }
+    logger.info("attribution recovered for %d/%d images", len(attribution), len(wanted))
+    return attribution
+
+
+def fetch_image(url: str, timeout: int = 60) -> bytes | None:
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            return response.read()
+    except Exception as error:  # noqa: BLE001 - one dead URL must not stop 15 000
+        logger.debug("skipped %s: %s", url, error)
+        return None
+
+
+def save_resized(payload: bytes, target: Path, max_edge: int, quality: int, min_edge: int) -> tuple[int, int] | None:
+    """Write a resized JPEG. Returns its size, or None if it was too small."""
+    from PIL import Image
+
+    try:
+        with Image.open(io.BytesIO(payload)) as image:
+            image = image.convert("RGB")
+            width, height = image.size
+            if min(width, height) < min_edge:
+                return None
+            scale = min(1.0, max_edge / max(width, height))
+            if scale < 1.0:
+                image = image.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            image.save(target, "JPEG", quality=quality, optimize=True)
+            return image.size
+    except Exception as error:  # noqa: BLE001
+        logger.debug("undecodable image for %s: %s", target.name, error)
+        return None
+
+
+def sample(ids: set[str], count: int, seed: int) -> list[str]:
+    """A deterministic sample. Sorted first so the seed means the same thing."""
+    ordered = sorted(ids)
+    if len(ordered) <= count:
+        return ordered
+    return random.Random(seed).sample(ordered, count)
+
+
+def provenance(source: dict[str, Any], split: str, image_id: str, attribution: dict[str, str] | None) -> dict[str, Any]:
+    attribution = attribution or {}
+    return {
+        "source": source["name"],
+        "source_url": attribution.get("original_url", ""),
+        "licence": attribution.get("licence") or source["licence"],
+        "attribution": attribution.get("author", ""),
+        "attribution_profile": attribution.get("author_profile", ""),
+        "open_images_id": image_id,
+        "open_images_split": split,
+        "region_id": "unknown",
+        "label_origin": "open-images",
+        "adjudication": "not_required",
+    }
