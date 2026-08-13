@@ -27,6 +27,7 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
+ALL_KERNELS = (*KERNELS, "build_negatives")
 
 
 def source(kernel: str) -> str:
@@ -146,6 +147,22 @@ def test_the_identifier_names_classes_it_could_not_train():
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.parametrize("kernel", ALL_KERNELS)
+def test_the_title_slugs_to_the_kernel_id(kernel):
+    """Kaggle derives the real slug from the TITLE, not from the id.
+
+    A title of "SBR - Build Negatives + Open Images Bins" against an id of
+    `sbr-build-negatives` creates the kernel at
+    `sbr-build-negatives-open-images-bins`, and every later `status` and
+    `output` call then fails with a permission error that reads like an auth
+    problem. It cost one confusing dispatch to find; it costs one assertion to
+    never repeat.
+    """
+    meta = metadata(kernel)
+    slug = meta["id"].split("/", 1)[1]
+    assert meta["title"].lower().replace(" ", "-") == slug
+
+
 def test_kernel_ids_are_distinct_and_named_for_their_role():
     ids = {kernel: metadata(kernel)["id"] for kernel in KERNELS}
     assert len(set(ids.values())) == len(ids)
@@ -154,24 +171,45 @@ def test_kernel_ids_are_distinct_and_named_for_their_role():
 
 
 @pytest.mark.parametrize("kernel", KERNELS)
-def test_gpu_and_internet_are_enabled(kernel):
-    # Internet is needed to pull the pinned dataset and push the artefacts.
+def test_the_training_kernels_ask_for_a_gpu(kernel):
     meta = metadata(kernel)
     assert meta["enable_gpu"] is True
     assert meta["enable_internet"] is True
 
 
-@pytest.mark.parametrize("kernel", KERNELS)
+def test_the_harvest_kernel_does_not_burn_gpu_quota():
+    # Downloading JPEGs is bandwidth, not compute. The GPU quota is 30 h/week
+    # and training is what needs it.
+    meta = metadata("build_negatives")
+    assert meta["enable_gpu"] is False
+    assert meta["enable_internet"] is True
+
+
+@pytest.mark.parametrize("kernel", ALL_KERNELS)
 def test_the_secrets_dataset_is_attached(kernel):
     # How the HF token reaches an API-pushed kernel; UserSecretsClient only
     # works in an interactive session.
     assert metadata(kernel)["dataset_sources"]
 
 
-def test_dispatch_knows_both_kernels():
+@pytest.mark.parametrize("kernel", ALL_KERNELS)
+def test_dispatch_knows_every_kernel(kernel):
     text = (ML_ROOT / "scripts" / "dispatch.py").read_text(encoding="utf-8")
-    for kernel in KERNELS:
-        assert kernel in text
+    assert kernel in text
+
+
+def test_dispatch_does_not_force_a_gpu_on_every_kernel():
+    text = (ML_ROOT / "scripts" / "dispatch.py").read_text(encoding="utf-8")
+    assert 'metadata["enable_gpu"] = True' not in text
+
+
+def test_the_harvest_kernel_never_lets_a_bin_into_the_negatives():
+    # scan.negatives() removes every image holding a waste container. If this
+    # call were replaced by the raw id sets, the validator would be taught that
+    # a bin is not a bin, and no aggregate metric would show it.
+    text = source("build_negatives")
+    assert "scan.negatives()" in text
+    assert "bins excluded" in text
 
 
 # --------------------------------------------------------------------------- #

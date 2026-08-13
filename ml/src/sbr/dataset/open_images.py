@@ -26,10 +26,11 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import logging
 import random
 import urllib.request
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -248,6 +249,123 @@ def sample(ids: set[str], count: int, seed: int) -> list[str]:
     if len(ordered) <= count:
         return ordered
     return random.Random(seed).sample(ordered, count)
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """One image to fetch, and the boxes it carries (empty for a negative)."""
+
+    split: str
+    image_id: str
+    boxes: tuple[Box, ...] = ()
+    kind: str = "positive"      # "positive" | "street" | "hard"
+
+    @property
+    def is_negative(self) -> bool:
+        return self.kind != "positive"
+
+
+def harvest(
+    candidates: list[Candidate],
+    out_dir: Path,
+    config: dict[str, Any],
+    attribution: dict[str, dict[str, str]] | None = None,
+    fetch=fetch_image,
+    workers: int = 16,
+) -> dict[str, Any]:
+    """Download, resize and write one pool. Returns its manifest.
+
+    Negatives get an **empty** label file rather than no label file: to YOLO
+    that is a background image, which is the whole point of them. A missing file
+    would be an unlabelled image, which is a different thing and would be
+    silently dropped from training.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    source = config["source"]
+    settings = config["image"]
+    attribution = attribution or {}
+
+    images_dir, labels_dir = out_dir / "images", out_dir / "labels"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    labels_dir.mkdir(parents=True, exist_ok=True)
+
+    records: list[dict[str, Any]] = []
+    failed = too_small = 0
+
+    def one(candidate: Candidate) -> dict[str, Any] | None:
+        url = image_url(source["image_base"], candidate.split, candidate.image_id)
+        payload = fetch(url)
+        if payload is None:
+            return None
+        name = f"{candidate.image_id}.jpg"
+        size = save_resized(
+            payload,
+            images_dir / name,
+            max_edge=settings["max_edge"],
+            quality=settings["jpeg_quality"],
+            min_edge=settings["min_edge"],
+        )
+        if size is None:
+            return None
+
+        # Class 0 for every box: the validator is class-agnostic.
+        lines = [
+            "0 {:.6f} {:.6f} {:.6f} {:.6f}".format(*box.to_yolo())
+            for box in candidate.boxes
+            if not box.is_degenerate
+        ]
+        (labels_dir / f"{candidate.image_id}.txt").write_text(
+            "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
+        )
+
+        return {
+            "file": name,
+            "width": size[0],
+            "height": size[1],
+            "boxes": len(lines),
+            "bins_in_frame": len(lines),
+            "kind": candidate.kind,
+            # Every Open Images photograph is its own capture cluster: they are
+            # unrelated pictures by unrelated photographers, so grouping them
+            # would invent a relationship that is not there.
+            "capture_cluster": f"open-images/{candidate.image_id}",
+            "annotator": None,
+            "capture_date": None,
+            **provenance(source, candidate.split, candidate.image_id,
+                         attribution.get(candidate.image_id)),
+        }
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for index, record in enumerate(pool.map(one, candidates), start=1):
+            if record is None:
+                failed += 1
+            else:
+                records.append(record)
+            if index % 500 == 0:
+                logger.info("harvested %d/%d (%d failed)", index, len(candidates), failed)
+
+    manifest = {
+        "images": len(records),
+        "boxes": sum(r["boxes"] for r in records),
+        "positives": sum(1 for r in records if r["boxes"]),
+        "background_images": sum(1 for r in records if not r["boxes"]),
+        "requested": len(candidates),
+        "unavailable": failed,
+        "too_small": too_small,
+        "by_kind": dict(sorted(Counter(r["kind"] for r in records).items())),
+        "bins_per_frame": dict(sorted(Counter(r["boxes"] for r in records).items())),
+        "source": source["name"],
+        "licence": source["licence"],
+        "records": records,
+        "crop_records": [],
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    logger.info(
+        "%s: %d images (%d with boxes, %d background), %d unavailable",
+        out_dir.name, len(records), manifest["positives"], manifest["background_images"], failed,
+    )
+    return manifest
 
 
 def provenance(source: dict[str, Any], split: str, image_id: str, attribution: dict[str, str] | None) -> dict[str, Any]:

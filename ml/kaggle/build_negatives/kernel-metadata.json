@@ -1,11 +1,11 @@
 {
-  "id": "hlexnc/sbr-train-identifier",
-  "title": "SBR Train Identifier",
+  "id": "hlexnc/sbr-build-negatives",
+  "title": "SBR Build Negatives",
   "code_file": "script.py",
   "language": "python",
   "kernel_type": "script",
   "is_private": true,
-  "enable_gpu": true,
+  "enable_gpu": false,
   "enable_tpu": false,
   "enable_internet": true,
   "dataset_sources": [
