@@ -14,14 +14,21 @@ data:
   imgsz: 640
   # Group-aware splitting: two photos of the same physical bin must never
   # straddle a split, or the eval numbers become the predecessor's numbers.
+  # Capture clusters come from EXIF times in legacy_import - 370 legacy frames
+  # make 100 clusters, which is what gives the grouping something to group.
   split:
-    strategy: group_by_capture_cluster
+    group_by: capture_cluster
     train: 0.70
     val: 0.15
     test: 0.15
   # Held-out cities never appear in train or val, at any ratio. This is the
   # only split that predicts launch behaviour. See docs/04-ml-pipeline.md § 5.
   holdout_regions: []
+  # Annotator style is a plausible confound and the archive hands us the key for
+  # free. NAMED, not hashed: there are three annotators, and hashing three
+  # groups into 70/15/15 gives 369/1/0 - a knob that looks like a confound check
+  # and is not one. Set to e.g. ["Sameer"] to run the check.
+  holdout_annotators: []
 
 model:
   arch: yolo11n
