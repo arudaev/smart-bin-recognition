@@ -1,0 +1,60 @@
+name: ml
+
+# The Python side had no CI at all. Everything here is something AGENTS.md
+# already requires before a commit; running it on every push is what makes that
+# requirement true rather than aspirational.
+
+on:
+  push:
+    paths:
+      - "ml/**"
+      - "data/taxonomy/**"
+      - ".github/workflows/ml.yml"
+  pull_request:
+    paths:
+      - "ml/**"
+      - "data/taxonomy/**"
+      - ".github/workflows/ml.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        # kaggle/ is included on purpose: those scripts cannot be imported, so
+        # ruff is the only thing standing between a typo and a wasted GPU hour.
+        run: ruff check src/ scripts/ tests/ kaggle/
+
+      - name: Types
+        run: mypy src/
+
+      - name: Tests
+        run: python -m pytest tests/ -q
+
+      - name: Taxonomy
+        # de/ar bundles are incomplete, so only en is checked for coverage.
+        run: python scripts/validate_taxonomy.py --locales en
+
+      - name: No notebooks
+        # "The predecessor's central artefact was a notebook that could not
+        # reproduce its own model." Logic lives in src/ or scripts/.
+        run: |
+          if find . -name '*.ipynb' | grep .; then
+            echo "::error::notebooks are not allowed in ml/ - see AGENTS.md"
+            exit 1
+          fi

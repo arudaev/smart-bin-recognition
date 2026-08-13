@@ -70,17 +70,19 @@ data/taxonomy/           The product's spine – the vision model is a lookup ke
 └── regions/*.json              one per jurisdiction; de-by-deggendorf is DRAFT
 
 ml/                      Python: dataset, training dispatch, export
-├── configs/                    default.yaml + detector.yaml (_defaults_ deep merge)
+├── configs/                    default.yaml + validator/identifier/open_images/legacy_archive
 ├── src/sbr/
 │   ├── taxonomy.py             ontology + region packs + the resolver
 │   ├── config.py               YAML inheritance, cloud guard
-│   ├── dataset/legacy_import.py  2.15 GB / 4 German classes -> resized, remapped
-│   ├── dataset/prepare.py        group-aware + region-holdout splits
+│   ├── dataset/archive.py        the legacy archive's contract; refuses a short copy
+│   ├── dataset/legacy_import.py  370 usable frames -> resized, provenance, crops
+│   ├── dataset/open_images.py    negative corpus + out-of-city bins
+│   ├── dataset/prepare.py        group-aware + region-holdout splits, per role
 │   ├── export/onnx_export.py     ONNX int8 + the four ship gates
 │   ├── escalation/schema.py      stage-3 VLM contract
 │   └── utils/hub.py              HF token, download, upload
-├── kaggle/train_detector/      self-contained GPU kernel
-├── scripts/                    dispatch.py, validate_taxonomy.py
+├── kaggle/                     train_validator, train_identifier, build_negatives
+├── scripts/                    dispatch, adjudicate, gate, push_dataset, inventory_legacy
 └── tests/
 
 web/                     React + TS + Vite PWA – design imported from Claude Design
@@ -152,12 +154,23 @@ python -m pytest tests/ -q
 python scripts/validate_taxonomy.py --locales en   # de/ar bundles are incomplete
 ruff check src/ scripts/ tests/
 
-# Import the predecessor's dataset (needs cv_garbage.zip from the v1.0.0 release)
-python -m sbr.dataset.legacy_import --archive cv_garbage.zip --out data/legacy
+# Import the predecessor's dataset (needs cv_garbage.zip from the v1.0.0 release).
+# Refuses to run against a copy that does not match ml/configs/legacy_archive.yaml.
+python scripts/inventory_legacy.py --archive-dir cv_garbage
+python -m sbr.dataset.legacy_import --archive-dir cv_garbage --out data/legacy/pool
 
-# Training – Kaggle GPU only, never local
-python scripts/dispatch.py push detector --version 1
-python scripts/dispatch.py status detector
+# The human pass: form factors for the legacy crops. Blocks the identifier only.
+python scripts/adjudicate.py --pool data/legacy/pool
+python scripts/adjudicate.py --pool data/legacy/pool --apply
+
+# Training – Kaggle only, never local
+python scripts/dispatch.py push negatives  --version 1   # CPU: corpus + OOD bins
+python scripts/dispatch.py push validator  --version 1
+python scripts/dispatch.py push identifier --version 1
+python scripts/dispatch.py status validator
+
+# Ship gate: latency measured on the 2-vCPU bench Space, not here
+python scripts/gate.py --role validator --version 1
 ```
 
 ## Conventions

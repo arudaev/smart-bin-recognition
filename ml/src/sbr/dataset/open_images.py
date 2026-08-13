@@ -234,7 +234,7 @@ def save_resized(payload: bytes, target: Path, max_edge: int, quality: int, min_
                 return None
             scale = min(1.0, max_edge / max(width, height))
             if scale < 1.0:
-                image = image.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
+                image = image.resize((round(width * scale), round(height * scale)), Image.Resampling.LANCZOS)
             target.parent.mkdir(parents=True, exist_ok=True)
             image.save(target, "JPEG", quality=quality, optimize=True)
             return image.size

@@ -276,7 +276,7 @@ def import_legacy(
             width, height = frame.size
             scale = min(1.0, max_edge / max(width, height))
             if scale < 1.0:
-                frame = frame.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
+                frame = frame.resize((round(width * scale), round(height * scale)), Image.Resampling.LANCZOS)
             frame.save(target, "JPEG", quality=quality, optimize=True)
             new_width, new_height = frame.size
 

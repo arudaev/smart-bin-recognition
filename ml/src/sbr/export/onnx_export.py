@@ -253,7 +253,7 @@ def quantise(
             if path is None:
                 return None
             with Image.open(path) as image:
-                image = image.convert("RGB").resize((imgsz, imgsz), Image.BILINEAR)
+                image = image.convert("RGB").resize((imgsz, imgsz), Image.Resampling.BILINEAR)
                 array = np.asarray(image, dtype=np.float32).transpose(2, 0, 1) / 255.0
             return {"images": array[None, ...]}
 
