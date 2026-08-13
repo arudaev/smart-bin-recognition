@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
-"""Smart Bin Recognition – form-factor detector training (Kaggle GPU kernel).
+"""Model A – the VALIDATOR. "Is there a bin, and where?" (Kaggle GPU kernel)
 
-Self-contained. `scripts/dispatch.py` injects a base64 zip of `src/` + `configs/`
-in place of the sentinel below, pushes this file as a kernel, and walks away.
-On Kaggle the script unpacks the bundle, pulls the pinned dataset from HF,
-trains, exports ONNX int8, checks the ship gates, and uploads everything back.
+Self-contained. ``scripts/dispatch.py`` injects a base64 zip of ``src/`` and
+``configs/`` in place of the sentinel below, pushes this file as a kernel, and
+walks away. On Kaggle it unpacks the bundle, pulls the **pinned** dataset from
+HF, trains, evaluates, exports ONNX int8, and uploads everything back.
 
-The laptop's only jobs are `push` and, later, `output`.
+One class, ``bin``, class-agnostic on purpose: it must fire on a bin type it has
+never seen, because that is exactly the case the improvement loop depends on
+detecting. Most of its training data is not bins at all.
+
+**This kernel does not decide whether the model ships.** It cannot: the latency
+budget is stated on service CPU and this machine has a GPU and somebody else's
+CPU. It exports with latency unmeasured – a distinct verdict from passing – and
+``ml/scripts/gate.py`` decides once the 2-vCPU bench has spoken.
 """
 
 # ---------------------------------------------------------------------------
@@ -27,15 +34,13 @@ import zipfile  # noqa: E402
 
 WORKING = pathlib.Path("/kaggle/working")
 PROJECT = WORKING / "project"
+ROLE = "validator"
 
 
 def log(message: str) -> None:
     print(f"[sbr] {message}", flush=True)
 
 
-# ---------------------------------------------------------------------------
-# 1. Unpack the injected project bundle
-# ---------------------------------------------------------------------------
 def unpack_bundle() -> None:
     if PROJECT_BUNDLE_B64.startswith("__SBR"):
         raise RuntimeError(
@@ -43,15 +48,12 @@ def unpack_bundle() -> None:
             "do not push this file directly"
         )
     PROJECT.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as zf:
-        zf.extractall(PROJECT)
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
+        archive.extractall(PROJECT)
     sys.path.insert(0, str(PROJECT / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
-# ---------------------------------------------------------------------------
-# 2. Dependencies
-# ---------------------------------------------------------------------------
 def install_dependencies() -> None:
     packages = [
         "ultralytics>=8.3.0",
@@ -64,24 +66,8 @@ def install_dependencies() -> None:
     log("dependencies installed")
 
 
-# ---------------------------------------------------------------------------
-# 3. Train
-# ---------------------------------------------------------------------------
-def main() -> None:
-    unpack_bundle()
-    install_dependencies()
-
-    from sbr.config import load_config
-    from sbr.dataset.prepare import build_yolo_tree
-    from sbr.export.onnx_export import ExportReport, check_gates, export_onnx, quantise, write_sidecar
-    from sbr.taxonomy import load_taxonomy
-    from sbr.utils.hub import configure_hf_runtime, download_dataset, upload_artifacts
-
-    configure_hf_runtime()
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
-    log(f"config: {json.dumps(config, indent=2)}")
-
-    seed = config["project"]["seed"]
+def seed_everything(seed: int) -> None:
+    """Seed every source of randomness a run touches. Non-negotiable."""
     import random
 
     import numpy as np
@@ -91,95 +77,240 @@ def main() -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    log(f"seeded torch / numpy / random / cuda with {seed}")
 
-    # --- data ---------------------------------------------------------------
+
+def recall_by_bins_per_frame(model, data_yaml, tree, config) -> dict:
+    """Detection recall bucketed by how many bins are in the frame.
+
+    docs/04 § 5 commits to this so that a model which only works on one big
+    centred bin cannot hide behind an aggregate. The legacy archive has no frame
+    with four or more bins, so a `4+` bucket appears only once the Open Images
+    and Commons subsets are in the pool - and its absence is itself a result.
+    """
+    import yaml
+
+    buckets: dict[str, dict[str, int]] = {}
+    labels_dir = tree / "labels" / "test"
+    images_dir = tree / "images" / "test"
+    if not labels_dir.exists():
+        return {}
+
+    for label in sorted(labels_dir.glob("*.txt")):
+        truth = [line for line in label.read_text().splitlines() if line.strip()]
+        if not truth:
+            continue
+        image = next((p for p in images_dir.glob(f"{label.stem}.*")), None)
+        if image is None:
+            continue
+
+        key = "4+" if len(truth) >= 4 else str(len(truth))
+        bucket = buckets.setdefault(key, {"frames": 0, "truth_boxes": 0, "detected": 0})
+        bucket["frames"] += 1
+        bucket["truth_boxes"] += len(truth)
+
+        result = model.predict(
+            str(image), imgsz=config["data"]["imgsz"], conf=0.25, iou=0.45, verbose=False
+        )[0]
+        # Box-count recall, not IoU matching: the question here is whether a
+        # crowded frame loses bins, and the aggregate mAP already covers quality.
+        bucket["detected"] += min(len(result.boxes), len(truth))
+
+    for bucket in buckets.values():
+        bucket["recall"] = round(bucket["detected"] / bucket["truth_boxes"], 4) if bucket["truth_boxes"] else None
+
+    log(f"recall by bins-per-frame: {json.dumps(buckets)}")
+    del yaml
+    return buckets
+
+
+def precision_on_negatives(model, tree, config) -> dict:
+    """How often the validator fires on an image with no bin in it.
+
+    The predecessor hallucinated a glass container on a slide of black text on
+    white. This is the number that says whether that is fixed.
+    """
+    labels_dir = tree / "labels" / "test"
+    images_dir = tree / "images" / "test"
+    if not labels_dir.exists():
+        return {}
+
+    negatives = [
+        label for label in sorted(labels_dir.glob("*.txt"))
+        if not label.read_text().strip()
+    ]
+    if not negatives:
+        log("no background images in the test split - precision on negatives unmeasured")
+        return {}
+
+    false_positive_frames = 0
+    for label in negatives:
+        image = next((p for p in images_dir.glob(f"{label.stem}.*")), None)
+        if image is None:
+            continue
+        result = model.predict(
+            str(image), imgsz=config["data"]["imgsz"], conf=0.25, iou=0.45, verbose=False
+        )[0]
+        if len(result.boxes):
+            false_positive_frames += 1
+
+    summary = {
+        "negative_frames": len(negatives),
+        "frames_with_a_false_positive": false_positive_frames,
+        "frame_level_specificity": round(1 - false_positive_frames / len(negatives), 4),
+    }
+    log(f"negatives: {json.dumps(summary)}")
+    return summary
+
+
+def main() -> None:
+    unpack_bundle()
+    install_dependencies()
+
+    from sbr.config import load_config
+    from sbr.dataset.prepare import build_yolo_tree
+    from sbr.export.onnx_export import (
+        ExportReport,
+        Gates,
+        check_gates,
+        export_onnx,
+        quantise,
+        write_sidecar,
+    )
+    from sbr.utils.hub import configure_hf_runtime, download_dataset, upload_artifacts
+
+    configure_hf_runtime()
+    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    log(f"config: {json.dumps(config, indent=2)}")
+    seed_everything(config["project"]["seed"])
+
+    # --- data -------------------------------------------------------------- #
+    # strict=True: an unpinned revision stops the run. A number measured against
+    # a moving target cannot be reproduced, and that is the one failure this
+    # repo exists not to repeat.
     pool = download_dataset(
         config["data"]["repo_id"],
         revision=config["data"]["revision"],
         local_dir=WORKING / "pool",
+        strict=True,
     )
-    data_yaml = build_yolo_tree(pool, WORKING / "dataset", config)
+    tree = WORKING / "dataset"
+    data_yaml = build_yolo_tree(pool, tree, config)
+    composition = json.loads((tree / "composition.json").read_text(encoding="utf-8"))
+    log(f"composition: {json.dumps(composition)}")
 
-    # --- train --------------------------------------------------------------
+    # --- train ------------------------------------------------------------- #
+    import torch
     from ultralytics import YOLO
 
-    classes = load_taxonomy().detector_classes
-    log(f"{len(classes)} form-factor classes: {classes}")
+    classes = composition["classes"]
+    if classes != ["bin"]:
+        raise SystemExit(
+            f"the validator is class-agnostic and must train on exactly ['bin']; got {classes}"
+        )
 
     model = YOLO(f"{config['model']['arch']}.pt")
-    train_args = {
-        "data": str(data_yaml),
-        "imgsz": config["data"]["imgsz"],
-        "epochs": config["training"]["epochs"],
-        "batch": config["training"]["batch"],
-        "optimizer": config["training"]["optimizer"],
-        "lr0": config["training"]["lr0"],
-        "lrf": config["training"]["lrf"],
-        "momentum": config["training"]["momentum"],
-        "weight_decay": config["training"]["weight_decay"],
-        "warmup_epochs": config["training"]["warmup_epochs"],
-        "patience": config["training"]["patience"],
-        "workers": config["training"]["workers"],
-        "cos_lr": config["training"]["cos_lr"],
-        "seed": seed,
-        "project": str(WORKING / "runs"),
-        "name": config["run_name"],
-        "exist_ok": True,
-        "device": 0 if torch.cuda.is_available() else "cpu",
+    results = model.train(
+        data=str(data_yaml),
+        imgsz=config["data"]["imgsz"],
+        epochs=config["training"]["epochs"],
+        batch=config["training"]["batch"],
+        optimizer=config["training"]["optimizer"],
+        lr0=config["training"]["lr0"],
+        lrf=config["training"]["lrf"],
+        momentum=config["training"]["momentum"],
+        weight_decay=config["training"]["weight_decay"],
+        warmup_epochs=config["training"]["warmup_epochs"],
+        patience=config["training"]["patience"],
+        workers=config["training"]["workers"],
+        cos_lr=config["training"]["cos_lr"],
+        seed=config["project"]["seed"],
+        project=str(WORKING / "runs"),
+        name=config["run_name"],
+        exist_ok=True,
+        device=0 if torch.cuda.is_available() else "cpu",
         **config["augment"],
-    }
-    results = model.train(**train_args)
+    )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"
-    log(f"training done: {best}")
+    log(f"training done: {best} (final fitness {getattr(results, 'fitness', None)})")
 
-    # --- evaluate -----------------------------------------------------------
+    # --- evaluate ----------------------------------------------------------- #
     metrics = model.val(data=str(data_yaml), imgsz=config["data"]["imgsz"], split="test")
-    map50_fp32 = float(metrics.box.map50)
+    map50 = float(metrics.box.map50)
+
     history = {
-        "map50": map50_fp32,
-        "map50_95": float(metrics.box.map),
-        "precision": float(metrics.box.mp),
-        "recall": float(metrics.box.mr),
-        "per_class_ap50": {
-            name: float(metrics.box.ap50[i]) for i, name in enumerate(classes)
-            if i < len(metrics.box.ap50)
+        "role": ROLE,
+        "version": int(MODEL_VERSION),
+        "dataset": {
+            "repo_id": config["data"]["repo_id"],
+            "revision": config["data"]["revision"],
+            "composition": composition,
         },
+        "test": {
+            "map50": map50,
+            "map50_95": float(metrics.box.map),
+            "precision": float(metrics.box.mp),
+            "recall": float(metrics.box.mr),
+        },
+        "recall_by_bins_per_frame": recall_by_bins_per_frame(model, data_yaml, tree, config),
+        "precision_on_negatives": precision_on_negatives(model, tree, config),
         "config": config,
     }
+
+    # The split that actually predicts launch behaviour, when there is one.
+    if (tree / "images" / "holdout_region").exists() and any(
+        (tree / "images" / "holdout_region").iterdir()
+    ):
+        holdout = model.val(
+            data=str(data_yaml), imgsz=config["data"]["imgsz"], split="holdout_region"
+        )
+        history["holdout_region"] = {
+            "map50": float(holdout.box.map50),
+            "recall": float(holdout.box.mr),
+            "precision": float(holdout.box.mp),
+        }
+        log(f"held-out region mAP50 = {history['holdout_region']['map50']:.4f}")
+    else:
+        log("no held-out region in this dataset - the generalisation number is NOT available")
+
     history_path = WORKING / config["logging"]["history_file"]
     history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
-    log(f"test mAP@0.5 = {map50_fp32:.4f}")
+    log(f"test mAP@0.5 = {map50:.4f}")
 
-    # --- export -------------------------------------------------------------
+    # --- export ------------------------------------------------------------- #
     artifacts = WORKING / "artifacts"
-    fp32 = export_onnx(best, artifacts, imgsz=config["export"]["imgsz"])
+    fp32 = export_onnx(
+        best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"]
+    )
     int8 = quantise(
         fp32,
-        WORKING / "dataset" / "images" / "val",
-        artifacts / f"detector-v{MODEL_VERSION}.onnx",
+        tree / "images" / "val",
+        artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx",
         imgsz=config["export"]["imgsz"],
+        calibration_images=config["export"]["calibration_images"],
     )
 
+    gates = Gates.from_config(ROLE, config)
     report = ExportReport(
+        role=ROLE,
         version=int(MODEL_VERSION),
         onnx_path=int8.name,
         size_bytes=int8.stat().st_size,
         imgsz=config["export"]["imgsz"],
         classes=classes,
-        map50_fp32=map50_fp32,
-        map50_int8=None,   # measured by the web-side benchmark job
-        median_latency_ms=None,
         quantised=True,
+        map50_fp32=map50,
+        # Measured by ml/scripts/gate.py against the int8 graph; latency is
+        # measured there too, on the CPU the budget is actually stated for.
+        map50_int8=None,
+        median_latency_ms=None,
     )
-    sidecar = write_sidecar(report, artifacts)
+    sidecar = write_sidecar(report, artifacts, gates)
+    check_gates(report, gates).log()
 
-    failures = check_gates(report)
-    for failure in failures:
-        log(f"SHIP GATE FAILED: {failure}")
-
-    # --- upload -------------------------------------------------------------
-    # Uploaded even on gate failure: the artefact is evidence for the next
-    # iteration. Promotion into web/public/models/ is a separate, gated step.
+    # --- upload ------------------------------------------------------------- #
+    # Uploaded even when a gate fails: the artefact is evidence for the next
+    # iteration. Promotion is a separate, gated step and lives in gate.py.
     if os.environ.get("SBR_SKIP_UPLOAD") != "1":
         upload_artifacts(
             repo_id=config["hub"]["model_repo"],
@@ -189,13 +320,14 @@ def main() -> None:
                 f"v{MODEL_VERSION}/{sidecar.name}": sidecar,
                 f"v{MODEL_VERSION}/history.json": history_path,
             },
-            commit_message=f"detector v{MODEL_VERSION}: mAP50={map50_fp32:.4f}",
+            commit_message=f"{ROLE} v{MODEL_VERSION}: test mAP50={map50:.4f}",
             private=config["hub"]["private"],
         )
 
-    if failures:
-        raise SystemExit(1)
-    log("all ship gates passed")
+    log(
+        f"exported {int8.name}. Latency is unmeasured by design - run "
+        f"`python ml/scripts/gate.py --role {ROLE} --version {MODEL_VERSION}` to decide shipping."
+    )
 
 
 if __name__ == "__main__":

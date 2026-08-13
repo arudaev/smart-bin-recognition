@@ -1,6 +1,6 @@
 {
-  "id": "hlexnc/sbr-train-detector",
-  "title": "SBR – Train Form-Factor Detector",
+  "id": "hlexnc/sbr-train-validator",
+  "title": "SBR - Train Validator (model A)",
   "code_file": "script.py",
   "language": "python",
   "kernel_type": "script",

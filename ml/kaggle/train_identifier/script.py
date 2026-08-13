@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
-"""Smart Bin Recognition – form-factor IDENTIFIER training (Kaggle GPU kernel).
+"""Model B – the IDENTIFIER. "What kind of bin is it?" (Kaggle GPU kernel)
 
-Self-contained. `scripts/dispatch.py` injects a base64 zip of `src/` + `configs/`
-in place of the sentinel below, pushes this file as a kernel, and walks away.
-On Kaggle the script unpacks the bundle, pulls the pinned dataset from HF,
-trains, exports ONNX int8, checks the ship gates, and uploads everything back.
+A **classifier** over crops, not a detector. The validator has already localised
+the object and the crop is filled by it, so re-detecting would spend the 25 ms
+budget re-deriving a box that is already known. Classification also makes
+``unknown`` principled: a max-softmax below the configured threshold, rather
+than a box score below a confidence floor.
 
-The laptop's only jobs are `push` and, later, `output`.
+Its classes are physical form factors in taxonomy file order – **that order is
+the ONNX class index** and reordering it silently invalidates every deployed
+model.
+
+It trains only on **adjudicated** crops. A crop whose form factor was inferred
+from a legacy stream label is not a label, and ``build_classification_tree``
+stops rather than inventing one. Until the human pass has run, this kernel is
+expected to fail early and say why.
 """
 
 # ---------------------------------------------------------------------------
@@ -27,15 +35,13 @@ import zipfile  # noqa: E402
 
 WORKING = pathlib.Path("/kaggle/working")
 PROJECT = WORKING / "project"
+ROLE = "identifier"
 
 
 def log(message: str) -> None:
     print(f"[sbr] {message}", flush=True)
 
 
-# ---------------------------------------------------------------------------
-# 1. Unpack the injected project bundle
-# ---------------------------------------------------------------------------
 def unpack_bundle() -> None:
     if PROJECT_BUNDLE_B64.startswith("__SBR"):
         raise RuntimeError(
@@ -43,15 +49,12 @@ def unpack_bundle() -> None:
             "do not push this file directly"
         )
     PROJECT.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as zf:
-        zf.extractall(PROJECT)
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
+        archive.extractall(PROJECT)
     sys.path.insert(0, str(PROJECT / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
-# ---------------------------------------------------------------------------
-# 2. Dependencies
-# ---------------------------------------------------------------------------
 def install_dependencies() -> None:
     packages = [
         "ultralytics>=8.3.0",
@@ -64,24 +67,7 @@ def install_dependencies() -> None:
     log("dependencies installed")
 
 
-# ---------------------------------------------------------------------------
-# 3. Train
-# ---------------------------------------------------------------------------
-def main() -> None:
-    unpack_bundle()
-    install_dependencies()
-
-    from sbr.config import load_config
-    from sbr.dataset.prepare import build_yolo_tree
-    from sbr.export.onnx_export import ExportReport, check_gates, export_onnx, quantise, write_sidecar
-    from sbr.taxonomy import load_taxonomy
-    from sbr.utils.hub import configure_hf_runtime, download_dataset, upload_artifacts
-
-    configure_hf_runtime()
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
-    log(f"config: {json.dumps(config, indent=2)}")
-
-    seed = config["project"]["seed"]
+def seed_everything(seed: int) -> None:
     import random
 
     import numpy as np
@@ -91,95 +77,179 @@ def main() -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    log(f"seeded torch / numpy / random / cuda with {seed}")
 
-    # --- data ---------------------------------------------------------------
+
+def unknown_rate(model, tree: pathlib.Path, threshold: float, imgsz: int) -> dict:
+    """How often the identifier declines to answer, and how often it is right to.
+
+    ``unknown`` is a designed product state and the entry point to the
+    improvement loop, so its rate is a headline number rather than a footnote:
+    an identifier that never says unknown is not being honest, and one that
+    always does is not useful.
+    """
+    test = tree / "test"
+    if not test.exists():
+        return {}
+
+    total = confident = correct_when_confident = 0
+    for class_dir in sorted(p for p in test.iterdir() if p.is_dir()):
+        for image in sorted(class_dir.glob("*.jpg")):
+            result = model.predict(str(image), imgsz=imgsz, verbose=False)[0]
+            probabilities = result.probs
+            total += 1
+            if probabilities.top1conf.item() >= threshold:
+                confident += 1
+                if result.names[probabilities.top1] == class_dir.name:
+                    correct_when_confident += 1
+
+    summary = {
+        "crops": total,
+        "threshold": threshold,
+        "answered": confident,
+        "unknown_rate": round(1 - confident / total, 4) if total else None,
+        "accuracy_when_answering": round(correct_when_confident / confident, 4) if confident else None,
+    }
+    log(f"unknown behaviour: {json.dumps(summary)}")
+    return summary
+
+
+def main() -> None:
+    unpack_bundle()
+    install_dependencies()
+
+    from sbr.config import load_config
+    from sbr.dataset.prepare import build_classification_tree
+    from sbr.export.onnx_export import (
+        ExportReport,
+        Gates,
+        check_gates,
+        export_onnx,
+        quantise,
+        write_sidecar,
+    )
+    from sbr.utils.hub import configure_hf_runtime, download_dataset, upload_artifacts
+
+    configure_hf_runtime()
+    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    log(f"config: {json.dumps(config, indent=2)}")
+    seed_everything(config["project"]["seed"])
+
+    # --- data -------------------------------------------------------------- #
     pool = download_dataset(
         config["data"]["repo_id"],
         revision=config["data"]["revision"],
         local_dir=WORKING / "pool",
+        strict=True,
     )
-    data_yaml = build_yolo_tree(pool, WORKING / "dataset", config)
+    tree = WORKING / "crops"
+    # Raises SystemExit when nothing has been adjudicated, which is the expected
+    # state until the human pass has run.
+    build_classification_tree(pool, tree, config)
+    composition = json.loads((tree / "classification.json").read_text(encoding="utf-8"))
+    log(f"composition: {json.dumps(composition)}")
 
-    # --- train --------------------------------------------------------------
+    present = list(composition["classes_present"])
+    if composition["classes_absent"]:
+        log(
+            "TRAINING ON FEWER CLASSES THAN THE TAXONOMY DEFINES. No data for: "
+            f"{composition['classes_absent']}. The results doc must name these."
+        )
+
+    # --- train ------------------------------------------------------------- #
+    import torch
     from ultralytics import YOLO
 
-    classes = load_taxonomy().detector_classes
-    log(f"{len(classes)} form-factor classes: {classes}")
-
     model = YOLO(f"{config['model']['arch']}.pt")
-    train_args = {
-        "data": str(data_yaml),
-        "imgsz": config["data"]["imgsz"],
-        "epochs": config["training"]["epochs"],
-        "batch": config["training"]["batch"],
-        "optimizer": config["training"]["optimizer"],
-        "lr0": config["training"]["lr0"],
-        "lrf": config["training"]["lrf"],
-        "momentum": config["training"]["momentum"],
-        "weight_decay": config["training"]["weight_decay"],
-        "warmup_epochs": config["training"]["warmup_epochs"],
-        "patience": config["training"]["patience"],
-        "workers": config["training"]["workers"],
-        "cos_lr": config["training"]["cos_lr"],
-        "seed": seed,
-        "project": str(WORKING / "runs"),
-        "name": config["run_name"],
-        "exist_ok": True,
-        "device": 0 if torch.cuda.is_available() else "cpu",
+    results = model.train(
+        data=str(tree),
+        imgsz=config["data"]["imgsz"],
+        epochs=config["training"]["epochs"],
+        batch=config["training"]["batch"],
+        optimizer=config["training"]["optimizer"],
+        lr0=config["training"]["lr0"],
+        lrf=config["training"]["lrf"],
+        momentum=config["training"]["momentum"],
+        weight_decay=config["training"]["weight_decay"],
+        warmup_epochs=config["training"]["warmup_epochs"],
+        patience=config["training"]["patience"],
+        workers=config["training"]["workers"],
+        cos_lr=config["training"]["cos_lr"],
+        seed=config["project"]["seed"],
+        project=str(WORKING / "runs"),
+        name=config["run_name"],
+        exist_ok=True,
+        device=0 if torch.cuda.is_available() else "cpu",
         **config["augment"],
-    }
-    results = model.train(**train_args)
+    )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"
-    log(f"training done: {best}")
+    log(f"training done: {best} (final fitness {getattr(results, 'fitness', None)})")
 
-    # --- evaluate -----------------------------------------------------------
-    metrics = model.val(data=str(data_yaml), imgsz=config["data"]["imgsz"], split="test")
-    map50_fp32 = float(metrics.box.map50)
+    # --- evaluate ----------------------------------------------------------- #
+    metrics = model.val(data=str(tree), imgsz=config["data"]["imgsz"], split="test")
+    top1 = float(metrics.top1)
+
     history = {
-        "map50": map50_fp32,
-        "map50_95": float(metrics.box.map),
-        "precision": float(metrics.box.mp),
-        "recall": float(metrics.box.mr),
-        "per_class_ap50": {
-            name: float(metrics.box.ap50[i]) for i, name in enumerate(classes)
-            if i < len(metrics.box.ap50)
+        "role": ROLE,
+        "version": int(MODEL_VERSION),
+        "dataset": {
+            "repo_id": config["data"]["repo_id"],
+            "revision": config["data"]["revision"],
+            "composition": composition,
         },
+        "test": {"top1": top1, "top5": float(metrics.top5)},
+        "unknown": unknown_rate(
+            model, tree, config["inference"]["unknown_threshold"], config["data"]["imgsz"]
+        ),
+        "classes_trained": present,
+        "classes_without_data": composition["classes_absent"],
         "config": config,
     }
     history_path = WORKING / config["logging"]["history_file"]
     history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
-    log(f"test mAP@0.5 = {map50_fp32:.4f}")
+    log(f"test top-1 = {top1:.4f}")
 
-    # --- export -------------------------------------------------------------
+    # --- export ------------------------------------------------------------- #
     artifacts = WORKING / "artifacts"
-    fp32 = export_onnx(best, artifacts, imgsz=config["export"]["imgsz"])
+    fp32 = export_onnx(
+        best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"]
+    )
+    calibration = tree / "val"
     int8 = quantise(
         fp32,
-        WORKING / "dataset" / "images" / "val",
-        artifacts / f"detector-v{MODEL_VERSION}.onnx",
+        calibration,
+        artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx",
         imgsz=config["export"]["imgsz"],
+        calibration_images=config["export"]["calibration_images"],
     )
 
+    gates = Gates.from_config(ROLE, config)
     report = ExportReport(
+        role=ROLE,
         version=int(MODEL_VERSION),
         onnx_path=int8.name,
         size_bytes=int8.stat().st_size,
         imgsz=config["export"]["imgsz"],
-        classes=classes,
-        map50_fp32=map50_fp32,
-        map50_int8=None,   # measured by the web-side benchmark job
-        median_latency_ms=None,
+        # The model's OWN class order, read back from the trained model.
+        #
+        # This is not the taxonomy's file order and must not be assumed to be:
+        # Ultralytics builds a classification dataset from the directory names,
+        # so the output index is alphabetical over the classes that actually had
+        # crops. The sidecar is what the service reads, so the sidecar carries
+        # the truth - which is also why a class gaining data later cannot
+        # silently remap a deployed model, as long as this is read and not
+        # guessed. The form-factor IDS remain canonical and permanent; only
+        # their position in this particular head is incidental.
+        classes=[model.names[index] for index in sorted(model.names)],
         quantised=True,
+        top1_fp32=top1,
+        top1_int8=None,          # measured by ml/scripts/gate.py
+        median_latency_ms=None,  # measured on the 2-vCPU bench, not here
     )
-    sidecar = write_sidecar(report, artifacts)
+    sidecar = write_sidecar(report, artifacts, gates)
+    check_gates(report, gates).log()
 
-    failures = check_gates(report)
-    for failure in failures:
-        log(f"SHIP GATE FAILED: {failure}")
-
-    # --- upload -------------------------------------------------------------
-    # Uploaded even on gate failure: the artefact is evidence for the next
-    # iteration. Promotion into web/public/models/ is a separate, gated step.
+    # --- upload ------------------------------------------------------------- #
     if os.environ.get("SBR_SKIP_UPLOAD") != "1":
         upload_artifacts(
             repo_id=config["hub"]["model_repo"],
@@ -189,13 +259,14 @@ def main() -> None:
                 f"v{MODEL_VERSION}/{sidecar.name}": sidecar,
                 f"v{MODEL_VERSION}/history.json": history_path,
             },
-            commit_message=f"detector v{MODEL_VERSION}: mAP50={map50_fp32:.4f}",
+            commit_message=f"{ROLE} v{MODEL_VERSION}: test top1={top1:.4f}",
             private=config["hub"]["private"],
         )
 
-    if failures:
-        raise SystemExit(1)
-    log("all ship gates passed")
+    log(
+        f"exported {int8.name}. Latency is unmeasured by design - run "
+        f"`python ml/scripts/gate.py --role {ROLE} --version {MODEL_VERSION}` to decide shipping."
+    )
 
 
 if __name__ == "__main__":
