@@ -40,18 +40,42 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ---
 
-## Phase 2 – Vision spike *(highest risk – do it early)*
+## Phase 2 – Vision spike *(highest risk – in progress)*
 
-- [ ] `legacy_import.py` → resized, remapped dataset on HF Hub
-- [ ] Human pass: `wheelie_small` vs `wheelie_large` on ambiguous legacy labels
-- [ ] First YOLO11n training run on a Kaggle kernel
-- [ ] ONNX export for both models; enforce the latency budgets
+- [x] `legacy_import.py` → resized dataset with provenance on HF Hub, pinned by
+      revision. **370 usable frames, not 466**: the published archive is a
+      partial copy and the shortfall is now a contract, not a surprise
+      ([08 § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is)).
+- [x] Tooling for the human pass – `ml/scripts/adjudicate.py`, 403 crops ordered
+      by capture cluster, one keystroke each
+- [ ] **The human pass itself.** Blocks the identifier and nothing else.
+- [x] Negative corpus + out-of-city bins from Open Images, dispatched as a CPU
+      kernel. Open Images has a boxable `Waste container` class with
+      human-verified boxes, which is where the first frames holding four or more
+      bins come from — the legacy archive has none.
+- [ ] First training run on a Kaggle kernel
+- [x] ONNX export path, role-aware, with the four gates config-driven and pinned
+- [x] The thing that makes the latency budget real: a **2-vCPU HF Space bench**,
+      because "on service CPU" cannot be measured on a training GPU
 - [ ] Colour extraction from SAM 2 masks, validated against the legacy class labels
 - [ ] **Load-test the service: how many concurrent scanners before degradation?**
 
 **Gate:** validator ≤ 50 ms @ 448 and identifier ≤ 25 ms per crop on service
 CPU, and ≥ 10 concurrent scanners on the free tier. If this fails, the free-tier
 thesis needs revisiting – which is why it is phase 2 and not phase 5.
+
+**Gate status: not yet answered.** Results land in
+[11-phase2-results](11-phase2-results.md), which currently reports every metric
+as *not measured* and says why. The concurrency half needs the service and is
+phase 3 regardless.
+
+Two things found on the way that change what this phase can conclude:
+
+- **Seven of the ten form factors have no legacy data at all.** The four legacy
+  classes reach only `wheelie_small`, `wheelie_large` and `igloo`.
+- **The held-out "city" is not a city yet.** Everything in the legacy subset is
+  Deggendorf, so until the Open Images subset and a second-city capture land,
+  the honest split is group-aware by capture cluster, not geographic.
 
 ---
 
