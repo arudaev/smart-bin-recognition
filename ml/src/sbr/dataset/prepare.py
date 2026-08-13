@@ -169,20 +169,68 @@ def load_manifest(pool_dir: Path) -> dict[str, Any]:
     return json.loads((pool_dir / "manifest.json").read_text(encoding="utf-8"))
 
 
+def discover_pools(root: Path) -> list[Path]:
+    """Every subset under a dataset snapshot, in a stable order.
+
+    The HF dataset repo holds one directory per subset – ``legacy/``,
+    ``open_images/``, ``negatives/`` – each a self-contained pool with its own
+    manifest and its own provenance. Keeping them separate is what lets a
+    subset's contribution be measured, and rolled back if it turns out to hurt.
+    """
+    if (root / "manifest.json").exists():
+        return [root]
+    pools = sorted(p.parent for p in root.glob("*/manifest.json"))
+    if not pools:
+        raise FileNotFoundError(f"no pool manifests under {root}")
+    logger.info("pools: %s", [p.name for p in pools])
+    return pools
+
+
+def load_pool_records(pools: Iterable[Path]) -> list[tuple[Path, dict[str, Any]]]:
+    """``(pool_dir, record)`` for every frame across every subset.
+
+    Filenames are only unique within a subset, so the pool directory travels
+    with each record rather than being resolved later.
+    """
+    collected: list[tuple[Path, dict[str, Any]]] = []
+    for pool in pools:
+        manifest = load_manifest(pool)
+        for entry in manifest["records"]:
+            collected.append((pool, entry))
+    return collected
+
+
+def _qualified(pool: Path, file: str) -> str:
+    """A name unique across subsets, used as the training-tree filename."""
+    return f"{pool.name}__{file}"
+
+
 # --------------------------------------------------------------------------- #
 # Model A – detection tree
 # --------------------------------------------------------------------------- #
 
 
-def build_yolo_tree(pool_dir: Path, out_dir: Path, config: dict[str, Any]) -> Path:
+def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> Path:
     """Materialise a YOLO detection tree and its ``data.yaml`` for the validator.
 
-    Frames with no boxes are kept, not dropped: an image with an empty label
-    file is a background image, and the negative corpus is most of what buys the
-    validator its precision.
+    ``pool_root`` is either one pool or a dataset snapshot holding several
+    subsets. Frames with no boxes are kept, not dropped: an image with an empty
+    label file is a background image, and the negative corpus is most of what
+    buys the validator its precision.
     """
-    manifest = load_manifest(pool_dir)
-    records = [Record.from_manifest(entry) for entry in manifest["records"]]
+    pools = discover_pools(pool_root)
+    entries = load_pool_records(pools)
+
+    records = []
+    origin: dict[str, Path] = {}
+    source_name: dict[str, str] = {}
+    for pool, entry in entries:
+        qualified = _qualified(pool, entry["file"])
+        record = Record.from_manifest({**entry, "file": qualified})
+        records.append(record)
+        origin[qualified] = pool
+        source_name[qualified] = entry["file"]
+
     assignment = assign_splits(records, **split_config(config))
 
     for split in SPLITS:
@@ -190,15 +238,19 @@ def build_yolo_tree(pool_dir: Path, out_dir: Path, config: dict[str, Any]) -> Pa
         (out_dir / "labels" / split).mkdir(parents=True, exist_ok=True)
 
     per_split: Counter[str] = Counter()
+    per_pool: Counter[str] = Counter()
     negatives = 0
     for record in records:
         split = assignment[record.file]
+        pool = origin[record.file]
         per_split[split] += 1
-        stem = Path(record.file).stem
-        shutil.copy2(pool_dir / "images" / record.file, out_dir / "images" / split / record.file)
+        per_pool[pool.name] += 1
 
-        source_label = pool_dir / "labels" / f"{stem}.txt"
-        target_label = out_dir / "labels" / split / f"{stem}.txt"
+        original = source_name[record.file]
+        shutil.copy2(pool / "images" / original, out_dir / "images" / split / record.file)
+
+        source_label = pool / "labels" / f"{Path(original).stem}.txt"
+        target_label = out_dir / "labels" / split / f"{Path(record.file).stem}.txt"
         if source_label.exists():
             shutil.copy2(source_label, target_label)
         else:
@@ -221,9 +273,27 @@ def build_yolo_tree(pool_dir: Path, out_dir: Path, config: dict[str, Any]) -> Pa
     data_path = out_dir / "data.yaml"
     data_path.write_text(yaml.safe_dump(data_yaml, sort_keys=False), encoding="utf-8")
 
+    positives = len(records) - negatives
+    (out_dir / "composition.json").write_text(
+        json.dumps(
+            {
+                "per_split": dict(sorted(per_split.items())),
+                "per_pool": dict(sorted(per_pool.items())),
+                "positives": positives,
+                "background_images": negatives,
+                "negative_ratio": round(negatives / positives, 1) if positives else None,
+                "classes": classes,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
     logger.info(
-        "wrote %s: %d classes %s, splits %s, %d background images",
-        data_path, len(classes), classes, dict(sorted(per_split.items())), negatives,
+        "wrote %s: %d classes %s, splits %s, pools %s, %d positives + %d background (%.1f:1)",
+        data_path, len(classes), classes, dict(sorted(per_split.items())),
+        dict(sorted(per_pool.items())), positives, negatives,
+        negatives / positives if positives else 0,
     )
     return data_path
 
@@ -252,14 +322,18 @@ def resolve_classes(config: dict[str, Any]) -> list[str]:
 # --------------------------------------------------------------------------- #
 
 
-def build_classification_tree(pool_dir: Path, out_dir: Path, config: dict[str, Any]) -> Path:
+def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> Path:
     """Materialise ``split/<form_factor>/`` from **adjudicated** crops only.
 
     A crop whose form factor was inferred from a legacy stream label is not a
     label. It carries ``adjudication: "pending"`` and is skipped here, loudly.
     """
-    manifest = load_manifest(pool_dir)
-    frames = [Record.from_manifest(entry) for entry in manifest["records"]]
+    pools = discover_pools(pool_root)
+
+    frames = [
+        Record.from_manifest({**entry, "file": _qualified(pool, entry["file"])})
+        for pool, entry in load_pool_records(pools)
+    ]
     assignment = assign_splits(frames, **split_config(config))
 
     require = config.get("data", {}).get("require_adjudication", True)
@@ -269,27 +343,29 @@ def build_classification_tree(pool_dir: Path, out_dir: Path, config: dict[str, A
     per_split: Counter[str] = Counter()
     skipped_pending = skipped_unknown = 0
 
-    for crop in manifest.get("crop_records", []):
-        state = crop.get("adjudication")
-        form_factor = crop.get("form_factor")
-        if require and state not in ADJUDICATED:
-            skipped_pending += 1
-            continue
-        if not form_factor or form_factor not in classes:
-            skipped_unknown += 1
-            continue
+    for pool in pools:
+        for crop in load_manifest(pool).get("crop_records", []):
+            state = crop.get("adjudication")
+            form_factor = crop.get("form_factor")
+            if require and state not in ADJUDICATED:
+                skipped_pending += 1
+                continue
+            if not form_factor or form_factor not in classes:
+                skipped_unknown += 1
+                continue
 
-        # The crop inherits its frame's split, so a crop and the frame it came
-        # from can never straddle one.
-        split = assignment.get(crop["frame"])
-        if split is None:
-            continue
+            # The crop inherits its frame's split, so a crop and the frame it
+            # came from can never straddle one.
+            split = assignment.get(_qualified(pool, crop["frame"]))
+            if split is None:
+                continue
 
-        destination = out_dir / split / form_factor
-        destination.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(pool_dir / "crops" / crop["file"], destination / crop["file"])
-        kept[form_factor] += 1
-        per_split[split] += 1
+            destination = out_dir / split / form_factor
+            destination.mkdir(parents=True, exist_ok=True)
+            name = _qualified(pool, crop["file"])
+            shutil.copy2(pool / "crops" / crop["file"], destination / name)
+            kept[form_factor] += 1
+            per_split[split] += 1
 
     if skipped_pending:
         logger.warning(

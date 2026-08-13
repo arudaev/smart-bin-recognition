@@ -200,8 +200,49 @@ def test_a_frame_with_no_boxes_becomes_a_background_image(legacy_pool, tmp_path)
 
     out = tmp_path / "yolo"
     build_yolo_tree(legacy_pool, out, VALIDATOR_CONFIG)
-    label = next(out.glob("labels/*/street.txt"))
+    # Names are qualified by subset, because a filename is only unique inside one.
+    label = next(out.glob("labels/*/*street.txt"))
     assert label.read_text(encoding="utf-8") == ""
+
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+    assert composition["background_images"] == 1
+
+
+def test_several_subsets_assemble_into_one_tree(legacy_pool, tmp_path):
+    # The HF dataset repo is one directory per subset - legacy, open_images,
+    # negatives - so a snapshot has no top-level manifest and several below it.
+    import shutil
+
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    shutil.copytree(legacy_pool, root / "open_images")
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+    assert set(composition["per_pool"]) == {"legacy", "open_images"}
+    assert sum(composition["per_pool"].values()) == 2 * len(
+        json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))["records"]
+    )
+
+
+def test_identical_filenames_in_two_subsets_do_not_collide(legacy_pool, tmp_path):
+    import shutil
+
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    shutil.copytree(legacy_pool, root / "open_images")
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    names = [p.name for p in out.glob("images/*/*.jpg")]
+    assert len(names) == len(set(names))
+
+
+def test_a_snapshot_with_no_manifests_is_refused(tmp_path):
+    (tmp_path / "empty").mkdir()
+    with pytest.raises(FileNotFoundError, match="no pool manifests"):
+        build_yolo_tree(tmp_path / "empty", tmp_path / "out", VALIDATOR_CONFIG)
 
 
 def test_identifier_refuses_a_pool_of_unadjudicated_crops(legacy_pool, tmp_path):
@@ -256,10 +297,14 @@ def test_a_crop_shares_its_frames_split(legacy_pool, tmp_path):
     build_classification_tree(legacy_pool, out, IDENTIFIER_CONFIG)
 
     manifest = json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))
-    frames = [Record.from_manifest(entry) for entry in manifest["records"]]
+    prefix = f"{legacy_pool.name}__"
+    frames = [
+        Record.from_manifest({**entry, "file": prefix + entry["file"]})
+        for entry in manifest["records"]
+    ]
     assignment = assign_splits(frames, train=0.70, val=0.15)
-    by_frame = {c["file"]: c["frame"] for c in manifest["crop_records"]}
+    by_crop = {prefix + c["file"]: prefix + c["frame"] for c in manifest["crop_records"]}
 
     for crop_path in out.glob("*/*/*.jpg"):
         split = crop_path.parent.parent.name
-        assert assignment[by_frame[crop_path.name]] == split
+        assert assignment[by_crop[crop_path.name]] == split
