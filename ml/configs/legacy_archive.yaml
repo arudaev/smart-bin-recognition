@@ -19,8 +19,25 @@ source:
   repo: arudaev/Painfully-Trivial
   release: v1.0.0
   asset: cv_garbage.zip
+  url: https://github.com/arudaev/Painfully-Trivial/releases/download/v1.0.0/cv_garbage.zip
   bytes: 2146794568
   sha256: 028b1f5571f5ad681c78ab820cabb8dace3ebc5ddad8d8138117b69675596ea3
+  licence: MIT              # the predecessor repo's licence, same author
+  region_id: de-by-deggendorf
+  label_origin: legacy
+
+# Import knobs. Nothing that affects a run is hard-coded in source.
+import:
+  max_edge: 960             # the 2.15 GB archive is full-res phone JPEGs
+  jpeg_quality: 88
+  crop_padding: 0.12        # a little context distinguishes 240 L from 1100 L
+  min_crop_px: 64
+  # Frames of the same bin in one session must never straddle a split. Capture
+  # times come from EXIF (present on every image in labeled/), and consecutive
+  # shots inside this gap are treated as one capture cluster. Without this every
+  # frame is its own group and the "group-aware" split is just a random one -
+  # which is exactly how the predecessor got its 0.987.
+  cluster_gap_seconds: 180
 
 # What is actually in the zip.
 #

@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import FIXTURE  # the shared miniature archive
 
 from sbr.dataset.archive import (
     class_from_export_name,
@@ -28,86 +29,6 @@ from sbr.dataset.archive import (
     resolve_pairs,
     verify,
 )
-
-# --------------------------------------------------------------------------- #
-# A miniature archive, built the way the real one is named
-# --------------------------------------------------------------------------- #
-
-#: (task id, escaped class, hash, annotator, split, label lines)
-FIXTURE = [
-    ("004c3856", "Restm_C3_BCll", "1c64fee5", "Alex", "train", ["3 0.5 0.5 0.4 0.6"]),
-    ("01f3bdb3", "Papier", "00d305ba", "Alex", "train", ["2 0.4 0.5 0.3 0.5"]),
-    ("0b4c9d86", "Biom_C3_BCll", "47489532", "Fares", "val", ["0 0.5 0.5 0.5 0.5"]),
-    # two bins in one frame
-    ("10b07159", "Glas", "a404290d", "Fares", "train", ["1 0.3 0.5 0.2 0.4", "1 0.7 0.5 0.2 0.4"]),
-]
-
-
-def _png_bytes() -> bytes:
-    import io
-
-    from PIL import Image
-
-    buffer = io.BytesIO()
-    Image.new("RGB", (64, 64), (120, 120, 120)).save(buffer, "JPEG")
-    return buffer.getvalue()
-
-
-@pytest.fixture
-def archive(tmp_path: Path) -> Path:
-    """A complete miniature archive that :func:`verify` accepts."""
-    root = tmp_path / "cv_garbage"
-    for split in ("train", "val"):
-        (root / "YOLO_Dataset" / "labels" / split).mkdir(parents=True)
-        (root / "YOLO_Dataset" / "images" / split).mkdir(parents=True)
-    (root / "raw_images").mkdir(parents=True)
-
-    jpeg = _png_bytes()
-    csv_rows = ["original_filename,new_filename,label,timestamp"]
-    for task, escaped, digest, annotator, split, lines in FIXTURE:
-        (root / "YOLO_Dataset" / "labels" / split / f"{task}-{escaped}_{digest}.txt").write_text(
-            "\n".join(lines) + "\n", encoding="utf-8"
-        )
-        person = root / "labeled" / annotator
-        person.mkdir(parents=True, exist_ok=True)
-        readable = decode_export_name(escaped)
-        (person / f"{readable}_{digest}.jpg").write_bytes(jpeg)
-        csv_rows.append(f"IMG_2025_{digest}.jpg,{readable}_{digest}.jpg,{readable},2025-05-14T23:13:58+00:00")
-
-    (root / "labeled" / "labels.csv").write_text("\n".join(csv_rows) + "\n", encoding="utf-8")
-    (root / "YOLO_Dataset" / "data.yaml").write_text(
-        yaml.safe_dump(
-            {"nc": 4, "names": {0: "Biomüll", 1: "Glas", 2: "Papier", 3: "Restmüll"}},
-            allow_unicode=True,
-        ),
-        encoding="utf-8",
-    )
-    (root / "models" / "run_one").mkdir(parents=True)
-    return root
-
-
-@pytest.fixture
-def expectations(archive: Path) -> dict:
-    """Expectations matching the fixture, so each test can break exactly one thing."""
-    found = inventory(archive)
-    return {
-        "expected": {
-            "yolo_labels": found.yolo_labels,
-            "yolo_images": found.yolo_images,
-            "labeled_images": found.labeled_images,
-            "raw_images": found.raw_images,
-            "labels_csv_rows": found.labels_csv_rows,
-            "model_runs": found.model_runs,
-            "pairable_labels": found.pairable_labels,
-            "orphan_labels": len(found.orphan_labels),
-            "unlabelled_images": len(found.unlabelled_images),
-            "boxes": found.boxes,
-            "boxes_per_class": found.boxes_per_class,
-            "bins_per_frame": found.bins_per_frame,
-            "data_yaml": {"nc": found.data_yaml_nc, "names": found.data_yaml_names},
-        }
-    }
-
 
 # --------------------------------------------------------------------------- #
 # Naming – the join key is the whole ballgame
@@ -172,8 +93,8 @@ def test_a_label_whose_image_is_missing_becomes_an_orphan(archive):
 
 def test_boxes_and_bins_per_frame_are_counted(archive):
     found = inventory(archive)
-    assert found.boxes == 5
-    assert found.bins_per_frame == {1: 3, 2: 1}
+    assert found.boxes == sum(len(lines) for *_, lines in FIXTURE)
+    assert found.bins_per_frame == {1: 4, 2: 1}
 
 
 # --------------------------------------------------------------------------- #

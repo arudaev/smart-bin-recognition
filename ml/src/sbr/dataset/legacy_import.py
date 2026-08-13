@@ -1,12 +1,30 @@
-"""UNVERIFIED path resolution - written against an incomplete copy of the archive.
+"""Rebuild the predecessor's dataset: resize, rename, and carry provenance.
 
-The archive has since been inventoried against the complete copy and its real
-layout is recorded in docs/08-legacy-audit.md section 7.1: YOLO_Dataset/ holds
-466 images with a 1:1 label file (372 train / 94 val, no orphans), raw_images/
-holds 470, and labeled/ is split by annotator (Alex 156, Fares 161, Sameer 149).
+Two things this module deliberately does **not** do.
 
-What still needs checking before this module is trusted: that its path globbing
-matches that layout, multi-bin image counts, and class balance.
+**It does not trust the archive.** It calls :func:`sbr.dataset.archive.verify`
+first and refuses to import a copy that does not match the recorded layout. The
+previous version of this file opened with a warning that its path resolution was
+unverified; that warning is now a check.
+
+**It does not invent form factors.** The legacy labels are *streams* – Biomüll,
+Glas, Papier, Restmüll – and a stream does not determine a shape. The same
+Restmüll is a small wheelie bin outside a house and a large one behind a block
+of flats. So every crop leaves this module with ``form_factor: null``, a list of
+candidates, and ``adjudication: "pending"``. A human decides, via
+``ml/scripts/adjudicate.py``, and only adjudicated crops train the identifier.
+
+The validator does not need any of that: its one class is "bin", which every box
+in the archive is regardless of what goes in it. That is why model A can be
+trained the moment this import finishes and model B cannot.
+
+Output pool, shared with :mod:`sbr.dataset.prepare`::
+
+    <out>/
+    ├── manifest.json     provenance for every frame and every crop
+    ├── images/           full frames, resized
+    ├── labels/           validator labels - every box collapsed to class 0
+    └── crops/            identifier candidates, pending adjudication
 """
 
 from __future__ import annotations
@@ -15,52 +33,84 @@ import argparse
 import json
 import logging
 import unicodedata
-from dataclasses import asdict, dataclass
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from PIL import Image
+from PIL import ExifTags, Image
 
-from sbr.taxonomy import load_taxonomy
+from sbr.dataset.archive import (
+    LEGACY_CLASS_ORDER,
+    find_root,
+    inventory,
+    load_expectations,
+    read_labels_csv,
+    resolve_pairs,
+    verify,
+)
 
 logger = logging.getLogger(__name__)
 
-MAX_EDGE = 960
-JPEG_QUALITY = 88
-CROP_PADDING = 0.12
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
-
-#: The predecessor's class index order, from cv_garbage/2-Computer-Vision.py:323.
-LEGACY_CLASS_ORDER = ["Biomüll", "Glas", "Papier", "Restmüll"]
+_EXIF_DATE_TAG = next(k for k, v in ExifTags.TAGS.items() if v == "DateTimeOriginal")
 
 
 @dataclass(frozen=True)
 class LegacyMapping:
-    """How one legacy class projects onto the new axes.
+    """What a legacy stream label can and cannot tell us about shape.
 
-    ``needs_review`` marks classes whose form factor the old label cannot
-    determine: a German 'Papiertonne' may be a 240 L two-wheeler or an 1100 L
-    communal container, and only a human looking at the photo can say which.
-    That is ~370 binary decisions – an afternoon.
+    ``candidates`` is the honest content of a legacy label: the set of form
+    factors it leaves open. ``proposed`` is a pre-fill for the reviewer – one
+    keystroke to confirm – and never a label in its own right.
     """
 
-    form_factor: str
-    expected_lid_color: str | None
-    expected_body_color: str | None
+    candidates: tuple[str, ...]
+    proposed: str
     deggendorf_stream: str
-    needs_review: bool
+    note: str
 
 
+#: What each legacy class leaves open. Note that *every* entry is a candidate
+#: list, including Glas: the old code marked glass "unambiguous" on the strength
+#: of a comment, and an unverified assertion about shape is the thing this
+#: pipeline exists not to make. Confirming a pre-filled proposal is cheap.
 LEGACY_MAP: dict[str, LegacyMapping] = {
-    "Biomüll": LegacyMapping("wheelie_small", "brown", None, "bio", needs_review=True),
-    "Papier": LegacyMapping("wheelie_small", "blue", None, "paper", needs_review=True),
-    "Restmüll": LegacyMapping("wheelie_small", "black", None, "residual", needs_review=True),
-    # Glass was only ever communal bottle banks in the source city – unambiguous.
-    "Glas": LegacyMapping("igloo", None, None, "glass_mixed", needs_review=False),
+    "Biomüll": LegacyMapping(
+        candidates=("wheelie_small", "wheelie_large"),
+        proposed="wheelie_small",
+        deggendorf_stream="bio",
+        note="household bio bins are usually 2-wheel; communal blocks use 4-wheel",
+    ),
+    "Papier": LegacyMapping(
+        candidates=("wheelie_small", "wheelie_large", "crate", "container_bank"),
+        proposed="wheelie_small",
+        deggendorf_stream="paper",
+        note="a Papiertonne may be 240 L or 1100 L; some kerbsides use crates",
+    ),
+    "Restmüll": LegacyMapping(
+        candidates=("wheelie_small", "wheelie_large"),
+        proposed="wheelie_small",
+        deggendorf_stream="residual",
+        note="the same stream is 2-wheel outside a house and 4-wheel behind a block",
+    ),
+    "Glas": LegacyMapping(
+        candidates=("igloo", "underground", "container_bank"),
+        proposed="igloo",
+        deggendorf_stream="glass_mixed",
+        note="communal bottle banks dominate here, but underground columns and "
+             "rows of containers look nothing alike and are both glass",
+    ),
 }
 
 
 def normalise_filename(name: str) -> str:
-    """ASCII-safe, lowercase filename. Fixes the umlaut problem at the source."""
+    """ASCII-safe, lower-case filename. Fixes the umlaut problem at the source.
+
+    The predecessor had to rename files by hand because umlauts broke YOLO
+    ingestion (08-legacy-audit § 1). Doing it here means it never recurs.
+    """
     stem, suffix = Path(name).stem, Path(name).suffix.lower()
     for char, replacement in {
         "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
@@ -71,204 +121,309 @@ def normalise_filename(name: str) -> str:
     stem = "".join(c if c.isalnum() else "_" for c in stem).strip("_").lower()
     while "__" in stem:
         stem = stem.replace("__", "_")
-    return f"{stem or 'image'}{suffix}"
+    return f"{stem or 'image'}{suffix or '.jpg'}"
 
 
-def hash_suffix(name: str) -> str:
-    """The 8-hex-char tail that links a label to its image."""
-    return Path(name).stem.split("_")[-1].lower()
+# --------------------------------------------------------------------------- #
+# Capture time, and the clusters built from it
+# --------------------------------------------------------------------------- #
 
 
-def build_image_index(archive: Path) -> dict[str, Path]:
-    """Index every source image by its hash suffix.
+def capture_datetime(image: Path, original_name: str = "", fallback: str = "") -> tuple[str | None, str]:
+    """When the photograph was taken. Returns ``(iso8601 or None, source)``.
 
-    Images are under ``labeled/<person>/``; ``raw_images/`` and the near-empty
-    ``YOLO_Dataset/images/`` are searched too, as a safety net.
+    EXIF first because it is the only one of the three that describes the
+    *capture*: the filename can be a sequence number and the CSV timestamp is
+    when somebody got round to labelling it, weeks later.
     """
-    index: dict[str, Path] = {}
-    for root in ("labeled", "raw_images", "YOLO_Dataset/images"):
-        base = archive / root
-        if not base.exists():
-            continue
-        for path in base.rglob("*"):
-            if path.suffix.lower() in IMAGE_SUFFIXES:
-                index.setdefault(hash_suffix(path.name), path)
-    return index
+    try:
+        with Image.open(image) as handle:
+            exif = handle.getexif()
+        raw = exif.get(_EXIF_DATE_TAG) or exif.get(306)
+        if raw:
+            return datetime.strptime(str(raw).strip(), "%Y:%m:%d %H:%M:%S").isoformat(), "exif"
+    except (OSError, ValueError):
+        pass
+
+    stem = Path(original_name).stem
+    parts = stem.split("_")
+    if len(parts) >= 3 and len(parts[1]) == 8 and len(parts[2]) == 6:
+        try:
+            return datetime.strptime(f"{parts[1]}{parts[2]}", "%Y%m%d%H%M%S").isoformat(), "filename"
+        except ValueError:
+            pass
+
+    if fallback:
+        return fallback, "annotation_timestamp"
+    return None, "unknown"
 
 
-def resolve_pairs(archive: Path) -> dict[Path, Path]:
-    """Map each label file to its image. Returns {label_path: image_path}."""
-    index = build_image_index(archive)
-    logger.info("indexed %d source images by hash", len(index))
+def assign_capture_clusters(
+    records: list[dict[str, Any]], gap_seconds: int, region_id: str
+) -> None:
+    """Group frames photographed in one burst, in place.
 
-    # _pairs.json is authoritative where present, but its image names are
-    # mojibake, so we still resolve through the hash.
-    declared: dict[str, str] = {}
-    pairs_file = archive / "_pairs.json"
-    if not pairs_file.exists():
-        pairs_file = archive.parent / "_pairs.json"
-    if pairs_file.exists():
-        for label_rel, image_rel, _split in json.loads(pairs_file.read_text(encoding="utf-8")):
-            declared[Path(label_rel).name] = hash_suffix(Path(image_rel).name)
-        logger.info("read %d declared pairs from %s", len(declared), pairs_file.name)
+    A capture cluster is the unit the split assigns, so two frames of the same
+    bin can never straddle train and test. Without it, "group-aware" degenerates
+    to random and the eval number becomes the predecessor's eval number.
 
-    resolved: dict[Path, Path] = {}
-    unresolved: list[str] = []
-    for label in sorted((archive / "YOLO_Dataset" / "labels").rglob("*.txt")):
-        key = declared.get(label.name) or hash_suffix(label.name)
-        image = index.get(key)
-        if image is None:
-            unresolved.append(label.name)
-        else:
-            resolved[label] = image
+    Grouping is by annotator, then by gaps in capture time: consecutive shots
+    closer together than ``gap_seconds`` are one visit to one bin.
+    """
+    by_annotator: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        by_annotator[record.get("annotator") or "unattributed"].append(record)
 
-    logger.info("resolved %d/%d labels", len(resolved), len(resolved) + len(unresolved))
-    if unresolved:
-        logger.warning("unresolved labels (first 5): %s", unresolved[:5])
-    return resolved
+    for annotator, group in by_annotator.items():
+        timed = [r for r in group if r.get("capture_date")]
+        untimed = [r for r in group if not r.get("capture_date")]
+        timed.sort(key=lambda r: r["capture_date"])
 
+        index = 0
+        previous: datetime | None = None
+        for record in timed:
+            moment = datetime.fromisoformat(record["capture_date"])
+            if previous is not None and (moment - previous).total_seconds() > gap_seconds:
+                index += 1
+            previous = moment
+            record["capture_cluster"] = f"{region_id}/{annotator}/{index:04d}"
 
-def read_boxes(label: Path) -> list[tuple[int, float, float, float, float]]:
-    """Parse a YOLO label file into (class_id, cx, cy, w, h) tuples."""
-    boxes = []
-    for line in label.read_text(encoding="utf-8").splitlines():
-        parts = line.split()
-        if len(parts) >= 5:
-            boxes.append((int(parts[0]), *(float(v) for v in parts[1:5])))
-    return boxes
+        # No capture time means no evidence it belongs with anything else, so it
+        # becomes its own cluster rather than being folded into a neighbour's.
+        for offset, record in enumerate(untimed):
+            record["capture_cluster"] = f"{region_id}/{annotator}/untimed-{offset:04d}"
 
 
-def import_legacy(archive: Path, out_dir: Path, write_crops: bool = True) -> dict:
-    """Rebuild, resize, rename and remap. Emits validator + identifier datasets."""
-    taxonomy = load_taxonomy()
-    form_index = {name: i for i, name in enumerate(taxonomy.detector_classes)}
+# --------------------------------------------------------------------------- #
+# The import
+# --------------------------------------------------------------------------- #
 
-    pairs = resolve_pairs(archive)
+
+def _provenance(source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source": f"{source['repo']}@{source['release']}/{source['asset']}",
+        "source_url": source["url"],
+        "source_sha256": source["sha256"],
+        "licence": source["licence"],
+        "region_id": source["region_id"],
+        "label_origin": source["label_origin"],
+    }
+
+
+def import_legacy(
+    archive: Path,
+    out_dir: Path,
+    allow_drift: bool = False,
+    write_crops: bool = True,
+    config: dict[str, Any] | None = None,
+) -> dict:
+    """Rebuild, resize, rename and carry provenance. Emits one pool."""
+    config = config or load_expectations()
+    settings = config["import"]
+    source = config["source"]
+    region_id = source["region_id"]
+
+    root = find_root(archive)
+    problems = verify(inventory(root), config)
+    if problems:
+        message = "\n  ".join(problems)
+        if not allow_drift:
+            raise SystemExit(
+                f"archive does not match ml/configs/legacy_archive.yaml:\n  {message}\n"
+                "Importing anyway would quietly produce a smaller dataset than the "
+                "one every downstream number assumes. Re-extract, or pass "
+                "--allow-drift if the archive legitimately changed."
+            )
+        logger.warning("importing a drifted archive:\n  %s", message)
+
+    pairs, orphans = resolve_pairs(root)
     if not pairs:
-        raise FileNotFoundError(f"no label/image pairs resolved under {archive}")
+        raise SystemExit(f"no label/image pairs resolved under {root}")
 
-    val_img = out_dir / "validator" / "images"
-    val_lbl = out_dir / "validator" / "labels"
-    crop_dir = out_dir / "identifier" / "crops"
-    for d in (val_img, val_lbl, crop_dir):
-        d.mkdir(parents=True, exist_ok=True)
+    csv_by_key = {
+        Path(row["new_filename"]).stem.split("_")[-1].lower(): row
+        for row in read_labels_csv(root)
+    }
 
-    records: list[dict] = []
-    crop_records: list[dict] = []
+    images_dir, labels_dir, crops_dir = out_dir / "images", out_dir / "labels", out_dir / "crops"
+    for directory in (images_dir, labels_dir, crops_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+
+    provenance = _provenance(source)
+    max_edge = int(settings["max_edge"])
+    quality = int(settings["jpeg_quality"])
+    padding = float(settings["crop_padding"])
+    min_crop = int(settings["min_crop_px"])
+
+    records: list[dict[str, Any]] = []
+    crops: list[dict[str, Any]] = []
     bytes_in = bytes_out = 0
-    multi_bin = 0
-    class_counts: dict[str, int] = {}
+    class_counts: Counter[str] = Counter()
+    skipped_crops = 0
 
-    for label, source_image in sorted(pairs.items()):
-        boxes = read_boxes(label)
-        if not boxes:
-            continue
-        if len(boxes) > 1:
-            multi_bin += 1
+    for pair in sorted(pairs, key=lambda p: p.key):
+        row = csv_by_key.get(pair.key, {})
+        original = row.get("original_filename", pair.image.name)
+        stem = Path(normalise_filename(f"{pair.key}_{original}")).stem
+        target = images_dir / f"{stem}.jpg"
 
-        new_name = normalise_filename(source_image.name)
-        stem = Path(new_name).stem
-        target = val_img / f"{stem}.jpg"
-
-        bytes_in += source_image.stat().st_size
-        with Image.open(source_image) as img:
-            img = img.convert("RGB")
-            width, height = img.size
-            scale = min(1.0, MAX_EDGE / max(width, height))
+        bytes_in += pair.image.stat().st_size
+        with Image.open(pair.image) as opened:
+            captured, date_source = capture_datetime(
+                pair.image, original, row.get("timestamp", "")
+            )
+            frame = opened.convert("RGB")
+            width, height = frame.size
+            scale = min(1.0, max_edge / max(width, height))
             if scale < 1.0:
-                img = img.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
-            img.save(target, "JPEG", quality=JPEG_QUALITY, optimize=True)
-            new_w, new_h = img.size
+                frame = frame.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
+            frame.save(target, "JPEG", quality=quality, optimize=True)
+            new_width, new_height = frame.size
 
-            # --- validator labels: every box collapses to class 0 ("bin") ----
-            (val_lbl / f"{stem}.txt").write_text(
-                "\n".join(f"0 {cx} {cy} {w} {h}" for _, cx, cy, w, h in boxes) + "\n",
+            # --- validator: every box collapses to class 0, "bin" ------------
+            (labels_dir / f"{stem}.txt").write_text(
+                "\n".join(f"0 {cx} {cy} {w} {h}" for _, cx, cy, w, h in pair.boxes) + "\n",
                 encoding="utf-8",
             )
 
-            # --- identifier crops, labelled by form factor -------------------
-            needs_review = False
-            for n, (cls_id, cx, cy, w, h) in enumerate(boxes):
-                legacy_name = LEGACY_CLASS_ORDER[cls_id]
-                mapping = LEGACY_MAP[legacy_name]
-                needs_review |= mapping.needs_review
-                class_counts[legacy_name] = class_counts.get(legacy_name, 0) + 1
+            # --- identifier candidates: crops, all pending adjudication ------
+            for index, (class_id, cx, cy, w, h) in enumerate(pair.boxes):
+                legacy_class = LEGACY_CLASS_ORDER[class_id]
+                class_counts[legacy_class] += 1
+                if not write_crops:
+                    continue
 
-                if write_crops:
-                    pw, ph = w * (1 + CROP_PADDING), h * (1 + CROP_PADDING)
-                    left = max(0, int((cx - pw / 2) * new_w))
-                    top = max(0, int((cy - ph / 2) * new_h))
-                    right = min(new_w, int((cx + pw / 2) * new_w))
-                    bottom = min(new_h, int((cy + ph / 2) * new_h))
-                    if right - left >= 64 and bottom - top >= 64:
-                        crop_name = f"{stem}_{n}.jpg"
-                        img.crop((left, top, right, bottom)).save(
-                            crop_dir / crop_name, "JPEG", quality=JPEG_QUALITY
-                        )
-                        crop_records.append({
-                            "file": crop_name,
-                            "form_factor": mapping.form_factor,
-                            "form_factor_index": form_index[mapping.form_factor],
-                            "legacy_class": legacy_name,
-                            "expected_lid_color": mapping.expected_lid_color,
-                            "deggendorf_stream": mapping.deggendorf_stream,
-                            "needs_form_factor_review": mapping.needs_review,
-                            "label_source": "legacy",
-                        })
+                padded_w, padded_h = w * (1 + padding), h * (1 + padding)
+                left = max(0, int((cx - padded_w / 2) * new_width))
+                top = max(0, int((cy - padded_h / 2) * new_height))
+                right = min(new_width, int((cx + padded_w / 2) * new_width))
+                bottom = min(new_height, int((cy + padded_h / 2) * new_height))
+                if right - left < min_crop or bottom - top < min_crop:
+                    skipped_crops += 1
+                    continue
+
+                crop_name = f"{stem}_{index}.jpg"
+                frame.crop((left, top, right, bottom)).save(
+                    crops_dir / crop_name, "JPEG", quality=quality
+                )
+                mapping = LEGACY_MAP[legacy_class]
+                crops.append(
+                    {
+                        "file": crop_name,
+                        "frame": f"{stem}.jpg",
+                        "box_index": index,
+                        "bbox_norm": [cx, cy, w, h],
+                        "crop_px": [left, top, right, bottom],
+                        "bins_in_frame": len(pair.boxes),
+                        "legacy_class": legacy_class,
+                        "legacy_class_index": class_id,
+                        "deggendorf_stream": mapping.deggendorf_stream,
+                        # The three fields that matter, and the reason this
+                        # module cannot produce a trainable identifier alone.
+                        "form_factor": None,
+                        "form_factor_candidates": list(mapping.candidates),
+                        "form_factor_proposed": mapping.proposed,
+                        "adjudication": "pending",
+                        "adjudication_note": mapping.note,
+                        "capture_date": captured,
+                        "annotator": pair.annotator,
+                        **provenance,
+                    }
+                )
 
         bytes_out += target.stat().st_size
-        records.append({
-            "file": f"{stem}.jpg",
-            "original_file": source_image.name,
-            "contributor": source_image.parent.name,
-            "width": new_w,
-            "height": new_h,
-            "boxes": len(boxes),
-            "capture_cluster": stem,
-            "region_id": "de-by-deggendorf",
-            "source": "painfully-trivial-v1.0.0",
-            "needs_form_factor_review": needs_review,
-        })
+        records.append(
+            {
+                "file": f"{stem}.jpg",
+                "original_file": original,
+                "join_key": pair.key,
+                "width": new_width,
+                "height": new_height,
+                "boxes": len(pair.boxes),
+                "bins_in_frame": len(pair.boxes),
+                "annotator": pair.annotator,
+                "image_source": pair.image_source,
+                "legacy_split": pair.legacy_split,
+                "capture_date": captured,
+                "capture_date_source": date_source,
+                "capture_cluster": None,       # assigned below, across all records
+                "adjudication": "not_required",  # the validator needs no form factor
+                **provenance,
+            }
+        )
+
+    assign_capture_clusters(records, int(settings["cluster_gap_seconds"]), region_id)
+    cluster_sizes = Counter(r["capture_cluster"] for r in records)
 
     manifest = {
+        "generated": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "archive": {k: source[k] for k in ("repo", "release", "asset", "sha256")},
+        "drifted": bool(problems),
         "images": len(records),
         "boxes": sum(r["boxes"] for r in records),
-        "multi_bin_images": multi_bin,
-        "crops": len(crop_records),
-        "needs_review": sum(1 for r in crop_records if r["needs_form_factor_review"]),
-        "legacy_class_counts": class_counts,
+        "orphan_labels": len(orphans),
+        "crops": len(crops),
+        "crops_skipped_too_small": skipped_crops,
+        "crops_pending_adjudication": sum(1 for c in crops if c["adjudication"] == "pending"),
+        "legacy_class_counts": dict(sorted(class_counts.items())),
+        "bins_per_frame": dict(sorted(Counter(r["boxes"] for r in records).items())),
+        "capture_clusters": len(cluster_sizes),
+        "largest_capture_cluster": max(cluster_sizes.values()) if cluster_sizes else 0,
+        "capture_date_sources": dict(sorted(Counter(r["capture_date_source"] for r in records).items())),
+        "annotators": dict(sorted(Counter(r["annotator"] or "unattributed" for r in records).items())),
         "bytes_in": bytes_in,
         "bytes_out": bytes_out,
         "reduction": round(bytes_in / bytes_out, 1) if bytes_out else None,
         "validator_classes": ["bin"],
-        "identifier_classes": taxonomy.detector_classes,
-        "legacy_map": {k: asdict(v) for k, v in LEGACY_MAP.items()},
+        "legacy_map": {
+            name: {
+                "candidates": list(m.candidates),
+                "proposed": m.proposed,
+                "deggendorf_stream": m.deggendorf_stream,
+                "note": m.note,
+            }
+            for name, m in LEGACY_MAP.items()
+        },
         "records": records,
-        "crop_records": crop_records,
+        "crop_records": crops,
     }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
     logger.info(
-        "imported %d images / %d boxes (%.0f MB -> %.0f MB, %sx smaller); "
-        "%d multi-bin; %d crops, %d need form-factor review",
+        "imported %d frames / %d boxes (%.0f MB -> %.0f MB, %sx smaller); "
+        "%d capture clusters, largest %d; %d crops all pending adjudication",
         len(records), manifest["boxes"], bytes_in / 1e6, bytes_out / 1e6,
-        manifest["reduction"], multi_bin, len(crop_records), manifest["needs_review"],
+        manifest["reduction"], manifest["capture_clusters"],
+        manifest["largest_capture_cluster"], len(crops),
     )
     return manifest
 
 
+def load_manifest(pool: Path) -> dict:
+    return json.loads((pool / "manifest.json").read_text(encoding="utf-8"))
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--archive-dir", type=Path, required=True,
-                        help="unpacked cv_garbage/ directory")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--archive-dir", type=Path, required=True, help="unpacked cv_garbage/ directory")
     parser.add_argument("--out", type=Path, default=Path("data/legacy"))
     parser.add_argument("--no-crops", action="store_true")
+    parser.add_argument(
+        "--allow-drift",
+        action="store_true",
+        help="import an archive that does not match the recorded layout, and say so in the manifest",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    import_legacy(args.archive_dir, args.out, write_crops=not args.no_crops)
+    import_legacy(
+        args.archive_dir,
+        args.out,
+        allow_drift=args.allow_drift,
+        write_crops=not args.no_crops,
+    )
 
 
 if __name__ == "__main__":
