@@ -182,6 +182,38 @@ Pinned by commit revision in `ml/src/sbr/utils/hub.py`. Every image carries
 provenance: source, region, capture date, label origin
 (`human` / `machine` / `legacy`), and adjudication status.
 
+### How a subset is laid out, and why it is sharded
+
+Each repo holds one directory per subset – `legacy/`, `open_images/`,
+`negatives/` – and each is a self-contained pool:
+
+```
+<subset>/
+├── manifest.json     provenance per frame and per crop; declares the layout
+├── images/ab/<id>.jpg
+├── labels/ab/<id>.txt    an EMPTY file is a deliberate background image
+└── crops/               identifier candidates, where relevant
+```
+
+The `ab` level is `sha256(stem)` truncated to two hex characters, 256 buckets.
+It exists because **the Hub rejects a push where any directory holds more than
+10 000 files**, and `ml/configs/open_images.yaml` asks for 15 000 street plus
+2 500 hard negatives — so a flat `negatives/labels/` is ~17 500 and the push is
+refused outright. The first harvest learned that after thirty minutes of
+downloading, mid-upload; `sbr.utils.hub.preflight_layout` now refuses such a
+tree before the first request.
+
+`manifest.json` declares `"layout": "sharded"`. **A manifest with no `layout`
+key is flat**, which is what the pinned `legacy` revision is, and
+`sbr.dataset.pool` is the only thing that decides between the two. The training
+tree that `prepare.build_yolo_tree` assembles is deliberately flat — it is local
+scratch that ultralytics reads directly and that is never pushed.
+
+Sharding clears the directory cap; it does not clear the **rate limit**. The Hub
+allows 1000 API requests per 5 minutes and a full harvest is ~35 000 LFS
+objects, so expect `upload_large_folder` to spend a long time in 429 backoff.
+Those lines are the upload working, not failing. Budget on the order of an hour.
+
 ### Seeding from the legacy dataset
 
 The predecessor's hand-labelled photographs are the seed of both datasets.
@@ -319,7 +351,8 @@ ml/
 │   ├── config.py               YAML inheritance, cloud guard
 │   ├── dataset/
 │   │   ├── legacy_import.py    reconstructs the predecessor's split archive
-│   │   ├── negatives.py        open-corpus + hard-negative assembly
+│   │   ├── open_images.py      open-corpus + hard-negative assembly
+│   │   ├── pool.py             the on-disk layout: shards, and the Hub's cap
 │   │   └── prepare.py          group-aware / region-holdout splits
 │   ├── autolabel/
 │   │   ├── dedupe.py           DINOv2 embeddings, near-duplicate removal

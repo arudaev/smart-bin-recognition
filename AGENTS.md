@@ -74,6 +74,7 @@ ml/                      Python: dataset, training dispatch, export
 ├── src/sbr/
 │   ├── taxonomy.py             ontology + region packs + the resolver
 │   ├── config.py               YAML inheritance, cloud guard
+│   ├── dataset/pool.py           the on-disk layout: shards, and the Hub's 10k-file cap
 │   ├── dataset/archive.py        the legacy archive's contract; refuses a short copy
 │   ├── dataset/legacy_import.py  370 usable frames -> resized, provenance, crops
 │   ├── dataset/open_images.py    negative corpus + out-of-city bins
