@@ -52,3 +52,56 @@ def test_every_dataset_this_repo_trains_on_has_a_pin_slot():
 def test_an_unknown_repo_is_still_an_error_under_strict():
     with pytest.raises(UnpinnedRevisionError):
         resolve_revision("someone/else", "main", strict=True)
+
+
+# --------------------------------------------------------------------------- #
+# Token resolution
+# --------------------------------------------------------------------------- #
+
+
+def test_a_token_is_found_wherever_kaggle_mounts_the_dataset(tmp_path, monkeypatch):
+    """Kaggle moved the mount point and the resolver did not know.
+
+    It mounts attached datasets under ``/kaggle/input/datasets/<owner>/<slug>/``
+    now, not ``/kaggle/input/<slug>/``. Two hard-coded paths found nothing, and a
+    harvest that had already spent 35 minutes died with nowhere to put its work.
+    """
+    deep = tmp_path / "datasets" / "hlexnc" / "chexvision-secrets"
+    deep.mkdir(parents=True)
+    (deep / "hf_token.txt").write_text("hf_deadbeef\n", encoding="utf-8")
+
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setattr(hub, "KAGGLE_SECRET_PATHS", ())
+    monkeypatch.setattr(hub, "KAGGLE_INPUT", tmp_path)
+    assert hub.load_hf_token() == "hf_deadbeef"
+
+
+def test_the_environment_still_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("HF_TOKEN", "hf_from_env")
+    monkeypatch.setattr(hub, "KAGGLE_INPUT", tmp_path)
+    assert hub.load_hf_token() == "hf_from_env"
+
+
+def test_a_missing_token_reports_what_was_actually_mounted(tmp_path, monkeypatch, caplog):
+    # "no Hugging Face token found" on its own does not say where to look.
+    (tmp_path / "datasets").mkdir()
+    (tmp_path / "datasets" / "something-else.csv").write_text("x", encoding="utf-8")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setattr(hub, "KAGGLE_SECRET_PATHS", ())
+    monkeypatch.setattr(hub, "KAGGLE_INPUT", tmp_path)
+
+    hub.load_hf_token()
+    assert "something-else.csv" in caplog.text
+
+
+def test_require_hf_token_stops_before_the_expensive_work(monkeypatch):
+    # The whole point: fail in a second, not after a 2.2 GB stream and 18 609
+    # image fetches, or a GPU hour.
+    monkeypatch.setattr(hub, "load_hf_token", lambda: None)
+    with pytest.raises(SystemExit, match="would\n?\\s*have spent its whole budget"):
+        hub.require_hf_token("push the harvested pools")
+
+
+def test_require_hf_token_returns_the_token_when_there_is_one(monkeypatch):
+    monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_ok")
+    assert hub.require_hf_token() == "hf_ok"

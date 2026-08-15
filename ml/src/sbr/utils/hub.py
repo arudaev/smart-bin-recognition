@@ -35,6 +35,10 @@ KAGGLE_SECRET_PATHS = (
 #: Filenames a token might be stored under in an attached Kaggle dataset.
 KAGGLE_SECRET_NAMES = ("hf_token.txt", "HF_TOKEN.txt", "hf_token", "token.txt")
 
+#: Where Kaggle mounts attached datasets. A module constant so a test can point
+#: it somewhere real instead of stubbing out the function under test.
+KAGGLE_INPUT = Path("/kaggle/input")
+
 #: Dataset revision each repo is pinned to. Filled in by
 #: ``ml/scripts/push_dataset.py``, which prints the sha after an upload; an empty
 #: string means "never pushed", and a strict run against it is an error rather
@@ -116,17 +120,21 @@ def load_hf_token() -> str | None:
         if path.exists():
             return path.read_text(encoding="utf-8").strip()
 
-    # Any attached dataset, under any slug. The named paths above are a fast
-    # path, not the whole search.
-    inputs = Path("/kaggle/input")
+    # Any attached dataset, at any depth. The named paths above are a fast path,
+    # not the whole search: Kaggle mounts attached datasets under
+    # /kaggle/input/datasets/<owner>/<slug>/ now, not /kaggle/input/<slug>/, and
+    # a resolver that knows only the old shape finds nothing and says nothing
+    # useful about why.
+    inputs = KAGGLE_INPUT
     if inputs.is_dir():
         for name in KAGGLE_SECRET_NAMES:
-            for found in sorted(inputs.glob(f"*/{name}")):
+            for found in sorted(inputs.rglob(name)):
                 logger.info("found a token at %s", found)
                 return found.read_text(encoding="utf-8").strip()
+        listing = [str(p.relative_to(inputs)) for p in sorted(inputs.rglob("*")) if p.is_file()]
         logger.warning(
-            "no token in any attached dataset. /kaggle/input holds: %s",
-            [p.name for p in sorted(inputs.iterdir())] or "nothing",
+            "no token in any attached dataset. /kaggle/input holds %d files: %s",
+            len(listing), listing[:20] or "nothing",
         )
 
     try:
