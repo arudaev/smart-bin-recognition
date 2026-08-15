@@ -308,3 +308,86 @@ def test_a_crop_shares_its_frames_split(legacy_pool, tmp_path):
     for crop_path in out.glob("*/*/*.jpg"):
         split = crop_path.parent.parent.name
         assert assignment[by_crop[crop_path.name]] == split
+
+
+# --------------------------------------------------------------------------- #
+# Two layouts, one tree
+# --------------------------------------------------------------------------- #
+
+
+def _reshard(pool: Path) -> Path:
+    """Rewrite a flat pool into the sharded layout, in place."""
+    from sbr.dataset.pool import SHARDED, crop_path, image_path, label_path
+
+    manifest = json.loads((pool / "manifest.json").read_text(encoding="utf-8"))
+    for directory, resolve in (
+        ("images", lambda name: image_path(pool, name, SHARDED)),
+        ("labels", lambda name: label_path(pool, Path(name).stem, SHARDED)),
+        ("crops", lambda name: crop_path(pool, name, SHARDED)),
+    ):
+        source = pool / directory
+        if not source.exists():
+            continue
+        for path in sorted(p for p in source.iterdir() if p.is_file()):
+            target = resolve(path.name)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            path.rename(target)
+
+    manifest["layout"] = SHARDED
+    (pool / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return pool
+
+
+def test_a_sharded_pool_builds_the_same_tree_as_a_flat_one(legacy_pool, tmp_path):
+    flat = build_yolo_tree(legacy_pool, tmp_path / "flat", VALIDATOR_CONFIG)
+    flat_names = sorted(p.relative_to(flat.parent).as_posix() for p in flat.parent.rglob("*.jpg"))
+
+    _reshard(legacy_pool)
+    sharded = build_yolo_tree(legacy_pool, tmp_path / "sharded", VALIDATOR_CONFIG)
+    sharded_names = sorted(
+        p.relative_to(sharded.parent).as_posix() for p in sharded.parent.rglob("*.jpg")
+    )
+
+    assert sharded_names == flat_names
+    assert json.loads((sharded.parent / "composition.json").read_text(encoding="utf-8")) == json.loads(
+        (flat.parent / "composition.json").read_text(encoding="utf-8")
+    )
+
+
+def test_a_flat_and_a_sharded_subset_assemble_together(legacy_pool, tmp_path):
+    # The state the dataset repo is actually in: `legacy/` was pushed flat and
+    # is the one pinned revision this project has, while the harvested subsets
+    # are sharded. A resolver that understood only one of them would either
+    # invalidate the pin or fail to read the harvest.
+    import shutil
+
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    shutil.copytree(legacy_pool, root / "negatives")
+    _reshard(root / "negatives")
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+    assert set(composition["per_pool"]) == {"legacy", "negatives"}
+    assert composition["per_pool"]["legacy"] == composition["per_pool"]["negatives"]
+    for image in out.glob("images/*/*.jpg"):
+        assert (out / "labels" / image.parent.name / f"{image.stem}.txt").exists()
+
+
+def test_the_output_tree_is_flat_even_from_sharded_pools(legacy_pool, tmp_path):
+    # It is local scratch that ultralytics reads directly, never pushed, so the
+    # Hub's cap does not apply and YOLO's images/train convention does.
+    _reshard(legacy_pool)
+    out = tmp_path / "yolo"
+    build_yolo_tree(legacy_pool, out, VALIDATOR_CONFIG)
+    assert list(out.glob("images/train/*.jpg"))
+    assert not list(out.glob("images/train/*/*.jpg"))
+
+
+def test_a_sharded_pool_feeds_the_identifier_too(legacy_pool, tmp_path):
+    _adjudicate_all(legacy_pool)
+    _reshard(legacy_pool)
+    out = build_classification_tree(legacy_pool, tmp_path / "cls", IDENTIFIER_CONFIG)
+    summary = json.loads((out / "classification.json").read_text(encoding="utf-8"))
+    assert sum(summary["classes_present"].values()) > 0

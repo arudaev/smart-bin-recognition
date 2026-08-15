@@ -35,6 +35,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from sbr.dataset.pool import SHARDED, image_path, label_path
+
 logger = logging.getLogger(__name__)
 
 SPLITS = ("train", "validation", "test")
@@ -279,6 +281,11 @@ def harvest(
     that is a background image, which is the whole point of them. A missing file
     would be an unlabelled image, which is a different thing and would be
     silently dropped from training.
+
+    The pool is written **sharded** – ``images/ab/<id>.jpg`` – because this is
+    the harvest that does not fit in one directory: the Hub rejects a push where
+    any directory holds more than 10 000 files, and the negative corpus alone is
+    ~17 500. See :mod:`sbr.dataset.pool`.
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -301,7 +308,7 @@ def harvest(
         name = f"{candidate.image_id}.jpg"
         size = save_resized(
             payload,
-            images_dir / name,
+            image_path(out_dir, name, SHARDED),
             max_edge=settings["max_edge"],
             quality=settings["jpeg_quality"],
             min_edge=settings["min_edge"],
@@ -315,9 +322,9 @@ def harvest(
             for box in candidate.boxes
             if not box.is_degenerate
         ]
-        (labels_dir / f"{candidate.image_id}.txt").write_text(
-            "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
-        )
+        label = label_path(out_dir, candidate.image_id, SHARDED)
+        label.parent.mkdir(parents=True, exist_ok=True)
+        label.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
         return {
             "file": name,
@@ -346,6 +353,9 @@ def harvest(
                 logger.info("harvested %d/%d (%d failed)", index, len(candidates), failed)
 
     manifest = {
+        # Read by sbr.dataset.pool.layout_of. Its absence means flat, which is
+        # what the pinned legacy revision is.
+        "layout": SHARDED,
         "images": len(records),
         "boxes": sum(r["boxes"] for r in records),
         "positives": sum(1 for r in records if r["boxes"]),

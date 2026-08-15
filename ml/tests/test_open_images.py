@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import io
+import pathlib
 
 import pytest
 
@@ -228,3 +229,80 @@ def test_the_scan_reads_a_streamed_csv_the_same_way(tmp_path):
     parsed = list(csv.DictReader(io.StringIO(text)))
     assert len(parsed) == 2
     assert scan_boxes(path, WASTE, {CAR}, set()).rows == 2
+
+
+# --------------------------------------------------------------------------- #
+# The harvest, and the shape it writes
+# --------------------------------------------------------------------------- #
+
+
+HARVEST_CONFIG = {
+    "source": {
+        "name": "open-images-v7",
+        "licence": "CC-BY-2.0",
+        "image_base": "https://example.invalid",
+    },
+    "image": {"max_edge": 64, "jpeg_quality": 80, "min_edge": 8},
+}
+
+
+def _jpeg(size=(96, 96)) -> bytes:
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", size, (90, 90, 90)).save(buffer, "JPEG")
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def harvested(tmp_path):
+    """One positive and two negatives, fetched from nothing."""
+    from sbr.dataset.open_images import Candidate, harvest
+
+    candidates = [
+        Candidate("train", "aaa111", (Box(0.2, 0.6, 0.2, 0.6),), "positive"),
+        Candidate("train", "bbb222", (), "street"),
+        Candidate("validation", "ccc333", (), "hard"),
+    ]
+    out = tmp_path / "negatives"
+    manifest = harvest(candidates, out, HARVEST_CONFIG, fetch=lambda url: _jpeg(), workers=2)
+    return out, manifest
+
+
+def test_the_harvest_declares_its_layout(harvested):
+    from sbr.dataset.pool import SHARDED, layout_of
+
+    _, manifest = harvested
+    assert layout_of(manifest) == SHARDED
+
+
+def test_every_harvested_frame_lands_in_its_shard(harvested):
+    from sbr.dataset.pool import image_path, label_path, shard
+
+    out, manifest = harvested
+    assert manifest["images"] == 3
+    for record in manifest["records"]:
+        stem = pathlib.Path(record["file"]).stem
+        assert image_path(out, record["file"], "sharded").exists()
+        assert label_path(out, stem, "sharded").exists()
+        # And nowhere else: a flat write would be silently unreadable later.
+        assert not (out / "images" / record["file"]).exists()
+        assert shard(stem) in {p.name for p in (out / "images").iterdir()}
+
+
+def test_a_negative_still_gets_an_empty_label_in_its_shard(harvested):
+    from sbr.dataset.pool import label_path
+
+    out, _ = harvested
+    # An empty file is a background image; a missing one is an unlabelled image
+    # that ultralytics drops, which would silently delete the negative corpus.
+    assert label_path(out, "bbb222", "sharded").read_text(encoding="utf-8") == ""
+    assert label_path(out, "aaa111", "sharded").read_text(encoding="utf-8").startswith("0 ")
+
+
+def test_the_harvest_never_crowds_a_directory(harvested):
+    from sbr.dataset.pool import oversized_directories
+
+    out, _ = harvested
+    # The cap that rejected the first push, checked at a scale a test can reach.
+    assert oversized_directories(out, cap=2) == {}

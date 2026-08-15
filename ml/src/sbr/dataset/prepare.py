@@ -39,6 +39,7 @@ from typing import Any
 
 import yaml
 
+from sbr.dataset.pool import crop_path, image_path, label_path, layout_of
 from sbr.taxonomy import load_taxonomy
 
 logger = logging.getLogger(__name__)
@@ -186,18 +187,24 @@ def discover_pools(root: Path) -> list[Path]:
     return pools
 
 
-def load_pool_records(pools: Iterable[Path]) -> list[tuple[Path, dict[str, Any]]]:
+def load_pool_manifests(pools: Iterable[Path]) -> list[tuple[Path, dict[str, Any]]]:
+    """``(pool_dir, manifest)`` per subset, parsed exactly once.
+
+    Once matters: the harvested negatives manifest is 13 MB of provenance, and
+    both builders want the records, the crop records and the layout out of it.
+    """
+    return [(pool, load_manifest(pool)) for pool in pools]
+
+
+def load_pool_records(
+    manifests: Iterable[tuple[Path, dict[str, Any]]]
+) -> list[tuple[Path, dict[str, Any]]]:
     """``(pool_dir, record)`` for every frame across every subset.
 
     Filenames are only unique within a subset, so the pool directory travels
     with each record rather than being resolved later.
     """
-    collected: list[tuple[Path, dict[str, Any]]] = []
-    for pool in pools:
-        manifest = load_manifest(pool)
-        for entry in manifest["records"]:
-            collected.append((pool, entry))
-    return collected
+    return [(pool, entry) for pool, manifest in manifests for entry in manifest["records"]]
 
 
 def _qualified(pool: Path, file: str) -> str:
@@ -218,8 +225,9 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
     label file is a background image, and the negative corpus is most of what
     buys the validator its precision.
     """
-    pools = discover_pools(pool_root)
-    entries = load_pool_records(pools)
+    manifests = load_pool_manifests(discover_pools(pool_root))
+    layouts = {pool: layout_of(manifest) for pool, manifest in manifests}
+    entries = load_pool_records(manifests)
 
     records = []
     origin: dict[str, Path] = {}
@@ -233,6 +241,10 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
 
     assignment = assign_splits(records, **split_config(config))
 
+    # The tree written here is deliberately FLAT, unlike the sharded pools it is
+    # assembled from. It is local scratch that ultralytics reads directly and
+    # that is never pushed anywhere, so the Hub's 10 000-file cap does not apply
+    # and YOLO's `images/train` <-> `labels/train` convention does.
     for split in SPLITS:
         (out_dir / "images" / split).mkdir(parents=True, exist_ok=True)
         (out_dir / "labels" / split).mkdir(parents=True, exist_ok=True)
@@ -247,9 +259,10 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
         per_pool[pool.name] += 1
 
         original = source_name[record.file]
-        shutil.copy2(pool / "images" / original, out_dir / "images" / split / record.file)
+        layout = layouts[pool]
+        shutil.copy2(image_path(pool, original, layout), out_dir / "images" / split / record.file)
 
-        source_label = pool / "labels" / f"{Path(original).stem}.txt"
+        source_label = label_path(pool, Path(original).stem, layout)
         target_label = out_dir / "labels" / split / f"{Path(record.file).stem}.txt"
         if source_label.exists():
             shutil.copy2(source_label, target_label)
@@ -328,11 +341,11 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
     A crop whose form factor was inferred from a legacy stream label is not a
     label. It carries ``adjudication: "pending"`` and is skipped here, loudly.
     """
-    pools = discover_pools(pool_root)
+    manifests = load_pool_manifests(discover_pools(pool_root))
 
     frames = [
         Record.from_manifest({**entry, "file": _qualified(pool, entry["file"])})
-        for pool, entry in load_pool_records(pools)
+        for pool, entry in load_pool_records(manifests)
     ]
     assignment = assign_splits(frames, **split_config(config))
 
@@ -343,8 +356,9 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
     per_split: Counter[str] = Counter()
     skipped_pending = skipped_unknown = 0
 
-    for pool in pools:
-        for crop in load_manifest(pool).get("crop_records", []):
+    for pool, manifest in manifests:
+        layout = layout_of(manifest)
+        for crop in manifest.get("crop_records", []):
             state = crop.get("adjudication")
             form_factor = crop.get("form_factor")
             if require and state not in ADJUDICATED:
@@ -363,7 +377,7 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
             destination = out_dir / split / form_factor
             destination.mkdir(parents=True, exist_ok=True)
             name = _qualified(pool, crop["file"])
-            shutil.copy2(pool / "crops" / crop["file"], destination / name)
+            shutil.copy2(crop_path(pool, crop["file"], layout), destination / name)
             kept[form_factor] += 1
             per_split[split] += 1
 
