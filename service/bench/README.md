@@ -10,14 +10,34 @@ pinned: false
 
 # SBR latency bench
 
+> **Parked, 2026-08-15.** This cannot currently be deployed. Creating a Docker
+> Space returns `402 Payment Required`:
+>
+> > Static Spaces are free for everyone, but hosting Gradio and Docker Spaces on
+> > free cpu-basic requires a PRO subscription.
+>
+> The ship gate is measured on `ml/kaggle/bench_latency/` instead — a Kaggle CPU
+> kernel with onnxruntime pinned to two threads, which is free and x86 but a
+> **proxy** for a service container rather than one. `gate.py` demands
+> `--allow-unrepresentative-hardware` to decide on it.
+>
+> This directory stays because it is still correct, and because it is the
+> skeleton `service/` needs in phase 3: it boots, pulls a pinned revision, and
+> reads the sidecar rather than knowing anything about the model. Deploy it the
+> moment there is a host — HF PRO at USD 9/month, Google Cloud Run, or anything
+> else with 2 vCPU — and `gate.py --source space` will accept its numbers
+> without argument.
+>
+> **This also invalidates docs/05 § 3's "A free Hugging Face Space gives 2 vCPU".**
+> The concurrency arithmetic built on it survives only once a host is named.
+
 The ship gate's measuring instrument. It exists because
 `ml/configs/validator.yaml` and `ml/configs/identifier.yaml` state their latency
 budgets **on service CPU** — validator ≤ 50 ms @ 448, identifier ≤ 25 ms per
 crop — and a number measured anywhere else is not evidence for them.
 
-So this runs where the service runs: a free Hugging Face Space, Docker SDK,
-**CPU-basic, 2 vCPU**. onnxruntime is pinned to those two threads, and one
-uvicorn worker holds them.
+It is built to run where the service runs: Docker SDK, **CPU-basic, 2 vCPU**,
+onnxruntime pinned to those two threads, one uvicorn worker holding them.
 
 ## Using it
 

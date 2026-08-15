@@ -5,12 +5,25 @@ The Kaggle kernel cannot answer this. It has a GPU and somebody else's CPU, so
 it exports, evaluates accuracy, and uploads with latency **unmeasured** – which
 is a distinct verdict from passing (``sbr.export.onnx_export.GateResult``).
 
-This script closes that gap: it asks the 2-vCPU bench Space for p50/p95, writes
-the answer and the hardware it came from into the sidecar, re-runs the gates,
-and exits non-zero if any of them failed or is still unmeasured.
+This script closes that gap: it takes a p50/p95 measured on a 2-vCPU CPU, writes
+it and the hardware it came from into the sidecar, re-runs the gates, and exits
+non-zero if any of them failed or is still unmeasured.
 
     python ml/scripts/gate.py --role validator  --version 1
     python ml/scripts/gate.py --role identifier --version 1 --publish
+
+Two sources, because the intended one stopped being free:
+
+``--source kaggle`` (default) reads ``bench-v<version>.json`` from the model
+repo, written by the ``bench_latency`` kernel. Free, x86, and reproducible, but
+a **proxy** for the service container rather than the container – so it needs
+``--allow-unrepresentative-hardware`` to decide a gate, which is deliberate
+friction rather than an obstacle.
+
+``--source space`` asks a running bench Space. That was the plan until creating
+a Docker Space started returning ``402 Payment Required``; it stays wired for
+whenever there is a real host (HF PRO, Cloud Run, anything else), and a
+measurement from one is accepted without argument.
 
 ``--publish`` writes the updated sidecar back to the model repo, because the
 inference service reads the sidecar and should never see an artefact whose
@@ -73,6 +86,35 @@ def fetch_bench(
         ) from None
 
 
+def fetch_kaggle_bench(repo: str, revision: str, role: str, version: int) -> dict:
+    """Read the measurement the ``bench_latency`` kernel pushed beside the model."""
+    from huggingface_hub import hf_hub_download
+
+    from sbr.utils.hub import configure_hf_runtime, load_hf_token
+
+    configure_hf_runtime()
+    try:
+        local = hf_hub_download(
+            repo_id=repo,
+            filename=f"v{version}/bench-v{version}.json",
+            revision=revision,
+            token=load_hf_token(),
+        )
+    except Exception as error:  # noqa: BLE001
+        raise SystemExit(
+            f"no bench-v{version}.json in {repo} ({type(error).__name__}).\n"
+            f"Run it first: python ml/scripts/dispatch.py push bench --version {version}"
+        ) from None
+
+    measurements = json.loads(Path(local).read_text(encoding="utf-8"))
+    if role not in measurements:
+        raise SystemExit(
+            f"bench-v{version}.json holds {sorted(measurements)} but not {role!r}. "
+            "The kernel skips roles with no artefact; train it and re-run the bench."
+        )
+    return measurements[role]
+
+
 def download_sidecar(repo: str, revision: str, role: str, version: int, out_dir: Path) -> Path:
     """Pull the sidecar the training kernel uploaded."""
     from huggingface_hub import hf_hub_download
@@ -98,6 +140,12 @@ def main() -> None:
     parser.add_argument("--version", type=int, required=True)
     parser.add_argument("--repo", default=None, help="model repo (defaults to the config's hub.model_repo)")
     parser.add_argument("--revision", default="main")
+    parser.add_argument(
+        "--source",
+        choices=["kaggle", "space"],
+        default="kaggle",
+        help="where the measurement comes from (default: the bench_latency kernel)",
+    )
     parser.add_argument("--bench-url", default=DEFAULT_BENCH_URL)
     parser.add_argument("--iterations", type=int, default=50)
     parser.add_argument("--artifacts", type=Path, default=Path("artifacts"))
@@ -130,17 +178,25 @@ def main() -> None:
     )
 
     # --- the measurement ---------------------------------------------------- #
-    measurement = fetch_bench(
-        args.bench_url, args.role, args.version, repo, args.revision, args.iterations
-    )
+    if args.source == "kaggle":
+        measurement = fetch_kaggle_bench(repo, args.revision, args.role, args.version)
+    else:
+        measurement = fetch_bench(
+            args.bench_url, args.role, args.version, repo, args.revision, args.iterations
+        )
     hardware = measurement["hardware"]
 
-    if not hardware.get("space") and not args.allow_unrepresentative_hardware:
+    # `representative` is the bench's own verdict on whether it was the service.
+    # A Space says yes; a Kaggle kernel says no, however similar the silicon.
+    if not hardware.get("representative") and not args.allow_unrepresentative_hardware:
         raise SystemExit(
-            f"the bench answered from {hardware['label']!r}, which is not the service.\n"
+            f"measured on {hardware['label']!r}, which is not the service.\n"
             "The budget is stated on service CPU; measuring elsewhere produces a "
-            "number that cannot be compared to it. Pass "
-            "--allow-unrepresentative-hardware if you know why you want that."
+            "number that cannot be compared to it without saying so.\n"
+            "Free Docker Spaces now return 402, so until there is a real host "
+            "this is the honest state of the world - pass "
+            "--allow-unrepresentative-hardware to decide the gate on a proxy, and "
+            "the sidecar will record that it was one."
         )
 
     report.median_latency_ms = measurement["median_latency_ms"]

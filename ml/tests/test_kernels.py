@@ -27,7 +27,7 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
-ALL_KERNELS = (*KERNELS, "build_negatives")
+ALL_KERNELS = (*KERNELS, "build_negatives", "bench_latency")
 
 
 def source(kernel: str) -> str:
@@ -175,6 +175,23 @@ def test_the_training_kernels_ask_for_a_gpu(kernel):
     meta = metadata(kernel)
     assert meta["enable_gpu"] is True
     assert meta["enable_internet"] is True
+
+
+@pytest.mark.parametrize("kernel", ("build_negatives", "bench_latency"))
+def test_the_cpu_kernels_do_not_burn_gpu_quota(kernel):
+    # Downloading JPEGs and timing an int8 graph on two threads are both
+    # bandwidth or CPU. The GPU quota is 30 h/week and training needs it.
+    meta = metadata(kernel)
+    assert meta["enable_gpu"] is False
+    assert meta["enable_internet"] is True
+
+
+def test_the_bench_kernel_admits_it_is_not_the_service():
+    # The budget says "service CPU". A Kaggle kernel is free and x86 but it is
+    # not a service container, and the number has to say so.
+    text = source("bench_latency")
+    assert "representative" in text
+    assert "402" in text
 
 
 def test_the_harvest_kernel_does_not_burn_gpu_quota():

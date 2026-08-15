@@ -21,7 +21,7 @@ Those two scale completely differently:
 |---|---|---|
 | Cost driver | model download per install | CPU-seconds per scan |
 | Scales with | installs | **simultaneous scanners** |
-| Free ceiling | bandwidth quota | **vCPU of one free Space** |
+| Free ceiling | bandwidth quota | **vCPU of one small container** (see § 3) |
 | Offline | works | does not |
 | Model updates | cache invalidation problem | instant, universal |
 
@@ -47,8 +47,35 @@ query, at any traffic level.
 
 ## 3. The concurrency ceiling – the number that matters
 
-A free Hugging Face Space gives **2 vCPU**. With model A at ~40 ms and model B at
-~25 ms per crop, one frame costs roughly **65 ms of CPU**.
+> **Correction, 2026-08-15.** This section used to open "A free Hugging Face
+> Space gives **2 vCPU**." That is no longer true and the assumption was tested
+> rather than assumed: creating a Docker Space returns `402 Payment Required` –
+> *"Static Spaces are free for everyone, but hosting Gradio and Docker Spaces on
+> free cpu-basic requires a PRO subscription."*
+>
+> **What survives:** the arithmetic below, which depends only on having 2 vCPU,
+> not on who provides them. **What does not:** the claim that those 2 vCPU are
+> free on Hugging Face, and therefore any statement here that the serving tier
+> costs €0 without naming a host.
+>
+> Candidate hosts, none yet committed:
+>
+> | host | 2 vCPU? | cost | note |
+> |---|---|---|---|
+> | Google Cloud Run | yes, scales to zero | free tier covers pilot scale | needs a billing account on file |
+> | HF PRO | yes, cpu-basic | USD 9/month | restores the original design exactly |
+> | HF Static Space | – | free | cannot run a server; no use here |
+>
+> Until one is chosen, the ship gate is measured on a **Kaggle CPU kernel with
+> onnxruntime pinned to two threads** (`ml/kaggle/bench_latency/`), which is
+> free and x86 but a *proxy*: `sbr.bench.Hardware.representative` is false for
+> it, and `gate.py` refuses to decide on it without being told to.
+>
+> The hosting decision belongs to phase 3. This note exists so that nobody
+> re-derives "€0 serving" from a sentence that was true when it was written.
+
+With model A at ~40 ms and model B at ~25 ms per crop, one frame costs roughly
+**65 ms of CPU** on 2 vCPU.
 
 ```
 2 vCPU ÷ 0.065 s  ≈  30 frames/second of total capacity
@@ -65,7 +92,8 @@ it into users, because a scan is short:
 - at ~2 scans/user/month ⇒ comfortably **tens of thousands of monthly users**,
   provided they are not all scanning simultaneously
 
-So: **€0 is real for a pilot and for organic growth in one or two towns.** It is
+So: **the concurrency headroom is real for a pilot and for organic growth in one
+or two towns** – on 2 vCPU from whichever host § 3 settles on. It is
 not real for a launch spike, and it would not survive being posted somewhere
 popular at 9 a.m.
 

@@ -38,10 +38,11 @@ KERNELS = {
     "validator": "train_validator",      # model A – "is there a bin?"
     "identifier": "train_identifier",    # model B – "which bin?"
     "negatives": "build_negatives",      # the corpus A is mostly trained on
+    "bench": "bench_latency",            # the ship gate's measuring instrument
 }
 
 #: Which config each kernel loads, where it is not the kernel's own name.
-CONFIGS = {"negatives": "open_images"}
+CONFIGS = {"negatives": "open_images", "bench": "validator"}
 
 #: Bundled into the kernel payload. `data/taxonomy` is included because the
 #: detector's class list is derived from it – the kernel must not have to guess.
