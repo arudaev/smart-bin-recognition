@@ -195,13 +195,63 @@ def download_dataset(
 LARGE_UPLOAD_FILES = 500
 
 
+def preflight_layout(local_dir: Path) -> None:
+    """Refuse a tree the Hub will reject, before spending anything on it.
+
+    The Hub caps a directory at 10 000 files. The first negatives harvest found
+    that out after thirty minutes of downloading, in the middle of an upload,
+    from an error message that ``upload_large_folder`` responded to by halving
+    its batch size six times – a remedy for a different problem entirely, which
+    then tripped the API rate limit as well.
+
+    Same argument as :func:`require_hf_token`: this is knowable in the first
+    second, so it is checked in the first second. The fix is to shard the pool
+    (:mod:`sbr.dataset.pool`), not to retry.
+    """
+    from sbr.dataset.pool import MAX_FILES_PER_DIR, oversized_directories
+
+    oversized = oversized_directories(local_dir)
+    if not oversized:
+        return
+    listing = "\n".join(
+        f"  {directory.relative_to(local_dir)}: {count} files" for directory, count in oversized.items()
+    )
+    raise ValueError(
+        f"the Hub rejects a push where any directory holds more than "
+        f"{MAX_FILES_PER_DIR} files, and this one would:\n{listing}\n"
+        "Shard the pool - sbr.dataset.pool.shard puts a two-hex-character "
+        "directory between images/ and the file. Retrying will not help; the "
+        "rejection is about the tree, not the batch."
+    )
+
+
+def delete_subsets(repo_id: str, names: list[str]) -> None:
+    """Remove subset directories from a dataset repo, tolerating absent ones.
+
+    A push that failed partway leaves a half-written subset behind – the first
+    negatives run left 10 000 label files with no images beside them. Uploading
+    on top of that starts the next push already over the directory cap, so a
+    replacing push deletes first.
+    """
+    from huggingface_hub import HfApi
+
+    configure_hf_runtime()
+    api = HfApi(token=load_hf_token())
+    for name in names:
+        try:
+            api.delete_folder(path_in_repo=name, repo_id=repo_id, repo_type="dataset")
+            logger.info("deleted %s/ from %s", name, repo_id)
+        except Exception as error:  # noqa: BLE001 - absent is the common case
+            logger.info("nothing to delete at %s/ in %s (%s)", name, repo_id, error)
+
+
 def upload_dataset(
     repo_id: str,
     local_dir: Path,
     commit_message: str,
     private: bool = False,
     allow_patterns: list[str] | None = None,
-    workers: int = 8,
+    workers: int = 4,
 ) -> str:
     """Upload a prepared pool as a dataset revision. Returns the commit sha.
 
@@ -230,6 +280,7 @@ def upload_dataset(
         raise RuntimeError("cannot upload without a Hugging Face token")
     if not local_dir.exists():
         raise FileNotFoundError(f"nothing to upload: {local_dir}")
+    preflight_layout(local_dir)
 
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
@@ -240,8 +291,13 @@ def upload_dataset(
     if large:
         logger.info(
             "%d files – using upload_large_folder (pre-signed LFS URLs expire "
-            "after 900 s, and a single batch of this many does not finish in time)",
-            count,
+            "after 900 s, and a single batch of this many does not finish in time). "
+            "Expect 429s: the Hub allows 1000 API requests per 5 minutes and this "
+            "needs several thousand. huggingface_hub backs off and retries on its "
+            "own, so a wall of 'Rate limited. Waiting 283.0s' is the upload "
+            "working, not failing. %d workers, deliberately few – more "
+            "concurrency against a per-window quota buys nothing.",
+            count, workers,
         )
         # No commit object: it makes many commits by design.
         api.upload_large_folder(

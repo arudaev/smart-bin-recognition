@@ -173,3 +173,65 @@ def test_a_small_folder_uses_a_single_commit(tmp_path, monkeypatch):
 
     assert hub.upload_dataset("owner/repo", tmp_path, "msg") == "deadbeef"
     assert calls == ["upload_folder"]
+
+
+# --------------------------------------------------------------------------- #
+# The preflight
+# --------------------------------------------------------------------------- #
+
+
+def test_the_cap_is_the_hubs_cap():
+    # Not a tunable. The Hub's message is "up to 10000 files" per directory.
+    from sbr.dataset.pool import MAX_FILES_PER_DIR
+
+    assert MAX_FILES_PER_DIR == 10_000
+
+
+def test_an_oversized_directory_is_refused_and_named(tmp_path, monkeypatch):
+    # The failure this exists to move earlier: the first negatives harvest spent
+    # thirty minutes downloading and then learned this from the Hub, mid-upload.
+    monkeypatch.setattr("sbr.dataset.pool.MAX_FILES_PER_DIR", 3)
+    labels = tmp_path / "negatives" / "labels"
+    labels.mkdir(parents=True)
+    for i in range(4):
+        (labels / f"{i}.txt").write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="negatives.labels"):
+        hub.preflight_layout(tmp_path)
+
+
+def test_the_preflight_passes_at_the_cap(tmp_path, monkeypatch):
+    # Off-by-one matters: the Hub's message says "up to 10000", not "under".
+    monkeypatch.setattr("sbr.dataset.pool.MAX_FILES_PER_DIR", 3)
+    for i in range(3):
+        (tmp_path / f"{i}.txt").write_text("", encoding="utf-8")
+    hub.preflight_layout(tmp_path)
+
+
+def test_a_sharded_tree_passes_the_preflight(tmp_path, monkeypatch):
+    from sbr.dataset.pool import SHARDED, image_path
+
+    monkeypatch.setattr("sbr.dataset.pool.MAX_FILES_PER_DIR", 3)
+    for i in range(20):
+        target = image_path(tmp_path, f"{i:04x}.jpg", SHARDED)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"")
+    hub.preflight_layout(tmp_path)
+
+
+def test_upload_refuses_a_tree_the_hub_would_reject(tmp_path, monkeypatch):
+    monkeypatch.setattr("sbr.dataset.pool.MAX_FILES_PER_DIR", 2)
+    for i in range(3):
+        (tmp_path / f"{i}.txt").write_text("", encoding="utf-8")
+    monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_x")
+    monkeypatch.setattr(hub, "configure_hf_runtime", lambda: None)
+
+    # Before create_repo, so a refused push leaves nothing behind.
+    class FakeApi:
+        def create_repo(self, **kwargs):
+            raise AssertionError("the preflight must run first")
+
+    monkeypatch.setitem(__import__("sys").modules, "huggingface_hub",
+                        type("M", (), {"HfApi": lambda **kw: FakeApi()}))
+    with pytest.raises(ValueError, match="10000|files per directory|more than"):
+        hub.upload_dataset("owner/repo", tmp_path, "msg")
