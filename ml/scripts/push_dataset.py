@@ -30,7 +30,7 @@ from pathlib import Path
 ML_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ML_ROOT / "src"))
 
-from sbr.utils.hub import upload_dataset  # noqa: E402
+from sbr.utils.hub import delete_subsets, preflight_layout, upload_dataset  # noqa: E402
 
 logger = logging.getLogger("push-dataset")
 
@@ -73,6 +73,12 @@ Each subset directory is a self-contained pool:
 ├── labels/         YOLO labels; an EMPTY file means a deliberate background image
 └── crops/          identifier candidates (present only where relevant)
 ```
+
+Large subsets interpose a **shard** level – `images/ab/<id>.jpg`, the two hex
+characters being `sha256(stem)` – because the Hub rejects a push where any
+directory holds more than 10 000 files, and the negative corpus alone is
+~17 500. `manifest.json` says which: `"layout": "sharded"`, and a manifest
+without the key is flat. `legacy/` is flat and stays that way.
 
 `sbr.dataset.prepare.build_yolo_tree` assembles them into a training tree,
 grouping frames by capture cluster so that two photographs of the same bin can
@@ -146,6 +152,11 @@ def main() -> None:
     parser.add_argument("--repo", default="arudaev/smart-bin-detect")
     parser.add_argument("--crops", action="store_true", help="include crops/ (identifier repo)")
     parser.add_argument("--public", action="store_true", help="publish, rather than keeping it private")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="delete the subset on the Hub first, so a retry does not land on a half-written tree",
+    )
     parser.add_argument("--message", default=None)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -168,8 +179,15 @@ def main() -> None:
         if args.dry_run:
             for path in sorted(staging.rglob("*"))[:12]:
                 print("  ", path.relative_to(staging))
+            # The check the real push would fail on, run for free.
+            preflight_layout(staging)
+            if args.replace:
+                print(f"--replace would delete {args.subset}/ on the Hub first")
             print("dry run - nothing uploaded")
             return
+
+        if args.replace:
+            delete_subsets(args.repo, [args.subset])
 
         sha = upload_dataset(
             repo_id=args.repo,

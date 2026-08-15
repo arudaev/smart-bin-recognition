@@ -83,7 +83,12 @@ def main() -> None:
         sample,
         scan_boxes,
     )
-    from sbr.utils.hub import configure_hf_runtime, require_hf_token, upload_dataset
+    from sbr.utils.hub import (
+        configure_hf_runtime,
+        delete_subsets,
+        require_hf_token,
+        upload_dataset,
+    )
 
     configure_hf_runtime()
     # Before 35 minutes of downloading, not after.
@@ -185,8 +190,17 @@ def main() -> None:
         log("SBR_SKIP_UPLOAD=1, not uploading")
         return
 
+    repo_id = config.get("hub", {}).get("dataset_repo", "arudaev/smart-bin-detect")
+
+    # A previous run left 10 000 label files with no images beside them: the push
+    # was rejected halfway for exceeding the Hub's 10 000-files-per-directory cap.
+    # Uploading on top of that starts the next push already over the cap, so both
+    # harvested subsets are replaced rather than merged into. `legacy/` is never
+    # touched - it is the one pinned revision this project has.
+    delete_subsets(repo_id, ["negatives", "open_images"])
+
     sha = upload_dataset(
-        repo_id=config.get("hub", {}).get("dataset_repo", "arudaev/smart-bin-detect"),
+        repo_id=repo_id,
         local_dir=WORKING / "pools",
         commit_message=(
             f"open_images + negatives: {positive_manifest['images']} bins, "
