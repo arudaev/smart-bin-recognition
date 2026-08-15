@@ -177,9 +177,17 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
-    from sbr.utils.hub import configure_hf_runtime, download_dataset, upload_artifacts
+    from sbr.utils.hub import (
+        configure_hf_runtime,
+        download_dataset,
+        require_hf_token,
+        upload_artifacts,
+    )
 
     configure_hf_runtime()
+    # Before a GPU hour, not after.
+    if os.environ.get("SBR_SKIP_UPLOAD") != "1":
+        require_hf_token("upload the trained artefacts")
     config = load_config(CONFIG_NAME, PROJECT / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])

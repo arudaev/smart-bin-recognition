@@ -23,10 +23,17 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+#: Checked in order, then any attached dataset is searched. The glob matters:
+#: a kernel that harvested for 35 minutes and then died on "no Hugging Face
+#: token found" is a bad way to learn that a dataset mounted under a slug these
+#: two paths did not anticipate.
 KAGGLE_SECRET_PATHS = (
     Path("/kaggle/input/sbr-secrets/hf_token.txt"),
     Path("/kaggle/input/chexvision-secrets/hf_token.txt"),  # shared secrets dataset
 )
+
+#: Filenames a token might be stored under in an attached Kaggle dataset.
+KAGGLE_SECRET_NAMES = ("hf_token.txt", "HF_TOKEN.txt", "hf_token", "token.txt")
 
 #: Dataset revision each repo is pinned to. Filled in by
 #: ``ml/scripts/push_dataset.py``, which prints the sha after an upload; an empty
@@ -109,6 +116,19 @@ def load_hf_token() -> str | None:
         if path.exists():
             return path.read_text(encoding="utf-8").strip()
 
+    # Any attached dataset, under any slug. The named paths above are a fast
+    # path, not the whole search.
+    inputs = Path("/kaggle/input")
+    if inputs.is_dir():
+        for name in KAGGLE_SECRET_NAMES:
+            for found in sorted(inputs.glob(f"*/{name}")):
+                logger.info("found a token at %s", found)
+                return found.read_text(encoding="utf-8").strip()
+        logger.warning(
+            "no token in any attached dataset. /kaggle/input holds: %s",
+            [p.name for p in sorted(inputs.iterdir())] or "nothing",
+        )
+
     try:
         from kaggle_secrets import UserSecretsClient
 
@@ -116,6 +136,24 @@ def load_hf_token() -> str | None:
     except Exception:  # noqa: BLE001 – absent outside interactive Kaggle
         logger.warning("no Hugging Face token found")
         return None
+
+
+def require_hf_token(purpose: str = "upload") -> str:
+    """Resolve a token or stop now, before doing expensive work.
+
+    Called at the *top* of any kernel that will eventually upload. The negatives
+    harvest streamed a 2.2 GB CSV and fetched 18 609 images before discovering
+    it had nowhere to put them; that is a 35-minute way to find out something
+    knowable in the first second.
+    """
+    token = load_hf_token()
+    if not token:
+        raise SystemExit(
+            f"cannot {purpose} without a Hugging Face token, and this run would "
+            "have spent its whole budget before finding out.\n"
+            "Attach a Kaggle dataset containing hf_token.txt, or set HF_TOKEN."
+        )
+    return token
 
 
 def download_dataset(

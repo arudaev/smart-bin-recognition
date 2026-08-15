@@ -83,9 +83,12 @@ def main() -> None:
         sample,
         scan_boxes,
     )
-    from sbr.utils.hub import configure_hf_runtime, upload_dataset
+    from sbr.utils.hub import configure_hf_runtime, require_hf_token, upload_dataset
 
     configure_hf_runtime()
+    # Before 35 minutes of downloading, not after.
+    if os.environ.get("SBR_SKIP_UPLOAD") != "1":
+        require_hf_token("push the harvested pools")
     config = load_config(CONFIG_NAME, PROJECT / "configs")
     source = config["source"]
     seed = 42
