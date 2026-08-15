@@ -105,3 +105,71 @@ def test_require_hf_token_stops_before_the_expensive_work(monkeypatch):
 def test_require_hf_token_returns_the_token_when_there_is_one(monkeypatch):
     monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_ok")
     assert hub.require_hf_token() == "hf_ok"
+
+
+# --------------------------------------------------------------------------- #
+# Uploading many files
+# --------------------------------------------------------------------------- #
+
+
+def test_a_big_folder_uses_the_resumable_uploader(tmp_path, monkeypatch):
+    """Pre-signed LFS URLs expire after 900 s.
+
+    upload_folder asks for the whole batch up front, so 18 609 harvested images
+    over a Kaggle connection died sixteen minutes in with "Request has expired",
+    which the Hub reports as a 403 about token permissions.
+    """
+    for index in range(hub.LARGE_UPLOAD_FILES + 1):
+        (tmp_path / f"{index}.jpg").write_bytes(b"x")
+
+    calls = []
+
+    class FakeApi:
+        def create_repo(self, **kwargs):
+            pass
+
+        def upload_folder(self, **kwargs):
+            calls.append("upload_folder")
+            raise AssertionError("must not be used for a folder this size")
+
+        def upload_large_folder(self, **kwargs):
+            calls.append("upload_large_folder")
+
+        def dataset_info(self, *args, **kwargs):
+            return type("Info", (), {"sha": "abc123"})()
+
+    monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_x")
+    monkeypatch.setattr(hub, "configure_hf_runtime", lambda: None)
+    monkeypatch.setitem(__import__("sys").modules, "huggingface_hub",
+                        type("M", (), {"HfApi": lambda **kw: FakeApi()}))
+
+    assert hub.upload_dataset("owner/repo", tmp_path, "msg") == "abc123"
+    assert calls == ["upload_large_folder"]
+
+
+def test_a_small_folder_uses_a_single_commit(tmp_path, monkeypatch):
+    # One commit is nicer when it fits: it yields a real sha directly.
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    calls = []
+
+    class FakeApi:
+        def create_repo(self, **kwargs):
+            pass
+
+        def upload_folder(self, **kwargs):
+            calls.append("upload_folder")
+            return type("Commit", (), {"oid": "deadbeef"})()
+
+        def upload_large_folder(self, **kwargs):
+            raise AssertionError("not needed for one file")
+
+        def dataset_info(self, *args, **kwargs):
+            return type("Info", (), {"sha": "unused"})()
+
+    monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_x")
+    monkeypatch.setattr(hub, "configure_hf_runtime", lambda: None)
+    monkeypatch.setitem(__import__("sys").modules, "huggingface_hub",
+                        type("M", (), {"HfApi": lambda **kw: FakeApi()}))
+
+    assert hub.upload_dataset("owner/repo", tmp_path, "msg") == "deadbeef"
+    assert calls == ["upload_folder"]

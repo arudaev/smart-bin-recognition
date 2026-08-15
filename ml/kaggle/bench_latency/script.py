@@ -62,7 +62,7 @@ def install_dependencies() -> None:
     subprocess.check_call(
         [
             sys.executable, "-m", "pip", "install", "-q",
-            "onnxruntime>=1.18.0", "huggingface_hub>=0.24.0", "pyyaml", "numpy",
+            "onnxruntime>=1.18.0", "huggingface_hub>=0.26.0", "pyyaml", "numpy",
         ]
     )
     log("dependencies installed")

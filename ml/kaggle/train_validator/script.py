@@ -59,7 +59,7 @@ def install_dependencies() -> None:
         "ultralytics>=8.3.0",
         "onnx>=1.16.0",
         "onnxruntime>=1.18.0",
-        "huggingface_hub>=0.24.0",
+        "huggingface_hub>=0.26.0",
         "pyyaml",
     ]
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *packages])

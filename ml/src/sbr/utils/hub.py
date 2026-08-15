@@ -190,17 +190,37 @@ def download_dataset(
     return Path(target)
 
 
+#: Above this many files, ``upload_folder`` is the wrong tool – see
+#: :func:`upload_dataset`.
+LARGE_UPLOAD_FILES = 500
+
+
 def upload_dataset(
     repo_id: str,
     local_dir: Path,
     commit_message: str,
     private: bool = False,
     allow_patterns: list[str] | None = None,
+    workers: int = 8,
 ) -> str:
     """Upload a prepared pool as a dataset revision. Returns the commit sha.
 
     The sha is the point: it goes into :data:`PINS`, and every number measured
     afterwards names it.
+
+    **Why this is not just ``upload_folder``.** Every ``.jpg`` is an LFS object
+    under the default ``.gitattributes``, and ``upload_folder`` asks the Hub for
+    pre-signed S3 URLs for the *whole batch* before uploading any of it. Those
+    URLs last 900 seconds. Pushing 18 609 harvested images over a Kaggle
+    connection took longer than that, so the run died sixteen minutes in with::
+
+        AccessDenied / Request has expired / X-Amz-Expires 900
+
+    which the Hub reports as "403 Forbidden – make sure your token has the
+    correct permissions", and which has nothing to do with the token.
+
+    ``upload_large_folder`` is built for this shape: many small commits, LFS
+    URLs requested in small batches, parallel workers, and resumption on retry.
     """
     from huggingface_hub import HfApi
 
@@ -214,15 +234,36 @@ def upload_dataset(
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
 
-    commit = api.upload_folder(
-        repo_id=repo_id,
-        repo_type="dataset",
-        folder_path=str(local_dir),
-        commit_message=commit_message,
-        allow_patterns=allow_patterns,
-    )
-    sha = getattr(commit, "oid", None) or api.dataset_info(repo_id, token=token).sha
-    logger.info("uploaded %s -> %s at %s", local_dir, repo_id, sha)
+    count = sum(1 for path in local_dir.rglob("*") if path.is_file())
+    large = count > LARGE_UPLOAD_FILES and hasattr(api, "upload_large_folder")
+
+    if large:
+        logger.info(
+            "%d files – using upload_large_folder (pre-signed LFS URLs expire "
+            "after 900 s, and a single batch of this many does not finish in time)",
+            count,
+        )
+        # No commit object: it makes many commits by design.
+        api.upload_large_folder(
+            repo_id=repo_id,
+            repo_type="dataset",
+            folder_path=str(local_dir),
+            allow_patterns=allow_patterns,
+            num_workers=workers,
+            print_report=False,
+        )
+        sha = api.dataset_info(repo_id, token=token).sha
+    else:
+        commit = api.upload_folder(
+            repo_id=repo_id,
+            repo_type="dataset",
+            folder_path=str(local_dir),
+            commit_message=commit_message,
+            allow_patterns=allow_patterns,
+        )
+        sha = getattr(commit, "oid", None) or api.dataset_info(repo_id, token=token).sha
+
+    logger.info("uploaded %s (%d files) -> %s at %s", local_dir, count, repo_id, sha)
     return sha
 
 
