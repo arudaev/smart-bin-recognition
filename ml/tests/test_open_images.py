@@ -127,6 +127,24 @@ def test_hard_negatives_are_separated_from_street_scenes(tmp_path):
     assert hard == {"img2"}
 
 
+def test_an_image_that_is_both_is_a_hard_negative_only(tmp_path):
+    # A photograph with a car AND a barrel joined both sets, was sampled twice
+    # and fetched twice: 17 499 records over 17 474 files. Hard wins, because
+    # hard negatives are the scarce ones that buy the false-positive rate.
+    path = _bbox_csv([_row("img1", CAR), _row("img1", BARREL)], tmp_path)
+    street, hard = scan_boxes(path, WASTE, {CAR}, {BARREL}).negatives()
+    assert hard == {"img1"}
+    assert street == set()
+    assert street.isdisjoint(hard)
+
+
+def test_the_negative_sets_are_always_disjoint(tmp_path):
+    rows = [_row("a", CAR), _row("b", BARREL), _row("c", CAR), _row("c", BARREL)]
+    street, hard = scan_boxes(_bbox_csv(rows, tmp_path), WASTE, {CAR}, {BARREL}).negatives()
+    assert street.isdisjoint(hard)
+    assert len(street) + len(hard) == 3          # a, b, c - counted once each
+
+
 def test_a_degenerate_box_is_dropped(tmp_path):
     path = _bbox_csv([_row("img1", WASTE, XMin="0.5", XMax="0.5")], tmp_path)
     scan = scan_boxes(path, WASTE, set(), set())
@@ -306,3 +324,20 @@ def test_the_harvest_never_crowds_a_directory(harvested):
     out, _ = harvested
     # The cap that rejected the first push, checked at a scale a test can reach.
     assert oversized_directories(out, cap=2) == {}
+
+
+def test_a_duplicate_candidate_is_never_written_twice(tmp_path):
+    # The last line of defence: whatever the caller hands over, one frame is one
+    # record, so the manifest stays a faithful index of what is on disk.
+    from sbr.dataset.open_images import Candidate, harvest
+
+    candidates = [
+        Candidate("train", "dup001", (), "street"),
+        Candidate("train", "dup001", (), "hard"),
+        Candidate("train", "other1", (), "street"),
+    ]
+    manifest = harvest(candidates, tmp_path / "neg", HARVEST_CONFIG,
+                       fetch=lambda url: _jpeg(), workers=2)
+    assert manifest["images"] == 2
+    assert len(manifest["records"]) == 2
+    assert len({r["file"] for r in manifest["records"]}) == 2

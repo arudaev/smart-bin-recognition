@@ -123,9 +123,23 @@ class Scan:
     rows: int = 0
 
     def negatives(self, exclude_positives: bool = True) -> tuple[set[str], set[str]]:
-        """Street and hard-negative image ids, with every bin image removed."""
+        """Street and hard-negative image ids, disjoint, with every bin removed.
+
+        **Disjoint matters.** The two sets are filled row by row, so a photograph
+        holding a car *and* a barrel joins both, and the two are then sampled and
+        fetched independently: the first harvest downloaded 25 images twice and
+        wrote 17 499 records over 17 474 files, which is a corpus that overstates
+        itself. The overlap is small and it is exactly the kind of quiet miscount
+        this project exists not to repeat.
+
+        **Hard wins.** An image that is both is a hard negative. Those are the
+        scarce, informative ones – roughly bin-shaped things on a pavement – and
+        they carry a deliberate quota. Spending one as a street scene dilutes the
+        category that actually buys the low false-positive rate.
+        """
         banned = set(self.positives) if exclude_positives else set()
-        return self.street - banned, self.hard - banned
+        hard = self.hard - banned
+        return self.street - banned - hard, hard
 
 
 def open_csv(source: Path | str, timeout: int = 600):
@@ -292,6 +306,20 @@ def harvest(
     source = config["source"]
     settings = config["image"]
     attribution = attribution or {}
+
+    # One frame, one record. A duplicate would be fetched twice, written twice
+    # and counted twice, and the manifest would no longer be a faithful index of
+    # what is on disk - which is how "17 499 negatives" became 17 474 files.
+    # Belt and braces with Scan.negatives()'s disjointness: this is the last
+    # place that can still tell, and it is cheap to ask.
+    seen: set[str] = set()
+    deduped = [c for c in candidates if not (c.image_id in seen or seen.add(c.image_id))]
+    if len(deduped) < len(candidates):
+        logger.warning(
+            "%d duplicate candidates dropped before fetching (%d -> %d)",
+            len(candidates) - len(deduped), len(candidates), len(deduped),
+        )
+    candidates = deduped
 
     images_dir, labels_dir = out_dir / "images", out_dir / "labels"
     images_dir.mkdir(parents=True, exist_ok=True)
