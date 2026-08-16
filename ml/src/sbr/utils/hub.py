@@ -47,9 +47,17 @@ KAGGLE_INPUT = Path("/kaggle/input")
 #: Changing a pin means the next training run sees different data. That is a
 #: deliberate act and belongs in its own commit, with the reason in the message.
 PINS: dict[str, str] = {
-    # legacy subset only: 370 usable frames, 403 boxes, one city, one week.
-    # Pushed 2026-08-13 from cv_garbage.zip sha256 028b1f55…96ea3.
-    "arudaev/smart-bin-detect": "581eedae78c69fbaa02c2db77687d030e309b5ed",
+    # legacy + open_images + negatives. 18 954 frames over three subsets:
+    #   legacy       370 frames, 403 boxes, flat layout, one city, one week
+    #   open_images  1 110 frames, 1 936 boxes, 98 of them with 4+ bins
+    #   negatives    17 474 background frames (14 975 street, 2 499 hard)
+    # Pushed 2026-08-16, 37 913 files. Two repairs landed on top of the harvest
+    # and are part of this revision: the manifest had recorded 25 frames twice,
+    # as both street and hard, and the card described only the legacy subset.
+    # No frame carries a usable second region_id, so holdout_region is empty and
+    # the generalisation number is NOT available from this data.
+    # Previous, legacy only: 581eedae78c69fbaa02c2db77687d030e309b5ed
+    "arudaev/smart-bin-detect": "8666aa23ff1a8572cd57349a8c5bd1f0b2d88285",
     # Needs the human pass first - there are no adjudicated crops yet.
     "arudaev/smart-bin-identify": "",
     "arudaev/smart-bin-raw": "",
