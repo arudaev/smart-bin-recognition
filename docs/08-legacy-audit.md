@@ -170,17 +170,68 @@ reproducible from `cv_garbage/` and supersedes the retracted figures.
 
 ### 7.1 The archive, as it really is
 
+> **Corrected 2026-08-06.** The table this section used to carry – 466 images,
+> 372/94, `raw_images/` 470, Alex 156, Sameer 149 – does not describe
+> `cv_garbage.zip`. It described a *local working copy*, and it was recorded
+> here without being checked against the artefact anybody else can download.
+> That is the same mistake `legacy_import.py` made and openly admitted to, made
+> a second time one directory over. The numbers below are measured from the
+> release asset itself (`sha256:028b1f55…96ea3`, 2 146 794 568 bytes) and are
+> reproducible with `python ml/scripts/inventory_legacy.py`.
+
+**The published archive is a partial copy of the dataset that was trained on.**
+
 | | |
 |---|---|
-| `YOLO_Dataset/images/{train,val}` | 372 / 94 = **466** |
-| `YOLO_Dataset/labels/{train,val}` | 372 / 94 – one label per image, no orphans |
-| `raw_images/` | 470 (4 never made it through labelling) |
-| `labeled/` | split by annotator: Alex 156, Fares 161, Sameer 149 = **466** |
+| `YOLO_Dataset/labels/{train,val}` | 332 / 69 = **401** of 466 label files |
+| `YOLO_Dataset/images/{train,val}` | 13 / 3 = **16** – near-empty |
+| `labeled/` | Alex 118, Fares 161, Sameer 148 = **427** – where the pixels are |
+| `raw_images/` | 258 originals; pairs with nothing the other trees do not already cover |
+| `labeled/labels.csv` | **466 rows** – original name, renamed file, class, timestamp |
 | `models/` | **9 training runs**, not one |
 | `data.yaml` | `nc: 4`, names `Biomüll, Glas, Papier, Restmüll` |
 
-The counts finally reconcile with the deck: 466 images, 80/20, three people
-sharing the labelling roughly evenly.
+**370 labels can be paired with an image.** That is the usable dataset: 31 label
+files have no image anywhere in the archive, and 60 images have no label.
+Pairing is by the eight-hex tail Label Studio appended when it renamed
+everything — nothing in this archive pairs by filename.
+
+That the full 466 once existed is not in doubt. The Ultralytics label caches
+shipped inside the archive record it directly:
+
+| cache | found | missing | empty | corrupt | total |
+|---|---|---|---|---|---|
+| `labels/train.cache` | 372 | 0 | 0 | 0 | 372 |
+| `labels/val.cache` | 94 | 0 | 0 | 0 | 94 |
+
+So the deck's 466 / 80-20 / three annotators is true of the training run. The
+**publishing step** is what lost the images, and a dataset that cannot be
+rebuilt from its own published archive is the predecessor's central failure
+appearing a second time, in a different place.
+
+The layout above is now a contract rather than a description:
+`ml/configs/legacy_archive.yaml` records every number, `sbr.dataset.archive`
+verifies them, and the import refuses to run on a mismatch.
+
+### 7.1.1 Class balance and internal disagreement
+
+Both were listed as open in [04-ml-pipeline § 5](04-ml-pipeline.md#5-datasets).
+Measured over the 370 usable frames, 403 boxes:
+
+| class | boxes | share |
+|---|---|---|
+| Restmüll | 171 | 42.4 % |
+| Papier | 101 | 25.1 % |
+| Biomüll | 87 | 21.6 % |
+| **Glas** | **44** | **10.9 %** |
+
+Glas is the under-represented class, and it is also the one the deck names as
+its hardest case. It is the only legacy class that maps to `igloo`.
+
+`labeled/` and `YOLO_Dataset/` disagree **twice** in 370 frames –
+`6e014158-Biom_C3_BCll_a8584ef2` and `34da0c59-Papier_8cfea8c7` are named for
+one class while every box inside them is `Restmüll`. The boxes are the label;
+both are recorded in the archive config rather than silently corrected.
 
 ### 7.2 Which model is the real one
 

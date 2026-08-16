@@ -100,6 +100,52 @@ Rules:
   explicit map interaction.
 - A user's own scan history stays on-device in IndexedDB and is never uploaded.
 
+### The consent lifecycle for retained frames
+
+Until 2026-08-16 this said only that consent was "per-session and visible", which
+is not a specification. It is one now, and it follows from decisions already
+taken — see [research/07](research/07-compliance-and-consent.md). EU AI Act
+Art. 50 has been in force since 2026-08-02, so this is current work rather than
+future work.
+
+```
+scan  →  answer shown  →  is this frame worth keeping?
+                                  │ no → discarded, nothing asked, no interruption
+                                  │ yes
+                                  ▼
+                        ask ONCE, at the moment, naming THIS frame and why
+                                  │ declined → discarded; not asked again this session
+                                  │ granted
+                                  ▼
+            downscale ≤ 512 px · strip EXIF · geohash-6 only · LOCAL RECEIPT
+                                  ▼
+              pending queue · stated retention window · human review
+                                  │
+                        ┌─────────┴─────────┐
+                   accepted              rejected
+              dataset revision        deleted at review
+```
+
+Four properties, each of which is a decision and not a detail:
+
+- **An ordinary successful scan never sees a consent prompt.** There is nothing
+  to consent to: the frame is already discarded ([04 § 2](04-ml-pipeline.md)).
+  Prompting on every scan is how people learn to dismiss prompts.
+- **Consent is per frame, not per session.** "Keep this one" and "keep everything
+  from this session" are different questions and only the first is honest about
+  scope.
+- **Deletion works without an identity.** The device keeps a **local receipt** —
+  an opaque token — for each pending contribution, and the receipt revokes it.
+  This is what makes "no accounts" a privacy asset rather than an excuse for
+  having no deletion path.
+- **A retention window is stated**, and pending frames that are never reviewed
+  expire rather than accumulating.
+
+One thing above is **not yet real and must not be described as though it were**:
+the automatic face/plate rejection assumed elsewhere in this document is an
+unscoped ML component. Until it is built and measured, the guarantee is **human
+moderation before retention**, which is what actually happens.
+
 The uncomfortable case, named explicitly: a household bin outside a single
 dwelling is, in effect, a fact about that dwelling. Mitigations are the tight
 5 m centroid, decay-out of stale household bins, no photos of house numbers
@@ -152,7 +198,7 @@ model.
 | Fake locations | Speed-of-travel plausibility, land/sea check, bbox check against a known region |
 | Coordinated poisoning | Consensus-before-publish; independence check on contributor tokens; no path into training data without human review |
 | Escalation cost attack | Hard project-wide daily ceiling; queue, never autoscale ([05-cost-model § 4](05-cost-model.md#4-the-one-paid-path-and-its-leash)) |
-| Photo abuse (people, plates, doors) | Opt-in only, 512 px, moderated before retention, auto-reject on face/plate detection |
+| Photo abuse (people, plates, doors) | Opt-in per frame, 512 px, EXIF stripped, **human moderation before retention**. Automatic face/plate rejection is *planned, not built* — see § 4 |
 | Scraping the registry | It is public civic data by design; tiles are rate-limited at the CDN and that is the extent of it |
 
 ## 8. Serving

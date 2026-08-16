@@ -22,16 +22,23 @@ python scripts/validate_taxonomy.py --skip-locales
 # Tests
 python -m pytest tests/ -q
 
-# Import the predecessor's dataset – resize, rename, remap
-python -m sbr.dataset.legacy_import --archive cv_garbage.zip --out data/legacy
+# Check the archive against ml/configs/legacy_archive.yaml, then import
+python scripts/inventory_legacy.py --archive-dir cv_garbage
+python -m sbr.dataset.legacy_import --archive-dir cv_garbage --out data/legacy/pool
 
-# Train on a Kaggle GPU kernel (never locally)
-python scripts/dispatch.py push detector --version 1
-python scripts/dispatch.py status detector
-python scripts/dispatch.py output detector --out artifacts/
+# The human pass – form factors for the legacy crops
+python scripts/adjudicate.py --pool data/legacy/pool
 
-# Export + quantise + check ship gates
-python -m sbr.export.onnx_export --weights best.pt --calibration data/val --version 1
+# Publish a subset and pin the revision it prints
+python scripts/push_dataset.py --pool data/legacy/pool --subset legacy
+
+# Train on a Kaggle kernel (never locally)
+python scripts/dispatch.py push validator --version 1
+python scripts/dispatch.py status validator
+python scripts/dispatch.py output validator --out artifacts/
+
+# Ship gate: p50 measured on the 2-vCPU bench Space, then check_gates
+python scripts/gate.py --role validator --version 1
 ```
 
 ## What the pieces do

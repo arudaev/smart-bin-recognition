@@ -57,8 +57,13 @@ augment:
 export:
   imgsz: 448
   quantise: int8
-  budget:
-    # Concurrency is the cost ceiling, so latency IS the budget.
-    max_median_latency_ms: 50     # service CPU, single frame
+  # Hard gates: these fail the build. Concurrency is the cost ceiling, so
+  # latency IS the budget.
+  gates:
+    max_median_latency_ms: 50     # service CPU (2 vCPU), single frame @ 448
+  # Reported, not gating. These are the docs/04 § 7 targets: a model that misses
+  # one is a result to write down and act on, not a build failure – unlike the
+  # gates above, which are what makes the free tier arithmetic work at all.
+  targets:
     min_recall_heldout_city: 0.97
     min_precision_on_negatives: 0.97

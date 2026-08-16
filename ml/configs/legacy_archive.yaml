@@ -1,0 +1,117 @@
+# The legacy archive, as published. Measured 2026-08-06 from the release asset
+# itself with `python ml/scripts/inventory_legacy.py --emit-expectations`.
+#
+# This file is a CONTRACT, not a description. sbr.dataset.archive.verify() checks
+# every number here and legacy_import refuses to run on a mismatch, because the
+# last two attempts to describe this dataset both described something other than
+# the artefact people download:
+#
+#   - legacy_import.py was written against an incomplete copy and said so.
+#   - docs/08 § 7.1 recorded 466 images / 372-94 / raw_images 470 / Alex 156 /
+#     Sameer 149. None of those describe cv_garbage.zip. They describe the
+#     dataset at TRAINING time, which is a different thing and is recorded
+#     separately below.
+#
+# If these numbers ever legitimately change, regenerate the block and put the
+# reason in the commit message. Do not edit a number to make a run go green.
+
+source:
+  repo: arudaev/Painfully-Trivial
+  release: v1.0.0
+  asset: cv_garbage.zip
+  url: https://github.com/arudaev/Painfully-Trivial/releases/download/v1.0.0/cv_garbage.zip
+  bytes: 2146794568
+  sha256: 028b1f5571f5ad681c78ab820cabb8dace3ebc5ddad8d8138117b69675596ea3
+  licence: MIT              # the predecessor repo's licence, same author
+  region_id: de-by-deggendorf
+  label_origin: legacy
+
+# Import knobs. Nothing that affects a run is hard-coded in source.
+import:
+  max_edge: 960             # the 2.15 GB archive is full-res phone JPEGs
+  jpeg_quality: 88
+  crop_padding: 0.12        # a little context distinguishes 240 L from 1100 L
+  min_crop_px: 64
+  # Frames of the same bin in one session must never straddle a split. Capture
+  # times come from EXIF (present on every image in labeled/), and consecutive
+  # shots inside this gap are treated as one capture cluster. Without this every
+  # frame is its own group and the "group-aware" split is just a random one -
+  # which is exactly how the predecessor got its 0.987.
+  cluster_gap_seconds: 180
+
+# What is actually in the zip.
+#
+# The headline: 401 of the 466 label files shipped, YOLO_Dataset/images/ shipped
+# 16 of 466, and labeled/ is where the pixels are. 370 labels can be paired with
+# an image, and that is the usable dataset.
+expected:
+  yolo_labels:
+    train: 332
+    val: 69
+  # Near-empty. The release kept the label tree and dropped almost all of the
+  # image tree; labeled/ is what saves this dataset from being unusable.
+  yolo_images:
+    train: 13
+    val: 3
+  # The images, by annotator. Annotator is a plausible confound and a free
+  # grouping key, so it is carried through the import and can be held out.
+  labeled_images:
+    Alex: 118
+    Fares: 161
+    Sameer: 148
+  # Originals under their camera filenames. Contributes no label pairing: every
+  # label that resolves does so through labeled/ or YOLO_Dataset/images/.
+  raw_images: 258
+  # All 466 rows survive here even where the pixels did not. This is the only
+  # place the original camera filename and the annotation timestamp exist.
+  labels_csv_rows: 466
+  model_runs: 9
+
+  pairable_labels: 370
+  orphan_labels: 31        # label file, no image anywhere in the archive
+  unlabelled_images: 60    # image, no label file
+
+  boxes: 403
+  # Answers the first thing docs/04 § 5 lists as still open. Glas is heavily
+  # under-represented at 44 boxes (10.9 %) and Restmüll dominates at 42 %.
+  boxes_per_class:
+    Biomüll: 87
+    Glas: 44
+    Papier: 101
+    Restmüll: 171
+  # Over the 370 pairable frames. Confirms docs/04 § 5 on the usable subset:
+  # 92.2 % hold exactly one bin and NOT ONE holds four or more. (Over all 401
+  # label files, pairable or not, it is 370 / 27 / 4 and still no 4+.)
+  # `container_bank` is defined as a row of three or more containers and has no
+  # training data at all.
+  bins_per_frame:
+    1: 341
+    2: 25
+    3: 4
+
+  data_yaml:
+    nc: 4
+    # This order IS the class index in every one of the 401 label files.
+    # Reordering it silently remaps the entire archive.
+    names:
+      - Biomüll
+      - Glas
+      - Papier
+      - Restmüll
+
+# Not checked – recorded because it is the evidence that the full dataset once
+# existed and the publishing step is what lost it. These are the `results`
+# tuples (found, missing, empty, corrupt, total) inside the Ultralytics label
+# caches shipped in the archive at YOLO_Dataset/labels/{train,val}.cache.
+at_training_time:
+  train: [372, 0, 0, 0, 372]
+  val: [94, 0, 0, 0, 94]
+  total: 466
+
+# Answers the second open question in docs/04 § 5: do labeled/ and
+# YOLO_Dataset/ disagree anywhere? Twice, out of 370. Both are frames whose
+# Label Studio filename names one class while every box in the file is
+# Restmüll. Recorded rather than corrected – the boxes are the label.
+known_name_class_disagreements:
+  - 6e014158-Biom_C3_BCll_a8584ef2.txt   # filename Biomüll, boxes Restmüll
+  - 34da0c59-Papier_8cfea8c7.txt          # filename Papier, boxes Restmüll

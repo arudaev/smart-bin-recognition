@@ -11,11 +11,17 @@ _defaults_: default.yaml
 #
 # Its classes are physical FORM FACTORS, not waste categories. What a blue lid
 # means lives in a region pack. See docs/02-waste-taxonomy.md § 1.
+#
+# It is a CLASSIFIER, not a detector. The validator has already localised the
+# object and the crop is filled by it, so re-detecting would spend the 25 ms
+# budget re-deriving a box that is already known. Classification also gives
+# `unknown` a better basis: a max-softmax below `unknown_threshold` rather than
+# a box score below a confidence floor.
 
 run_name: identifier
 
 model:
-  arch: yolo11s           # larger than the validator: this is the hard problem
+  arch: yolo11s-cls       # larger than the validator: this is the hard problem
   pretrained: true
 
 data:
@@ -33,6 +39,29 @@ data:
   # Label provenance is tracked so its contribution can be measured – and rolled
   # back if machine labels turn out to hurt.
   label_sources: ["human", "machine_agreed", "legacy"]
+
+  # Only adjudicated crops train the identifier. A crop whose form factor was
+  # inferred from a legacy STREAM label ("Restmüll") is not a label – the same
+  # stream is a small wheelie bin outside a house and a large one behind a
+  # block. See ml/scripts/adjudicate.py and docs/07-roadmap.md phase 2.
+  require_adjudication: true
+
+# Where `unknown` comes from. Below this max-softmax the identifier says it does
+# not know, which is a designed product state and the entry point to the
+# improvement loop – not an error. docs/01-architecture.md § 3.
+#
+# PROVISIONAL. 0.55 is a guess, not a calibrated operating point, and max-softmax
+# is a BASELINE: the literature is explicit that softmax confidence can be
+# arbitrarily high on out-of-distribution inputs, which is exactly the input this
+# threshold exists to catch. It is a strong baseline and hard to beat, so it
+# stays until there is evidence. What it is not is "principled".
+#
+# docs/12 probe P2 replaces it with a threshold chosen at a stated NOVELTY
+# PRECISION over a frozen five-bucket set, after comparing max-softmax against
+# energy, max-logit and kNN-on-embeddings. Pin the run that produced it here when
+# it lands. See docs/research/02-novelty-and-abstention.md.
+inference:
+  unknown_threshold: 0.55
 
 training:
   epochs: 100
@@ -54,6 +83,9 @@ augment:
 export:
   imgsz: 320
   quantise: int8
-  budget:
-    max_median_latency_ms: 25       # per crop, service CPU
+  # Hard gate: this fails the build.
+  gates:
+    max_median_latency_ms: 25       # per crop, service CPU (2 vCPU) @ 320
+  # Reported, not gating – the docs/04 § 7 target.
+  targets:
     min_formfactor_acc_heldout_city: 0.85

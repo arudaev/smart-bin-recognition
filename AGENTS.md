@@ -18,9 +18,17 @@ Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
 **Status:** phase 1 (design) is done and phase 3's client half is done; the
-vision spike (phase 2) and the service are not. See
+vision spike (phase 2) is part-way and the service has not started. See
 [`docs/07-roadmap.md`](docs/07-roadmap.md) for the checklist. Docs, taxonomy and
-the ML skeleton are in place. `web/` holds the design imported from Claude Design –
+the ML skeleton are in place.
+
+**Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
+`c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
+the first 98 frames with four or more bins, and 17 474 background frames. What
+is left is the human adjudication pass (identifier only) and the first training
+run. No model has been trained yet, and the ship gate is unanswered.
+
+`web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline
@@ -70,17 +78,20 @@ data/taxonomy/           The product's spine – the vision model is a lookup ke
 └── regions/*.json              one per jurisdiction; de-by-deggendorf is DRAFT
 
 ml/                      Python: dataset, training dispatch, export
-├── configs/                    default.yaml + detector.yaml (_defaults_ deep merge)
+├── configs/                    default.yaml + validator/identifier/open_images/legacy_archive
 ├── src/sbr/
 │   ├── taxonomy.py             ontology + region packs + the resolver
 │   ├── config.py               YAML inheritance, cloud guard
-│   ├── dataset/legacy_import.py  2.15 GB / 4 German classes -> resized, remapped
-│   ├── dataset/prepare.py        group-aware + region-holdout splits
+│   ├── dataset/pool.py           the on-disk layout: shards, and the Hub's 10k-file cap
+│   ├── dataset/archive.py        the legacy archive's contract; refuses a short copy
+│   ├── dataset/legacy_import.py  370 usable frames -> resized, provenance, crops
+│   ├── dataset/open_images.py    negative corpus + out-of-city bins
+│   ├── dataset/prepare.py        group-aware + region-holdout splits, per role
 │   ├── export/onnx_export.py     ONNX int8 + the four ship gates
 │   ├── escalation/schema.py      stage-3 VLM contract
 │   └── utils/hub.py              HF token, download, upload
-├── kaggle/train_detector/      self-contained GPU kernel
-├── scripts/                    dispatch.py, validate_taxonomy.py
+├── kaggle/                     train_validator, train_identifier, build_negatives
+├── scripts/                    dispatch, adjudicate, gate, push_dataset, inventory_legacy
 └── tests/
 
 web/                     React + TS + Vite PWA – design imported from Claude Design
@@ -128,6 +139,9 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [06-i18n](docs/06-i18n.md) | adding user-visible text |
 | [07-roadmap](docs/07-roadmap.md) | planning |
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
+| [11-phase2-results](docs/11-phase2-results.md) | quoting a number about a model |
+| [12-validation-protocol](docs/12-validation-protocol.md) | **before hard-coding anything still theoretical** |
+| [docs/research/](docs/research/README.md) | the evidence behind the numbers, and the 2026-08-16 hardening register |
 | [web/CONVENTIONS](web/CONVENTIONS.md) | **any UI work – read this first** |
 | [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) + [handoff/FLOW-NOTES](handoff/FLOW-NOTES.md) | why the UI is the way it is |
 
@@ -152,12 +166,23 @@ python -m pytest tests/ -q
 python scripts/validate_taxonomy.py --locales en   # de/ar bundles are incomplete
 ruff check src/ scripts/ tests/
 
-# Import the predecessor's dataset (needs cv_garbage.zip from the v1.0.0 release)
-python -m sbr.dataset.legacy_import --archive cv_garbage.zip --out data/legacy
+# Import the predecessor's dataset (needs cv_garbage.zip from the v1.0.0 release).
+# Refuses to run against a copy that does not match ml/configs/legacy_archive.yaml.
+python scripts/inventory_legacy.py --archive-dir cv_garbage
+python -m sbr.dataset.legacy_import --archive-dir cv_garbage --out data/legacy/pool
 
-# Training – Kaggle GPU only, never local
-python scripts/dispatch.py push detector --version 1
-python scripts/dispatch.py status detector
+# The human pass: form factors for the legacy crops. Blocks the identifier only.
+python scripts/adjudicate.py --pool data/legacy/pool
+python scripts/adjudicate.py --pool data/legacy/pool --apply
+
+# Training – Kaggle only, never local
+python scripts/dispatch.py push negatives  --version 1   # CPU: corpus + OOD bins
+python scripts/dispatch.py push validator  --version 1
+python scripts/dispatch.py push identifier --version 1
+python scripts/dispatch.py status validator
+
+# Ship gate: latency measured on the 2-vCPU bench Space, not here
+python scripts/gate.py --role validator --version 1
 ```
 
 ## Conventions
@@ -205,9 +230,18 @@ Things that must not happen, and why:
   failure. `unknown` is a designed state – use it.
 - **Never let user input reach training data without human label review.**
   Consensus is enough to publish a pack entry; it is not enough to train on.
-  Different blast radii.
+  Different blast radii. This is absolute and turns on the **provenance of the
+  image**, not the confidence of the label: high-agreement machine labels may
+  auto-accept over a *public corpus we harvested*, never over a frame a user
+  contributed, and never for a form factor that has no data yet
+  ([04 § 4](docs/04-ml-pipeline.md)).
 - **Never add a per-inference paid API to the common path.** The €0 constraint
   is architectural. If a feature needs one, it is the wrong feature.
+- **Never state a claim as measured when it is assumed.** A number needs the
+  split and the hardware it came from, and a gate needs something that actually
+  measures it — int8 accuracy had no owner until 2026-08-16 and no artefact could
+  ship. Anything still theoretical gets a probe in
+  [docs/12](docs/12-validation-protocol.md) before it gets hard-coded.
 - **Never ship a model that misses its latency budget** (validator ≤ 50 ms
   @ 448, identifier ≤ 25 ms per crop, on service CPU). Concurrency is the cost
   ceiling, so latency is the budget. The build fails; it does not warn.

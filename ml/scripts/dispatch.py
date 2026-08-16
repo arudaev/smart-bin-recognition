@@ -37,7 +37,12 @@ VERSION_SENTINEL = "__SBR_MODEL_VERSION__"
 KERNELS = {
     "validator": "train_validator",      # model A – "is there a bin?"
     "identifier": "train_identifier",    # model B – "which bin?"
+    "negatives": "build_negatives",      # the corpus A is mostly trained on
+    "bench": "bench_latency",            # the ship gate's measuring instrument
 }
+
+#: Which config each kernel loads, where it is not the kernel's own name.
+CONFIGS = {"negatives": "open_images", "bench": "validator"}
 
 #: Bundled into the kernel payload. `data/taxonomy` is included because the
 #: detector's class list is derived from it – the kernel must not have to guess.
@@ -99,9 +104,12 @@ def push(kernel: str, config_name: str, version: int) -> None:
         .replace(VERSION_SENTINEL, str(version))
     )
 
-    # Force the two settings that make an unattended run possible.
-    metadata["enable_gpu"] = True
+    # Internet is what makes an unattended run possible: the kernel pulls its
+    # pinned dataset and pushes its artefacts. GPU is NOT forced - build_negatives
+    # is bandwidth, not compute, and burning the 30 h/week GPU quota on
+    # downloading JPEGs would be a waste of the thing training actually needs.
     metadata["enable_internet"] = True
+    metadata.setdefault("enable_gpu", False)
 
     with tempfile.TemporaryDirectory() as tmp:
         staging = Path(tmp)
@@ -159,7 +167,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "push":
-        push(args.kernel, args.config or args.kernel, args.version)
+        push(args.kernel, args.config or CONFIGS.get(args.kernel, args.kernel), args.version)
     elif args.command == "status":
         status(args.kernel)
     elif args.command == "output":

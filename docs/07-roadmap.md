@@ -40,18 +40,84 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ---
 
-## Phase 2 – Vision spike *(highest risk – do it early)*
+## Phase 2 – Vision spike *(highest risk – in progress)*
 
-- [ ] `legacy_import.py` → resized, remapped dataset on HF Hub
-- [ ] Human pass: `wheelie_small` vs `wheelie_large` on ambiguous legacy labels
-- [ ] First YOLO11n training run on a Kaggle kernel
-- [ ] ONNX export for both models; enforce the latency budgets
-- [ ] Colour extraction from SAM 2 masks, validated against the legacy class labels
+- [x] `legacy_import.py` → resized dataset with provenance on HF Hub, pinned by
+      revision. **370 usable frames, not 466**: the published archive is a
+      partial copy and the shortfall is now a contract, not a surprise
+      ([08 § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is)).
+- [x] Tooling for the human pass – `ml/scripts/adjudicate.py`, 403 crops ordered
+      by capture cluster, one keystroke each
+- [ ] **The human pass itself.** Blocks the identifier and nothing else.
+- [x] Negative corpus + out-of-city bins from Open Images. **Landed 2026-08-16**
+      and pinned: 1 110 bin frames carrying 1 936 boxes, of which **98 hold four
+      or more bins** — the legacy archive holds none — plus 17 474 background
+      frames (14 975 street scenes, 2 499 hard negatives), a 15.7:1 negative
+      ratio within the subset. Pools are shard-nested because the Hub refuses a
+      directory over 10 000 files ([04 § 5](04-ml-pipeline.md)).
+- [x] **Every ship gate has an owner.** Until 2026-08-16 int8 accuracy had none —
+      both kernels deferred it to `gate.py`, which measures only latency, so
+      `may_ship` was unreachable and the first run would have produced an
+      undecidable artefact. The kernels now score the quantised graph on the same
+      split, and `export.targets` is read rather than decorative
+      ([04 § 7](04-ml-pipeline.md#targets-versus-gates--different-things-different-consequences)).
+- [ ] **Probes P4 and P5** — the latency half of the gate, answerable **without a
+      training run**, because ONNX cost depends on architecture and input shape
+      rather than weights ([docs/12](12-validation-protocol.md)). Cheapest
+      evidence available in this project.
+- [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
+      403 crops are not labelled against a class list that turns out wrong
+- [ ] First training run on a Kaggle kernel
+- [x] ONNX export path, role-aware, with the four gates config-driven and pinned
+- [x] The thing that makes the latency budget real: a **2-vCPU bench**,
+      because "on service CPU" cannot be measured on a training GPU
+- [ ] Colour extraction, validated against **hand-labelled body/lid colours**
+      ([probe P3](12-validation-protocol.md#p3--colour-measurement)). The earlier
+      wording here — "from SAM 2 masks, validated against the legacy class
+      labels" — was wrong twice: legacy labels are waste *streams* and a stream
+      is not a colour any more than it is a shape, and whether a mask is needed
+      at all is exactly what the probe tests.
 - [ ] **Load-test the service: how many concurrent scanners before degradation?**
 
 **Gate:** validator ≤ 50 ms @ 448 and identifier ≤ 25 ms per crop on service
-CPU, and ≥ 10 concurrent scanners on the free tier. If this fails, the free-tier
-thesis needs revisiting – which is why it is phase 2 and not phase 5.
+CPU, and ≥ 10 concurrent scanners on the free tier **at one bin per frame**. If
+this fails, the free-tier thesis needs revisiting – which is why it is phase 2
+and not phase 5.
+
+The concurrency half now carries a caveat it did not have: a six-bin frame costs
+roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
+end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
+Probe P4 measures the curve.
+
+**Gate status: not yet answered.** Results land in
+[11-phase2-results](11-phase2-results.md), which currently reports every metric
+as *not measured* and says why. The concurrency half needs the service and is
+phase 3 regardless.
+
+Two things found on the way that change what this phase can conclude:
+
+- **Seven of the ten form factors have no legacy data at all.** The four legacy
+  classes reach only `wheelie_small`, `wheelie_large` and `igloo`.
+- **There is a way out of the held-out-city gap, and it is cheap.** Video
+  containers carry GPS and a timestamp, so filming a walk-around gives frames a
+  **real `region_id`** — which is the single thing standing between this phase
+  and the question it exists to answer. It also produces multi-bin frames and
+  viewpoint diversity as a side effect, and makes the human pass affordable by
+  letting one decision cover a whole **track** instead of one frame.
+  [Probe P7](12-validation-protocol.md#p7--video-as-the-capture-format) tests it
+  on twenty minutes of filming before anything is built;
+  [research/08](research/08-video-ingestion.md) argues it and lists the five ways
+  it goes wrong. The dangerous one — near-identical frames straddling a split,
+  which reports memorisation as generalisation — is already guarded in
+  `prepare.py`.
+- **The held-out "city" is still not a city.** The Open Images subset has now
+  landed and it does broaden the distribution — worldwide photographs, and the
+  only multi-bin frames the project has — but every one of its frames carries
+  `region_id: "unknown"`, because Open Images does not say where a photograph
+  was taken. So it cannot serve as a geographic holdout either. Until a real
+  second-city capture lands, the honest split remains group-aware by capture
+  cluster, and `holdout_region` stays empty. The training kernel already says so
+  rather than quietly reporting an aggregate.
 
 ---
 
@@ -118,7 +184,7 @@ bundle, and a Deggendorf pack that is still `draft`.
 
 ---
 
-## Phase 5 – Escalation and the flywheel
+## Phase 5 – Escalation and closing the loop
 
 - [ ] `POST /api/escalate`, strict JSON contract, citation required
 - [ ] Project-wide daily ceiling; queue-not-autoscale behaviour

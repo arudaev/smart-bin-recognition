@@ -14,14 +14,21 @@ data:
   imgsz: 640
   # Group-aware splitting: two photos of the same physical bin must never
   # straddle a split, or the eval numbers become the predecessor's numbers.
+  # Capture clusters come from EXIF times in legacy_import - 370 legacy frames
+  # make 100 clusters, which is what gives the grouping something to group.
   split:
-    strategy: group_by_capture_cluster
+    group_by: capture_cluster
     train: 0.70
     val: 0.15
     test: 0.15
   # Held-out cities never appear in train or val, at any ratio. This is the
   # only split that predicts launch behaviour. See docs/04-ml-pipeline.md § 5.
   holdout_regions: []
+  # Annotator style is a plausible confound and the archive hands us the key for
+  # free. NAMED, not hashed: there are three annotators, and hashing three
+  # groups into 70/15/15 gives 369/1/0 - a knob that looks like a confound check
+  # and is not one. Set to e.g. ["Sameer"] to run the check.
+  holdout_annotators: []
 
 model:
   arch: yolo11n
@@ -65,12 +72,21 @@ export:
   opset: 17
   quantise: int8
   calibration_images: 200
-  # Hard ship gates – mirrored in sbr/export/onnx_export.py. A build that
-  # violates any of these fails; it does not warn.
+  # Hard ship gates – read by sbr/export/onnx_export.py:check_gates and pinned
+  # by ml/tests/test_export_gates.py, so loosening one here fails CI. A build
+  # that violates any of them fails; it does not warn.
+  #
+  # Size is deliberately NOT gated. Inference is server-side, so the artefact
+  # ships once to one machine; concurrency is the cost ceiling, which makes
+  # latency the budget that actually binds (docs/05-cost-model.md § 3).
+  #
+  # `max_median_latency_ms` has no default on purpose: each role must state its
+  # own budget, and a config that forgets to is an error rather than a silent
+  # 120 ms. See validator.yaml and identifier.yaml.
   gates:
-    max_bytes: 6291456
-    max_map_drop: 0.02
-    max_median_latency_ms: 120
+    # What int8 may cost, in whichever metric the role is judged on – mAP@0.5
+    # for the validator, top-1 for the identifier.
+    max_accuracy_drop: 0.02
 
 hub:
   model_repo: arudaev/smart-bin-detect

@@ -1,0 +1,102 @@
+# Open Images V7 – the validator's negative corpus, and free out-of-city bins.
+#
+# Two things come from here, and the second one was a surprise:
+#
+#   1. NEGATIVES. The majority of model A's training data is not bins. A
+#      detector trained only on photos of bins learns that everything is a bin.
+#      Roughly 30:1 negative to positive; the ratio is the point.
+#
+#   2. POSITIVES. Open Images has a boxable class `Waste container` with
+#      human-verified boxes, photographed worldwide. That is out-of-city bin
+#      data with labels already on it - which the legacy archive, one city and
+#      one week, cannot provide at any price. It also contains frames with four
+#      or more bins, of which the legacy archive has exactly zero.
+#
+# Class ids ("MIDs") are resolved by NAME at runtime against the descriptions
+# CSV, and an unknown name is an error rather than a silently missing class.
+# Every id below was checked against oidv7-class-descriptions-boxable.csv on
+# 2026-08-06.
+
+source:
+  name: open-images-v7
+  licence: CC-BY-2.0            # images, per-photographer attribution recorded
+  annotation_licence: CC-BY-4.0
+  attribution_required: true
+  class_descriptions: https://storage.googleapis.com/openimages/v7/oidv7-class-descriptions-boxable.csv
+  # Images come from the CVDF public mirror, which serves the JPEGs themselves
+  # rather than the original Flickr URLs. Those have rotted badly.
+  image_base: https://open-images-dataset.s3.amazonaws.com
+  bbox_csv:
+    train: https://storage.googleapis.com/openimages/v6/oidv6-train-annotations-bbox.csv
+    validation: https://storage.googleapis.com/openimages/v5/validation-annotations-bbox.csv
+    test: https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv
+  # Per-image attribution: photographer, licence and original URL.
+  metadata_csv:
+    train: https://storage.googleapis.com/openimages/v6/oidv6-train-images-with-labels-with-rotation.csv
+    validation: https://storage.googleapis.com/openimages/2018_04/validation/validation-images-with-rotation.csv
+    test: https://storage.googleapis.com/openimages/2018_04/test/test-images-with-rotation.csv
+
+# The one class that is a bin. Also the exclusion filter for every negative:
+# an image containing one of these can never be a negative, and letting one
+# through teaches the validator that a bin is not a bin.
+positives:
+  class: Waste container
+  splits: [train, validation, test]
+  # Boxes marked IsGroupOf cover a crowd of objects with one box rather than
+  # localising any of them. Useful evidence that a bank exists, useless as a
+  # detection target.
+  drop_group_of: true
+  max_images: 4000
+
+negatives:
+  # Street and urban scenes. Sampled from images carrying any of these and no
+  # waste container, so the validator sees the world the client will point at.
+  street_classes:
+    - Car
+    - Person
+    - Building
+    - Traffic light
+    - Traffic sign
+    - Street light
+    - Bus
+    - Truck
+    - Bicycle
+    - Van
+  count: 15000
+
+  # The things that actually get mistaken for a bin: roughly bin-sized, roughly
+  # bin-shaped, often on a pavement. These are what buy the low false-positive
+  # rate, and they need no waste-domain labelling at all.
+  hard_classes:
+    - Barrel
+    - Box
+    - Suitcase
+    - Luggage and bags
+    - Flowerpot
+    - Houseplant
+    - Parking meter
+    - Fire hydrant
+    - Filing cabinet
+    - Cabinetry
+    - Bench
+    - Cart
+    - Drum
+    - Tank
+    - Fountain
+    - Sculpture
+  hard_negative_count: 2500
+
+  # Not in the Open Images boxable vocabulary, so they come from the Commons
+  # harvest instead. Recorded here so the gap is visible rather than forgotten:
+  # a postbox is the single most bin-like thing on a German pavement.
+  unavailable_here:
+    - postbox
+    - vending machine
+    - utility cabinet
+    - bollard
+    - recycling logo on a non-bin
+
+image:
+  max_edge: 448           # the validator's input size; no reason to store more
+  jpeg_quality: 85
+  min_edge: 200           # below this a "street scene" is a thumbnail

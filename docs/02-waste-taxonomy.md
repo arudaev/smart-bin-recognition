@@ -32,6 +32,33 @@ The vision model never learns what a colour means. That single boundary is what
 lets a new country ship as a **pull request against a JSON file** rather than a
 retraining run.
 
+Two footnotes on the colour axis, because "it is a measurement" is doing more
+work than it looks. A camera records object colour × illuminant × white balance,
+so the measurement needs **illuminant normalisation** (gray-world or
+shades-of-gray) and an assignment rule — CIELAB, ΔE to the nearest named colour,
+with an `unknown` band — before it is stable across rain, dusk and sodium
+lighting. And **separating lid from body is unsolved** by any of that; a mask
+gives one object, not its parts. See
+[research/06](research/06-colour-measurement.md) and
+[probe P3](12-validation-protocol.md#p3--colour-measurement).
+
+### Three things scale, at three different rates
+
+"Adding a city is a data change" is true of **meaning**. It says nothing about
+the other two, and stating them as one property is how a pilot gets surprised:
+
+| Axis | Scales how | Status |
+|---|---|---|
+| **Meaning** — what a bin means here | **Free.** One JSON file per jurisdiction, no retrain, no code change | working as designed |
+| **Recognition** — does the detector fire in a city it never saw | Needs data, or the hypothesis in [01 § 3](01-architecture.md#3-two-models-and-why) to hold | **unmeasured.** Every subset carries `region_id: "unknown"`, so `holdout_region` is empty and there is no evidence either way |
+| **Concurrency** — simultaneous scanners | **Does not move with coverage at all.** A hard ceiling set by vCPU ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)) | 3–10 depending on scene complexity |
+
+So: fifty towns with a handful of users each is fine. One town going viral is
+not. And a new city will initially work *and say `unknown` a great deal* — seven
+of the ten form factors have no training data at all
+([04 § 5](04-ml-pipeline.md)), which is the design degrading honestly rather than
+the design failing.
+
 ## 2. Canonical streams
 
 21 streams across 6 families. Ids are permanent – once published, a stream id is

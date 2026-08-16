@@ -1,6 +1,6 @@
 {
-  "id": "hlexnc/sbr-train-detector",
-  "title": "SBR – Train Form-Factor Detector",
+  "id": "hlexnc/sbr-train-validator",
+  "title": "SBR Train Validator",
   "code_file": "script.py",
   "language": "python",
   "kernel_type": "script",
@@ -8,7 +8,9 @@
   "enable_gpu": true,
   "enable_tpu": false,
   "enable_internet": true,
-  "dataset_sources": ["hlexnc/chexvision-secrets"],
+  "dataset_sources": [
+    "hlexnc/chexvision-secrets"
+  ],
   "competition_sources": [],
   "kernel_sources": [],
   "model_sources": []
