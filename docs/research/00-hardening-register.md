@@ -80,6 +80,30 @@ offered an upgrade from a tier that does not exist; § 8 costed "a cold Space".
 **Resolved** `6324376` — propagated, and the hole closed with a host chosen for a
 reason (see [research/05](05-serving-economics.md)).
 
+### C6b · "The host" meant two different machines, and the docs never said which
+
+*Added 2026-08-16, after this register was read back and the distinction turned
+out to be the thing making it vague.*
+
+There are **two** hosts in this project and they were discussed in the same
+breath as though choosing one settled the other. They are unrelated decisions:
+
+| | **The bench** | **The service** |
+|---|---|---|
+| Question | where do we *measure* latency? | where does the service *run*? |
+| Answer | **Kaggle CPU kernel**, onnxruntime pinned to 2 threads | **Cloud Run**, request-based billing |
+| Status | **decided and working** — `ml/kaggle/bench_latency/` exists | decided 2026-08-16, not yet deployed |
+| Why not the other one | Kaggle cannot serve: kernels are batch jobs with no inbound network and no persistent process | Cloud Run *could* bench, but costs money to do what Kaggle does free |
+| Caveat | it is a **proxy** — `Hardware.representative` is false, and `gate.py` refuses to decide on it without `--allow-unrepresentative-hardware` | a held-open WebSocket forces instance-based billing, which is why `POST /detect` ships first |
+
+So "we decided on the Kaggle CPU kernel" is **true, and about the bench.** It
+never answered where the service runs, and could not: you cannot point a phone at
+a Kaggle kernel.
+
+**Resolved** — the distinction is now stated as a table in
+[research/05 § 0](05-serving-economics.md) and in docs/05 § 3, rather than left
+for the reader to infer.
+
 ### C7 · "Multi-bin is free" was false in the cost model
 
 docs/04 § 1 said N crops are free; docs/05 § 3 budgeted 65 ms = validator + *one*
@@ -190,6 +214,27 @@ critical, and names the circularity.
 | C15 | `docs/README.md` and AGENTS.md's map both stopped at 08 | `ef52f95` — through 12, plus research |
 | C16 | docs/04 § 8 listed `autolabel/`, `kaggle/autolabel_batch/`, `scripts/benchmark.py` — none of which exist — and omitted eight things that do | `ef52f95` — split into "exists today" and "planned, deliberately not built yet" |
 | C17 | docs/00 § 6 linked to "04 § 5 Evaluation protocol"; § 5 is Datasets and evaluation is § 7 | `6324376` |
+
+---
+
+### C20 · Video capture was not considered at all, and it unblocks the hardest gap
+
+*Added 2026-08-16.* Every document treated the corpus as a collection of
+**photographs**. Filming instead changes four things at once — a real `region_id`
+from container GPS (which makes the geographic holdout **possible for the first
+time**), multi-bin frames, viewpoint diversity, and adjudication per *track*
+rather than per frame.
+
+It also introduces one silent catastrophe: near-identical consecutive frames
+straddling a split report memorisation as generalisation, and the numbers get
+*better*, not worse.
+
+**Resolved** — [research/08](08-video-ingestion.md),
+[probe P7](../12-validation-protocol.md#p7--video-as-the-capture-format), and the
+guard landed in `prepare.py` **before** any video data exists: grouping derives
+from `video_id`/`track_id`, a frame declaring `source: video` without a grouping
+key is refused, and a split whose frames-per-group falls near 1 is warned about
+as the random split it actually is.
 
 ---
 

@@ -10,6 +10,29 @@ hole.
 
 ---
 
+## 0. First: there are two hosts, and they are unrelated decisions
+
+This caused real confusion and is worth stating before anything else.
+
+| | **The bench** | **The service** |
+|---|---|---|
+| Question | where do we **measure** latency? | where does the service **run**? |
+| Answer | **Kaggle CPU kernel**, onnxruntime pinned to 2 threads | **Cloud Run**, request-based billing |
+| Status | **decided, built, working** (`ml/kaggle/bench_latency/`) | decided here; not yet deployed |
+| Runs | once per artefact, as a batch job | continuously, answering phones |
+
+**Kaggle cannot serve.** Kernels are batch jobs: no inbound network, no
+persistent process, no URL. You cannot point a phone at one. So deciding the
+bench never decided the service, and the rest of this note is only about the
+second column.
+
+The bench's own caveat is unchanged and still matters: it is a **proxy** for the
+service CPU, not the service CPU. `sbr.bench.Hardware.representative` is false
+for it, and `gate.py` refuses to decide a gate on it unless told
+`--allow-unrepresentative-hardware`, which records that it was a proxy.
+
+---
+
 ## 1. The detail that actually decides it: Cloud Run's two billing modes
 
 Cloud Run bills one of two ways, and **our transport chooses the expensive one**:

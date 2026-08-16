@@ -98,6 +98,18 @@ Two things found on the way that change what this phase can conclude:
 
 - **Seven of the ten form factors have no legacy data at all.** The four legacy
   classes reach only `wheelie_small`, `wheelie_large` and `igloo`.
+- **There is a way out of the held-out-city gap, and it is cheap.** Video
+  containers carry GPS and a timestamp, so filming a walk-around gives frames a
+  **real `region_id`** — which is the single thing standing between this phase
+  and the question it exists to answer. It also produces multi-bin frames and
+  viewpoint diversity as a side effect, and makes the human pass affordable by
+  letting one decision cover a whole **track** instead of one frame.
+  [Probe P7](12-validation-protocol.md#p7--video-as-the-capture-format) tests it
+  on twenty minutes of filming before anything is built;
+  [research/08](research/08-video-ingestion.md) argues it and lists the five ways
+  it goes wrong. The dangerous one — near-identical frames straddling a split,
+  which reports memorisation as generalisation — is already guarded in
+  `prepare.py`.
 - **The held-out "city" is still not a city.** The Open Images subset has now
   landed and it does broaden the distribution — worldwide photographs, and the
   only multi-bin frames the project has — but every one of its frames carries

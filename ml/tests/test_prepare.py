@@ -125,6 +125,54 @@ def test_a_frame_without_a_cluster_becomes_its_own_group():
     assert first.capture_cluster != second.capture_cluster
 
 
+# --------------------------------------------------------------------------- #
+# Video frames - near-identical, and the most dangerous thing to split wrongly
+# --------------------------------------------------------------------------- #
+
+
+def test_frames_of_one_track_share_a_group():
+    # Consecutive frames of one bin in one walk-around are near-identical. Split
+    # apart, the test set IS the training set and mAP means nothing.
+    first = Record.from_manifest({"file": "a.jpg", "video_id": "v1", "track_id": "t1"})
+    second = Record.from_manifest({"file": "b.jpg", "video_id": "v1", "track_id": "t1"})
+    assert first.capture_cluster == second.capture_cluster == "video/v1/t1"
+
+
+def test_two_tracks_in_one_video_are_separate_groups():
+    # Two different physical bins filmed in one walk are two objects, and
+    # grouping the whole video together would waste most of its value.
+    first = Record.from_manifest({"file": "a.jpg", "video_id": "v1", "track_id": "t1"})
+    second = Record.from_manifest({"file": "b.jpg", "video_id": "v1", "track_id": "t2"})
+    assert first.capture_cluster != second.capture_cluster
+
+
+def test_a_video_without_tracks_groups_by_video():
+    record = Record.from_manifest({"file": "a.jpg", "video_id": "v1"})
+    assert record.capture_cluster == "video/v1"
+
+
+def test_video_provenance_without_any_grouping_key_is_refused():
+    # The silent catastrophe: fall back to one-group-per-frame and the split is
+    # random, the numbers improve, and nothing says so.
+    with pytest.raises(ValueError, match="source 'video'"):
+        Record.from_manifest({"file": "a.jpg", "source": "video"})
+
+
+def test_a_grouping_that_is_really_a_random_split_is_warned_about(caplog):
+    records = [_record(f"{i}.jpg", f"c{i}") for i in range(250)]
+    with caplog.at_level("WARNING"):
+        assign_splits(records)
+    assert any("effectively a RANDOM split" in r.message for r in caplog.records)
+
+
+def test_a_healthy_grouping_is_not_warned_about(caplog):
+    # ~4 frames per group, which is roughly what the legacy pool runs at.
+    records = [_record(f"{i}.jpg", f"c{i // 4}") for i in range(250)]
+    with caplog.at_level("WARNING"):
+        assign_splits(records)
+    assert not any("RANDOM split" in r.message for r in caplog.records)
+
+
 def test_bins_per_frame_buckets_group_four_and_above():
     records = [
         _record("one.jpg", "c0", boxes=1),

@@ -27,6 +27,7 @@ decision it produced has no visible cause.
 | 05 | [Serving economics](05-serving-economics.md) | docs/01 § 2, docs/05 § 3 |
 | 06 | [Colour measurement](06-colour-measurement.md) | docs/02 § 1, docs/04 § 1 |
 | 07 | [Compliance and consent](07-compliance-and-consent.md) | docs/01 § 7, docs/03 § 4 |
+| 08 | [Video as the capture format](08-video-ingestion.md) | docs/04 § 3 § 5, docs/07 phases 2 and 6, `prepare.py` |
 
 Probe results live in [`probes/`](probes/) – one file per probe from
 [docs/12-validation-protocol.md](../12-validation-protocol.md).

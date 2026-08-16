@@ -50,6 +50,16 @@ SPLITS = ("train", "val", "test", "holdout_region", "holdout_annotator")
 #: caller is told rather than left to read it off a summary line later.
 DEGENERATE_SPLIT_SHARE = 0.05
 
+#: Below this many frames per group, "group-aware" is a random split wearing a
+#: group-aware label. 1.5 is deliberately generous: the legacy pool runs at ~3.7
+#: (370 frames, 100 clusters) and video pools should run at tens or hundreds.
+MIN_FRAMES_PER_GROUP = 1.5
+
+#: Small pools legitimately have one frame per group – 40 unrelated photographs
+#: are 40 groups and that is correct. Only judge the grouping once there is
+#: enough data for the question to be meaningful.
+MIN_FRAMES_TO_JUDGE_GROUPING = 200
+
 #: The validator's entire class list. It is class-agnostic on purpose: it must
 #: fire on a bin type it has never seen, because that is exactly the case the
 #: improvement loop depends on detecting.
@@ -73,11 +83,33 @@ class Record:
     @classmethod
     def from_manifest(cls, entry: dict[str, Any]) -> Record:
         cluster = entry.get("capture_cluster")
+
+        # Video frames are the dangerous case, so they get an explicit path.
+        #
+        # Consecutive frames of one walk-around are near-identical. If they land
+        # in different splits the test set is the training set, mAP goes to 0.99
+        # and means nothing - which is precisely the predecessor's failure
+        # (docs/08 7.3), reproduced at a hundred times the scale and just as
+        # invisible. The tightest honest group is the TRACK: one physical bin
+        # through one video. The video is the fallback when tracks are absent.
+        video = entry.get("video_id")
+        if not cluster and video:
+            track = entry.get("track_id")
+            cluster = f"video/{video}/{track}" if track else f"video/{video}"
+
         if not cluster:
+            if entry.get("source") == "video":
+                raise ValueError(
+                    f"{entry['file']} declares source 'video' but carries no "
+                    "video_id, track_id or capture_cluster. Splitting it would "
+                    "put near-identical frames on both sides of the split and "
+                    "report memorisation as generalisation."
+                )
             # A frame with no cluster is its own cluster. Falling back to a
             # filename prefix here is how "group-aware" silently becomes either
             # a random split or one giant group.
             cluster = f"unclustered/{entry['file']}"
+
         return cls(
             file=entry["file"],
             region_id=entry.get("region_id", "unknown"),
@@ -138,11 +170,24 @@ def assign_splits(
             assignment[record.file] = split
 
     counts: Counter[str] = Counter(assignment.values())
+    total = len(assignment)
+    frames_per_group = total / len(grouped) if grouped else 0
     logger.info(
-        "split by %s: %d groups -> %s", group_by, len(grouped), dict(sorted(counts.items()))
+        "split by %s: %d groups over %d frames (%.1f frames/group) -> %s",
+        group_by, len(grouped), total, frames_per_group, dict(sorted(counts.items())),
     )
 
-    total = len(assignment)
+    # A group-aware split where almost every frame is its own group IS a random
+    # split, and it is silent: the numbers look better, not worse. Cheap to say
+    # out loud, expensive to discover in a results table six weeks later.
+    if total >= MIN_FRAMES_TO_JUDGE_GROUPING and frames_per_group < MIN_FRAMES_PER_GROUP:
+        logger.warning(
+            "grouping by %r yields %.2f frames per group over %d frames – this is "
+            "effectively a RANDOM split, and near-identical frames will straddle "
+            "it. If these came from video, group by track or video id.",
+            group_by, frames_per_group, total,
+        )
+
     for split in ("train", "val", "test"):
         share = counts.get(split, 0) / total if total else 0
         if share < DEGENERATE_SPLIT_SHARE:

@@ -206,6 +206,51 @@ same 200 crops.
 
 ---
 
+## P7 – Video as the capture format
+
+**Question.** Does one walk-around video yield more usable training signal per
+hour of human effort than photographing bins individually — and does SAM 3 track
+bins reliably enough that a human can adjudicate a **track** instead of a frame?
+
+**Why it matters more than it looks.** Video containers carry GPS, so
+`region_id` becomes real and the **geographic holdout stops being impossible**.
+That converts the phase-2 hypothesis — detection generalises across cities,
+identification does not — from untestable into testable. See
+[research/08](research/08-video-ingestion.md).
+
+**Method.** Film **two locations, ten minutes each**: one bank of containers, one
+kerbside row. Then:
+
+1. keyframe selection — sharpness, pose change, embedding distance from what is
+   already kept;
+2. SAM 3 concept prompt over the kept frames, producing tracks with stable IDs;
+3. adjudicate **per track**, timed;
+4. compare against the same wall-clock time spent photographing individually.
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| ≥ 5× usable **tracks** per human hour vs individual capture, and track IDs stay stable through occlusion | video becomes the primary capture format for the second-city round |
+| 2–5× | adopt for multi-bin banks specifically, where the density advantage is largest, and keep photographs elsewhere |
+| < 2×, or tracks fragment badly | drop it. Record why, so it is not re-proposed on the strength of a demo |
+
+**What must be true before any video data enters a dataset** — already enforced,
+not left to discipline:
+
+- grouping is by **track**, never by frame (`prepare.py`, `MIN_FRAMES_PER_GROUP`);
+- a frame declaring `source: video` with no grouping key is **refused**;
+- counts are reported as tracks / objects / videos / locations, never as a frame
+  total, or every ratio in docs/04 § 1 silently becomes fiction.
+
+**Cost.** Twenty minutes of filming, one Kaggle GPU kernel, one timed
+adjudication session. No training.
+
+**Resolves.** docs/07 phase 2's held-out-city gap · docs/04 § 5's multi-bin and
+empty-form-factor gaps · whether the human pass is affordable at scale.
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
@@ -215,9 +260,14 @@ same 200 crops.
 | 3 | **P3** | whether `autolabel/` needs SAM |
 | 4 | **P6** | whether docs/05 § 5 keeps a paid path |
 | 5 | **P2** (set construction) | nothing; scoring waits for model B |
+| 6 | **P7** | whether the second-city round is filmed or photographed — and therefore whether the geographic holdout ever exists |
 
 P4 and P5 answer half the phase-2 gate without a training run. That is the
 cheapest evidence available in this project right now, and it is available today.
+
+P7 is the highest-*ceiling* probe: it is the only one that can unblock the
+generalisation question, which is the thing phase 2 exists to answer and
+currently cannot.
 
 ## What this document is not
 

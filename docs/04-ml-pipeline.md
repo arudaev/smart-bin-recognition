@@ -238,6 +238,12 @@ The only irreplaceable step, so it is made as small as possible:
 
 - Review is **by cluster**, not by image. One decision covers a group of visually
   near-identical bins.
+- Where frames came from **video**, review is by **track** – one physical bin
+  through one walk-around. One decision then covers every frame that object
+  appears in, which is what makes the only irreplaceable step in this pipeline
+  affordable at scale ([research/08](research/08-video-ingestion.md)). It also
+  cuts both ways: a wrong track label is wrong in every frame of the track, so
+  per-frame adjudication of video data gets the downside without the upside.
 - The reviewer sees the machine's proposal pre-filled and either confirms or
   corrects. Confirmation is one keystroke.
 - Anything touching **safety-relevant rules** (what may be thrown where) is
@@ -380,7 +386,13 @@ Consequences, both now committed:
 
 - **Deliberate multi-bin capture is a priority for the first collection round**,
   not an optional extra. Target banks, kerbside rows, and underground clusters
-  specifically, and photograph them from the distance a user actually stands at.
+  specifically, and capture them from the distance a user actually stands at.
+  **Probably by filming rather than photographing**: a walk-along a bank gives
+  multi-bin frames, viewpoint diversity and a real `region_id` from the video's
+  GPS in one pass. [Probe P7](12-validation-protocol.md#p7--video-as-the-capture-format)
+  decides. If video is used, **counts are reported as tracks / objects / videos /
+  locations, never as a frame total** — 108 000 frames of forty bins is forty
+  bins, and quoting the frame count would make every ratio in § 1 fiction.
 - **Scale and count belong in the evaluation split.** Report detection recall
   bucketed by bins-per-frame, so a model that only works on the easy case cannot
   hide behind an aggregate number.

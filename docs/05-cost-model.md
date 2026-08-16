@@ -47,6 +47,18 @@ query, at any traffic level.
 
 ## 3. The concurrency ceiling – the number that matters
 
+> **Two hosts, not one.** They get discussed together and they are separate
+> decisions:
+>
+> | | where latency is **measured** | where the service **runs** |
+> |---|---|---|
+> | | **Kaggle CPU kernel**, 2 pinned threads | **Cloud Run**, request-based |
+> | | decided, built, working | decided 2026-08-16, not deployed |
+>
+> Kaggle kernels are batch jobs — no inbound network, no persistent process, no
+> URL — so Kaggle can never be the serving host however convenient it is as the
+> measuring one. Everything below is about the second column.
+
 > **Correction, 2026-08-15.** This section used to open "A free Hugging Face
 > Space gives **2 vCPU**." That is no longer true and the assumption was tested
 > rather than assumed: creating a Docker Space returns `402 Payment Required` –
