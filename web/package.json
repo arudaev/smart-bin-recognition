@@ -14,6 +14,7 @@
     "check:locales": "node scripts/check-locales.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "build:icons": "node scripts/build-icons.mjs",
+    "emit:fixtures": "node scripts/emit-wire-fixtures.mjs",
     "verify": "npm run typecheck && npm test && npm run check:locales && npm run build && npm run check:bundle"
   },
   "dependencies": {

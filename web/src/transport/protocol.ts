@@ -1,8 +1,14 @@
 /* The wire, exactly as docs/01-architecture.md § 4 states it.
 
-   This file is the contract between web/ and service/. It is written down once,
-   in types, so that when service/pipeline.py exists the two can be checked
-   against the same paragraph rather than against each other's behaviour.
+   This file is the contract between web/ and service/, and `service/wire.py` is
+   its other half. The two are NOT checked by both reading the same paragraph –
+   that is how `advice` and `pack_status` came to exist on one side only.
+   `scripts/emit-wire-fixtures.mjs` writes fixtures with the encoder below,
+   `service/tests/test_wire_contract.py` decodes them and emits responses, and
+   `contract.test.ts` reads those back. Both sides are pinned to the same bytes.
+
+   Field names are snake_case because the wire is. Translating them here would
+   put the vocabulary in two places and give drift somewhere to hide.
 
    Strict request-response: the client sends frame `seq` and sends nothing more
    until the server answers `seq`. That is what makes backpressure automatic – a
@@ -50,6 +56,26 @@ export interface DetectRequest {
   debug?: boolean;
 }
 
+/**
+ * What the service is asking the client to do about load.
+ *
+ * docs/05 § 3's degradation ladder, on the wire, decided by `service/shed.py`.
+ * `max_fps` of 0 means *stop streaming and offer a tap* – a designed state with
+ * its own copy, not an error and not a spinner. `queue_wait_ms` is the deepest
+ * rung and is a **stated** wait, because the one thing the ladder must never do
+ * is hold a connection open while pretending to work.
+ *
+ * **The service may only ever LOWER a cadence.** `MAX_FPS` in capture/gates.ts
+ * is a hard ceiling and `Cadence.setMaxFps` clamps against it, so `max_fps: 30`
+ * from a compromised or simply wrong server buys nothing. `shed.py` enforces the
+ * same rule at its end. Both, deliberately: they are deployed separately, and a
+ * gate a server could switch off is not a gate.
+ */
+export interface LoadAdvice {
+  max_fps: number;
+  queue_wait_ms?: number;
+}
+
 export interface DetectResponse {
   seq: number;
   /** Server-reported inference time. The client's own RTT minus this is transit. */
@@ -57,6 +83,11 @@ export interface DetectResponse {
   detections: WireDetection[];
   /** Which pack the server resolved against, so a mismatch is visible. */
   region_id?: string | null;
+  /** The status of the pack that resolved these detections, so a client that did
+   *  not bundle the pack still cannot present a draft as authoritative. */
+  pack_status?: string | null;
+  /** Absent when the service is not shedding. Absent, not null – see below. */
+  advice?: LoadAdvice;
   /** Present only in debug builds: model A's raw boxes before model B ran. */
   debug?: {
     validator_boxes: { box: WireBox; conf: number }[];
@@ -70,7 +101,16 @@ export interface WireError {
   error: string;
   /** Set when the service is up but shedding load, so the client can back off. */
   retry_after_ms?: number;
+  /** Rung 3 carries advice too: a refusal that says nothing about when to come
+   *  back is how a queue becomes a stampede. */
+  advice?: LoadAdvice;
 }
+
+/* ABSENT IS NOT NULL, and the two are not interchangeable here.
+   `wire.py:as_wire` omits `advice` and `debug` entirely when they are None, and
+   emits `pack_status: null` explicitly. So the optional fields that may arrive
+   as an explicit null are typed `?: T | null`, and the ones that are simply
+   missing are typed `?: T` with no null alternative. A fixture pins each. */
 
 export type ServerMessage = DetectResponse | WireError;
 

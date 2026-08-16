@@ -1,0 +1,33 @@
+{
+  "why": "ladder rung 1. A perfectly good answer AND a request to halve the cadence: nothing is refused until rung 3",
+  "payload": {
+    "seq": 4,
+    "ms": 88,
+    "detections": [
+      {
+        "box": {
+          "x": 12.5,
+          "y": 30.0,
+          "w": 25.25,
+          "h": 44.5
+        },
+        "validator_conf": 0.9312,
+        "form_factor": null,
+        "identifier_conf": 0.0,
+        "body_color": null,
+        "lid_color": null,
+        "aperture_color": null,
+        "text_hint": null,
+        "stream": null,
+        "stream_conf": 0.0,
+        "local_name": null,
+        "novelty": "none"
+      }
+    ],
+    "region_id": "de-by-deggendorf",
+    "pack_status": "draft",
+    "advice": {
+      "max_fps": 2
+    }
+  }
+}

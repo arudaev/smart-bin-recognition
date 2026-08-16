@@ -1,0 +1,33 @@
+{
+  "why": "A SERVER MAY NOT RAISE A CADENCE. 30 is far over the client's 4 fps cap; the client must clamp it. A gate a server could switch off is not a gate",
+  "payload": {
+    "seq": 6,
+    "ms": 40,
+    "detections": [
+      {
+        "box": {
+          "x": 12.5,
+          "y": 30.0,
+          "w": 25.25,
+          "h": 44.5
+        },
+        "validator_conf": 0.9312,
+        "form_factor": null,
+        "identifier_conf": 0.0,
+        "body_color": null,
+        "lid_color": null,
+        "aperture_color": null,
+        "text_hint": null,
+        "stream": null,
+        "stream_conf": 0.0,
+        "local_name": null,
+        "novelty": "none"
+      }
+    ],
+    "region_id": "de-by-deggendorf",
+    "pack_status": "draft",
+    "advice": {
+      "max_fps": 30
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "why": "nothing in frame. An empty detections list, not a missing key",
+  "payload": {
+    "seq": 3,
+    "ms": 33,
+    "detections": [],
+    "region_id": "de-by-deggendorf",
+    "pack_status": "draft"
+  }
+}
