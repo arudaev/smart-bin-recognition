@@ -313,7 +313,11 @@ def harvest(
     # Belt and braces with Scan.negatives()'s disjointness: this is the last
     # place that can still tell, and it is cheap to ask.
     seen: set[str] = set()
-    deduped = [c for c in candidates if not (c.image_id in seen or seen.add(c.image_id))]
+    deduped: list[Candidate] = []
+    for candidate in candidates:
+        if candidate.image_id not in seen:
+            seen.add(candidate.image_id)
+            deduped.append(candidate)
     if len(deduped) < len(candidates):
         logger.warning(
             "%d duplicate candidates dropped before fetching (%d -> %d)",
