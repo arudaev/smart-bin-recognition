@@ -86,15 +86,33 @@ def main() -> None:
     from sbr.utils.hub import (
         configure_hf_runtime,
         delete_subsets,
+        ensure_repo,
         require_hf_token,
         upload_dataset,
     )
 
     configure_hf_runtime()
-    # Before 35 minutes of downloading, not after.
-    if os.environ.get("SBR_SKIP_UPLOAD") != "1":
-        require_hf_token("push the harvested pools")
     config = load_config(CONFIG_NAME, PROJECT / "configs")
+    repo_id = config.get("hub", {}).get("dataset_repo", "arudaev/smart-bin-detect")
+
+    # EVERY Hub call this run can make up front, before 16 minutes of
+    # downloading - not after. The quota is 1000 API requests per 5 minutes for
+    # the whole account, and the second run of this kernel finished a clean
+    # harvest and then died on create_repo because run 4 was still uploading
+    # eleven hours later and holding all of it. Failing here costs nothing;
+    # failing after the harvest costs the harvest.
+    uploading = os.environ.get("SBR_SKIP_UPLOAD") != "1"
+    if uploading:
+        require_hf_token("push the harvested pools")
+        ensure_repo(repo_id, private=True)
+        # A previous run left flat, half-written subsets behind: its push was
+        # rejected for exceeding the Hub's 10 000-files-per-directory cap.
+        # Uploading on top of those starts already over the cap, so both
+        # harvested subsets are replaced rather than merged into. `legacy/` is
+        # never touched - it is the one pinned revision this project has.
+        delete_subsets(repo_id, ["negatives", "open_images"])
+        log(f"hub ready: {repo_id}, negatives/ and open_images/ cleared")
+
     source = config["source"]
     seed = 42
     random.seed(seed)
@@ -186,19 +204,12 @@ def main() -> None:
     log(f"frames with four or more bins: {banks} (the legacy archive has 0)")
 
     # --- push ---------------------------------------------------------------- #
-    if os.environ.get("SBR_SKIP_UPLOAD") == "1":
+    if not uploading:
         log("SBR_SKIP_UPLOAD=1, not uploading")
         return
 
-    repo_id = config.get("hub", {}).get("dataset_repo", "arudaev/smart-bin-detect")
-
-    # A previous run left 10 000 label files with no images beside them: the push
-    # was rejected halfway for exceeding the Hub's 10 000-files-per-directory cap.
-    # Uploading on top of that starts the next push already over the cap, so both
-    # harvested subsets are replaced rather than merged into. `legacy/` is never
-    # touched - it is the one pinned revision this project has.
-    delete_subsets(repo_id, ["negatives", "open_images"])
-
+    # create=False: the repo was made and cleared before the harvest, so nothing
+    # here is a one-shot call that can throw away sixteen minutes of work.
     sha = upload_dataset(
         repo_id=repo_id,
         local_dir=WORKING / "pools",
@@ -207,6 +218,7 @@ def main() -> None:
             f"{negative_manifest['images']} negatives"
         ),
         private=True,
+        create=False,
     )
     log(f"pushed. revision: {sha}")
     log(f'record it: PINS["arudaev/smart-bin-detect"] = "{sha}"')

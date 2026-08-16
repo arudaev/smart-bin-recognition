@@ -235,3 +235,74 @@ def test_upload_refuses_a_tree_the_hub_would_reject(tmp_path, monkeypatch):
                         type("M", (), {"HfApi": lambda **kw: FakeApi()}))
     with pytest.raises(ValueError, match="10000|files per directory|more than"):
         hub.upload_dataset("owner/repo", tmp_path, "msg")
+
+
+# --------------------------------------------------------------------------- #
+# Deleting, and not pretending it worked
+# --------------------------------------------------------------------------- #
+
+
+def _fake_hub(monkeypatch, api):
+    monkeypatch.setattr(hub, "load_hf_token", lambda: "hf_x")
+    monkeypatch.setattr(hub, "configure_hf_runtime", lambda: None)
+    monkeypatch.setitem(__import__("sys").modules, "huggingface_hub",
+                        type("M", (), {"HfApi": lambda **kw: api}))
+
+
+def _http_error(status: int):
+    """An error shaped like the Hub's, without naming a class that moves."""
+    error = RuntimeError(f"HTTP {status}")
+    error.response = type("R", (), {"status_code": status})()
+    return error
+
+
+def test_deleting_an_absent_subset_is_fine(monkeypatch):
+    # The ordinary case: a first push, or a subset that was never written.
+    class FakeApi:
+        def delete_folder(self, **kwargs):
+            raise _http_error(404)
+
+    _fake_hub(monkeypatch, FakeApi())
+    hub.delete_subsets("owner/repo", ["negatives"])
+
+
+def test_a_delete_that_fails_stops_the_run(monkeypatch):
+    # The failure that let run 5 upload onto a tree it had not cleared: a 429
+    # swallowed and logged looks exactly like "there was nothing there".
+    class FakeApi:
+        def delete_folder(self, **kwargs):
+            raise _http_error(429)
+
+    _fake_hub(monkeypatch, FakeApi())
+    with pytest.raises(RuntimeError, match="API quota|could not delete"):
+        hub.delete_subsets("owner/repo", ["negatives"])
+
+
+def test_upload_can_skip_repo_creation(tmp_path, monkeypatch):
+    # An unattended run makes every Hub call it can BEFORE the harvest. After
+    # sixteen minutes of downloading, create_repo is a one-shot way to lose all
+    # of it - which is precisely how the second negatives run ended.
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+
+    class FakeApi:
+        def create_repo(self, **kwargs):
+            raise AssertionError("create=False must not touch the repo endpoint")
+
+        def upload_folder(self, **kwargs):
+            return type("Commit", (), {"oid": "deadbeef"})()
+
+    _fake_hub(monkeypatch, FakeApi())
+    assert hub.upload_dataset("owner/repo", tmp_path, "msg", create=False) == "deadbeef"
+
+
+def test_ensure_repo_creates_it_up_front(monkeypatch):
+    seen = []
+
+    class FakeApi:
+        def create_repo(self, **kwargs):
+            seen.append(kwargs)
+
+    _fake_hub(monkeypatch, FakeApi())
+    hub.ensure_repo("owner/repo", private=True)
+    assert seen == [{"repo_id": "owner/repo", "repo_type": "dataset",
+                     "private": True, "exist_ok": True}]

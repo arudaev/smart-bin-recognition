@@ -225,6 +225,26 @@ def preflight_layout(local_dir: Path) -> None:
     )
 
 
+def ensure_repo(repo_id: str, private: bool = False, repo_type: str = "dataset") -> None:
+    """Create the repo now, so the upload path holds no fatal one-shot call.
+
+    Called at the *top* of a kernel, beside :func:`require_hf_token`, and for the
+    same reason. ``create_repo`` is one request, but it is a request: a run whose
+    quota is exhausted by the time the harvest finishes dies on it having done
+    all of the work and none of the upload. That is exactly how the second
+    negatives run ended – a previous run of the same kernel was still uploading
+    eleven hours later and was holding the account's entire 1000-per-5-minutes
+    budget, so the first Hub call after a clean 16-minute harvest got a 429.
+    """
+    from huggingface_hub import HfApi
+
+    configure_hf_runtime()
+    HfApi(token=load_hf_token()).create_repo(
+        repo_id=repo_id, repo_type=repo_type, private=private, exist_ok=True
+    )
+    logger.info("%s exists (%s)", repo_id, "private" if private else "public")
+
+
 def delete_subsets(repo_id: str, names: list[str]) -> None:
     """Remove subset directories from a dataset repo, tolerating absent ones.
 
@@ -232,6 +252,11 @@ def delete_subsets(repo_id: str, names: list[str]) -> None:
     negatives run left 10 000 label files with no images beside them. Uploading
     on top of that starts the next push already over the directory cap, so a
     replacing push deletes first.
+
+    **Absent is tolerated; failed is not.** A 404 means there was nothing to
+    delete, which is the ordinary case. Anything else – a 429 above all – means
+    the tree is still there, and returning quietly would let the caller upload
+    onto the very files it was asked to clear.
     """
     from huggingface_hub import HfApi
 
@@ -241,8 +266,21 @@ def delete_subsets(repo_id: str, names: list[str]) -> None:
         try:
             api.delete_folder(path_in_repo=name, repo_id=repo_id, repo_type="dataset")
             logger.info("deleted %s/ from %s", name, repo_id)
-        except Exception as error:  # noqa: BLE001 - absent is the common case
-            logger.info("nothing to delete at %s/ in %s (%s)", name, repo_id, error)
+        except Exception as error:  # noqa: BLE001 - classified by status below
+            # Duck-typed rather than caught by class: the Hub's error types have
+            # moved between huggingface_hub versions, and this runs on whatever
+            # Kaggle's pip resolves to that morning.
+            status = getattr(getattr(error, "response", None), "status_code", None)
+            if status == 404:
+                logger.info("nothing to delete at %s/ in %s", name, repo_id)
+                continue
+            raise RuntimeError(
+                f"could not delete {name}/ from {repo_id} (HTTP {status}). "
+                "Refusing to continue: the caller asked for a replacing push, and "
+                "uploading now would land on top of the tree this was meant to "
+                "clear. If this is a 429, another run is holding the account's "
+                "API quota - find it and stop it before retrying."
+            ) from error
 
 
 def upload_dataset(
@@ -252,6 +290,7 @@ def upload_dataset(
     private: bool = False,
     allow_patterns: list[str] | None = None,
     workers: int = 4,
+    create: bool = True,
 ) -> str:
     """Upload a prepared pool as a dataset revision. Returns the commit sha.
 
@@ -271,6 +310,11 @@ def upload_dataset(
 
     ``upload_large_folder`` is built for this shape: many small commits, LFS
     URLs requested in small batches, parallel workers, and resumption on retry.
+
+    ``create=False`` skips ``create_repo`` for callers that ran
+    :func:`ensure_repo` up front. An unattended run should: by the time a harvest
+    finishes, the API quota may be gone, and dying on repo creation after all the
+    work and before any of the upload is the worst available outcome.
     """
     from huggingface_hub import HfApi
 
@@ -283,7 +327,8 @@ def upload_dataset(
     preflight_layout(local_dir)
 
     api = HfApi(token=token)
-    api.create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
+    if create:
+        api.create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
 
     count = sum(1 for path in local_dir.rglob("*") if path.is_file())
     large = count > LARGE_UPLOAD_FILES and hasattr(api, "upload_large_folder")
