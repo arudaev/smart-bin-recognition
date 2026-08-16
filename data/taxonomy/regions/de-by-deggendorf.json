@@ -21,11 +21,39 @@
 
   "sources": [
     {
-      "title": "ZAW Donau-Wald – Abfalltrennung / Wertstoffe",
-      "url": "https://www.awg.de/",
-      "retrieved": null,
+      "title": "ZAW Donau-Wald – Mülltrennung (Restmüll, Papier, Bio)",
+      "url": "https://www.awg.de/nachhaltigkeit/muelltrennung",
+      "retrieved": "2026-08-16",
       "verified_by": null,
-      "note": "TODO: pin exact deep links and retrieval date before this pack leaves draft status. Nothing in this pack may be shown to a user as authoritative until every rule below cites a retrieved municipal source."
+      "note": "The operator's own separation guidance. Names exactly three household bins – Restmülltonne, Papiertonne, Biotonne – and lists what belongs in each. It states no container colours at all, so the lid_color half of every wheelie rule below is still uncorroborated."
+    },
+    {
+      "title": "ZAW Donau-Wald – Was entsorgen? (waste-type directory)",
+      "url": "https://www.awg.de/abfallentsorgung/was-entsorgen",
+      "retrieved": "2026-08-16",
+      "verified_by": null,
+      "note": "Per-material directory. Confirms glass is separated by colour (weiße / grüne / braune Glasflasche each have their own entry) and that Altkleider are collected separately."
+    },
+    {
+      "title": "ZAW Donau-Wald – Kunststoffverpackungen",
+      "url": "https://www.awg.de/abfallentsorgung/was-entsorgen/kunststoffverpackungen-sonstige-verpackungskunststoffe",
+      "retrieved": "2026-08-16",
+      "verified_by": null,
+      "note": "CONTRADICTS the two packaging rules below. This operator routes plastic packaging to a Wertstoffinsel, not to a Gelber Sack or a Gelbe Tonne. See the verification notes."
+    },
+    {
+      "title": "ZAW Donau-Wald – Altkleider",
+      "url": "https://www.awg.de/abfallentsorgung/was-entsorgen/altkleider",
+      "retrieved": "2026-08-16",
+      "verified_by": null,
+      "note": "Separate textile collection exists in this jurisdiction. The container form factor is not described."
+    },
+    {
+      "title": "ZAW Donau-Wald – Wo entsorgen? (facility map)",
+      "url": "https://www.awg.de/abfallentsorgung/wo-entsorgen",
+      "retrieved": "2026-08-16",
+      "verified_by": null,
+      "note": "Facility types: Deponie, Recyclinghof, Wertstoffinsel, Grüngutannahmestelle. The Wertstoffinsel is the unit this pack's glass and packaging rules should be describing."
     }
   ],
 
@@ -148,8 +176,18 @@
   },
 
   "notes": [
-    "DRAFT. Rules were transcribed from the predecessor project's four hard-coded classes plus general German practice – they are a starting point, not a verified source.",
+    "DRAFT, and it must stay draft. Rules were transcribed from the predecessor project's four hard-coded classes plus general German practice – they are a starting point, not a verified source. Every source now carries a URL and a retrieval date, so RegionPack.is_publishable is true; that means the SOURCING bar is met and nothing more. `status` is the guard that keeps this away from users, and only a human who has checked the rules against the operator may move it.",
+
+    "VERIFICATION PASS, 2026-08-16, against the ZAW Donau-Wald sources listed above. Read this before trusting any rule here. Corroborated means the operator's own page says the stream exists and is collected separately; it does NOT mean the colour or the form factor in the `match` was confirmed. No source consulted states a single container colour, so the lid_color and body_color halves of every rule below remain unverified across the board.",
+
+    "CORROBORATED (stream exists, separately collected): deg-residual-wheelie – Restmülltonne is named explicitly. deg-paper-wheelie – Papiertonne is named explicitly. deg-bio-wheelie – Biotonne is named explicitly. deg-textiles – Altkleider have their own directory entry and a separate collection.",
+
+    "CONTRADICTED, and this is the important one: deg-packaging-sack and deg-packaging-wheelie. Both assert a kerbside packaging collection – a Gelber Sack at confidence 0.95 and a Gelbe Tonne at 0.88 – and the operator's own page for Kunststoffverpackungen routes packaging to a WERTSTOFFINSEL instead. Neither rule was corroborated and both are actively disputed by the source. They are left in place rather than deleted because removing a disposal rule is the maintainer's call and because ZAW Donau-Wald covers a whole district, so a yellow sack may still exist in some municipality within it – but on the evidence gathered here these two rules would tell a user in Deggendorf to use a container that is not collected. They must be resolved before this pack leaves draft.",
+
+    "UNCORROBORATED (plausible, no source found): the four igloo rules – deg-glass-igloo-generic, -clear, -green, -brown. The directory does confirm that glass is separated by colour (weiße, grüne and braune Glasflasche each have their own entry), so the three-way COLOUR SPLIT is real; what is unverified is that the container is an igloo and that its body colour indicates the glass colour. deg-street-basket – no source consulted covers street litter baskets, which are usually the municipality's rather than the waste authority's.",
+
     "Deggendorf household setups observed by the original project: residual and paper bins next to houses, sometimes inside a locked shed; glass only at communal banks, typically near offices or larger buildings.",
-    "Glass banks are the known hard case. The predecessor's deck names Glas as 'the biggest problem'. Body colour alone is unreliable because many banks are a uniform green shell with per-aperture colour coding – hence requires_disambiguation on the generic rule until aperture detection lands in v2."
+
+    "Glass banks are the known hard case. The predecessor's deck names Glas as 'the biggest problem'. Body colour alone is unreliable because many banks are a uniform green shell with per-aperture colour coding – hence requires_disambiguation on the generic rule until aperture detection lands in v2. The operator calls the unit a Wertstoffinsel, which is a SITE holding several containers rather than one container; a pack that models it as a single igloo is describing the wrong object, and that is worth settling before phase 6 tries to add a second city on top of this abstraction."
   ]
 }

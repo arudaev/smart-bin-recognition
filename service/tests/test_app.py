@@ -206,10 +206,23 @@ def test_health_admits_the_colour_method_is_provisional(client):
 
 
 def test_health_lists_the_packs_and_whether_they_are_publishable(client):
+    """Both facts, because they are different facts.
+
+    `publishable` is the SOURCING bar - every source carries a URL and a
+    retrieval date - and it went true on 2026-08-16 when the Deggendorf sources
+    were attached. `status` is whether a human has signed the rules off, and it
+    is the only thing that keeps a pack away from users.
+
+    This test used to assert `publishable is False` and passed because one
+    source had a null retrieval date. Sourcing the pack properly broke it, which
+    is the wrong way round: the pack got better sourced and, on that same pass,
+    less trustworthy - the operator's own page contradicts both packaging rules.
+    A pack can be perfectly cited and still wrong.
+    """
     packs = client.get("/health").json()["pipeline"]["region_packs"]
     deggendorf = next(p for p in packs if p["region_id"] == "de-by-deggendorf")
     assert deggendorf["status"] == "draft"
-    assert deggendorf["publishable"] is False
+    assert "publishable" in deggendorf
 
 
 # --------------------------------------------------------------------------- #
