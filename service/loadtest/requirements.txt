@@ -1,0 +1,7 @@
+# The load test is a client, not part of the service, and its dependencies stay
+# out of the image. httpx because it does HTTP/1.1 keep-alive over asyncio with
+# a connection limit that can be set - which matters, since a virtual scanner
+# that reconnected every frame would measure TCP setup rather than inference.
+httpx>=0.27
+pillow>=10.0
+numpy>=1.24

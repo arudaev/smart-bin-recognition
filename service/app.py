@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -32,6 +33,7 @@ from typing import Any
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from artefacts import ArtefactMissingError, UngatedArtefactError, load_artefact
 from colour import measurement_note
@@ -56,6 +58,9 @@ def _load() -> None:
     settings = Settings.from_env()
     STATE["settings"] = settings
     STATE["shedder"] = LoadShedder(settings.shed)
+    # See settings.DEFAULT_INFERENCE_SLOTS. Requests arrive concurrently so the
+    # shedder can see a queue; this decides how many of them the CPU works on.
+    STATE["slots"] = threading.BoundedSemaphore(settings.inference_slots)
     STATE["errors"] = {}
 
     validator = load_artefact("validator", settings)
@@ -119,6 +124,7 @@ def _handle(payload: bytes) -> tuple[dict[str, Any], int]:
     """Decode, admit, run. Returns (wire payload, HTTP status)."""
     shedder: LoadShedder = STATE["shedder"]
     pipeline: Pipeline = STATE["pipeline"]
+    slots: threading.BoundedSemaphore = STATE["slots"]
 
     if len(payload) > MAX_FRAME_BYTES:
         return WireError(seq=None, error="frame too large").as_wire(), 413
@@ -141,12 +147,20 @@ def _handle(payload: bytes) -> tuple[dict[str, Any], int]:
                 503,
             )
 
-        started = time.perf_counter()
-        try:
-            response = pipeline.run(request, jpeg)
-        except ValueError as error:
-            return WireError(seq=request.seq, error=str(error)).as_wire(), 400
-        shedder.observe((time.perf_counter() - started) * 1000)
+        with slots:
+            # ADMISSION AND EXECUTION ARE DIFFERENT THINGS. The shedder counts
+            # everyone waiting, which is what the advice is about; this bounds how
+            # many are actually inside onnxruntime, which is what throughput is
+            # about. Both graphs are pinned to both vCPUs, so a second concurrent
+            # frame does not go twice as fast - it halves the speed of the first.
+            started = time.perf_counter()
+            try:
+                response = pipeline.run(request, jpeg)
+            except ValueError as error:
+                return WireError(seq=request.seq, error=str(error)).as_wire(), 400
+            # Inference time only. The wait quoted at rung 3 is depth times the
+            # cost of a frame, so folding queueing in here would compound it.
+            shedder.observe((time.perf_counter() - started) * 1000)
 
     # Rungs 1 and 2 ride along with a perfectly good answer: the frame is served
     # AND the client is asked to ease off. Nothing is refused until rung 3.
@@ -157,7 +171,20 @@ def _handle(payload: bytes) -> tuple[dict[str, Any], int]:
 
 @app.post("/detect")
 async def detect(request: Request) -> JSONResponse:
-    payload, status = _handle(await request.body())
+    body = await request.body()
+    # OFF THE EVENT LOOP, and this is load-bearing rather than tidy.
+    #
+    # `_handle` runs two ONNX graphs and blocks for 60-200 ms. Called directly
+    # from a coroutine it blocks the whole event loop, so requests queue in the
+    # ASGI layer instead of arriving at the shedder, and `LoadShedder.depth`
+    # never exceeds 1 however many people are scanning. The load test measured
+    # exactly that: twelve concurrent scanners, p95 climbing to 738 ms, and
+    # `peak_depth: 1` with not one rung of the ladder fired.
+    #
+    # The whole of shed.py, and the client half that reads its advice, was
+    # unreachable in production - the service degraded by getting slower and
+    # silently, which is the one behaviour docs/05 § 3 forbids by name.
+    payload, status = await run_in_threadpool(_handle, body)
     headers = {}
     if status == 503:
         headers["retry-after"] = str(max(1, round((payload.get("retry_after_ms") or 1000) / 1000)))
@@ -170,7 +197,10 @@ async def stream(socket: WebSocket) -> None:
     logger.info("socket open")
     try:
         while True:
-            payload, _status = _handle(await socket.receive_bytes())
+            frame = await socket.receive_bytes()
+            # Same reason as /detect. One socket blocking the loop would stall
+            # every other connection on the instance, not just its own.
+            payload, _status = await run_in_threadpool(_handle, frame)
             await socket.send_json(payload)
     except WebSocketDisconnect:
         logger.info("socket closed")

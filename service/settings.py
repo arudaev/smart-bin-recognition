@@ -27,6 +27,20 @@ DEFAULT_INTRA_OP_THREADS = 2
 #: ceiling. Six is what the PRD calls a normal input, so six is the default.
 DEFAULT_MAX_CROPS = 6
 
+#: How many frames may be inside onnxruntime at the same time.
+#:
+#: ONE, because the graphs are already pinned to both vCPUs. Two frames running
+#: concurrently do not go twice as fast - they contend for the same two cores and
+#: each takes roughly twice as long, which is the same total work delivered later
+#: and with a worse p95. Measured: admitting frames without this bound dropped
+#: throughput from ~16 to ~6.5 frames/second on a 2-vCPU container.
+#:
+#: This is deliberately NOT the same number as the queue depth the shedder
+#: watches. Depth is how many people are waiting, which is what decides the
+#: advice; slots are how many the CPU works on, which is what decides throughput.
+#: Conflating them is what made the ladder unreachable in the first place.
+DEFAULT_INFERENCE_SLOTS = 1
+
 
 def _flag(name: str) -> bool:
     return os.environ.get(name, "").strip() in {"1", "true", "yes", "on"}
@@ -74,6 +88,10 @@ class Settings:
     intra_op_threads: int = DEFAULT_INTRA_OP_THREADS
     max_crops: int = DEFAULT_MAX_CROPS
 
+    #: How many frames may be *inside* onnxruntime at once. Distinct from queue
+    #: depth, which is how many are waiting - see DEFAULT_INFERENCE_SLOTS.
+    inference_slots: int = DEFAULT_INFERENCE_SLOTS
+
     #: Serve an artefact whose ship gates did not pass. Deliberate friction, in
     #: the same spirit as ``gate.py --allow-unrepresentative-hardware``: it exists
     #: so latency and concurrency can be measured before a model is trained, it is
@@ -110,6 +128,7 @@ class Settings:
             artefact_dir=Path(directory) if directory else None,
             intra_op_threads=_int("SBR_INTRA_OP_THREADS", DEFAULT_INTRA_OP_THREADS),
             max_crops=_int("SBR_MAX_CROPS", DEFAULT_MAX_CROPS),
+            inference_slots=max(1, _int("SBR_INFERENCE_SLOTS", DEFAULT_INFERENCE_SLOTS)),
             allow_ungated=allow_ungated,
             force_crops=forced if forced >= 0 else None,
             shed=ShedThresholds.from_env(),
@@ -123,6 +142,7 @@ class Settings:
             "revision": self.revision,
             "artefact_dir": str(self.artefact_dir) if self.artefact_dir else None,
             "intra_op_threads": self.intra_op_threads,
+            "inference_slots": self.inference_slots,
             "max_crops": self.max_crops,
             "allow_ungated": self.allow_ungated,
             "force_crops": self.force_crops,

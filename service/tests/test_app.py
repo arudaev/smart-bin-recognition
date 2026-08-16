@@ -8,6 +8,8 @@ free by being a request.
 
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -45,6 +47,9 @@ def client(monkeypatch, request):
         settings = Settings()
         service.STATE["settings"] = settings
         service.STATE["shedder"] = LoadShedder(thresholds)
+        # Mirrors app._load. Anything that module puts in STATE has to appear
+        # here too, or every test 500s on a KeyError the product does not have.
+        service.STATE["slots"] = threading.BoundedSemaphore(settings.inference_slots)
         service.STATE["errors"] = {}
         service.STATE["pipeline"] = Pipeline(
             Artefact("validator", FakeSession(validator_head), sidecar("validator"), "test"),
@@ -205,3 +210,63 @@ def test_health_lists_the_packs_and_whether_they_are_publishable(client):
     deggendorf = next(p for p in packs if p["region_id"] == "de-by-deggendorf")
     assert deggendorf["status"] == "draft"
     assert deggendorf["publishable"] is False
+
+
+# --------------------------------------------------------------------------- #
+# The ladder can actually see load
+# --------------------------------------------------------------------------- #
+
+
+def test_inference_does_not_block_the_event_loop(client, jpeg):
+    """The shedder must be able to observe more than one request at a time.
+
+    THE BUG THIS PINS. ``_handle`` runs two ONNX graphs and blocks for 60-200 ms.
+    Called straight from a coroutine it blocks the whole event loop, so requests
+    queue in the ASGI layer rather than arriving at the shedder, and ``depth``
+    never exceeds 1 however many people are scanning.
+
+    Everything above passes anyway, because every rung test forces its threshold
+    to zero and therefore fires on the first request. They check the shedder's
+    arithmetic; none of them checks that it is ever handed a queue. The load test
+    found it in the only place it shows: twelve concurrent scanners, p95 climbing
+    to 738 ms, and ``peak_depth: 1`` with not one rung fired.
+
+    So the ladder, and the client half that reads its advice, was unreachable in
+    production - the service degraded by getting slower and saying nothing, which
+    is the single behaviour docs/05 § 3 rules out by name.
+    """
+    import threading
+    import time
+
+    pipeline = service.STATE["pipeline"]
+    original = pipeline.run
+
+    def slow(request, jpeg_bytes):
+        # Long enough that the requests genuinely overlap, short enough that the
+        # test costs a fifth of a second.
+        time.sleep(0.15)
+        return original(request, jpeg_bytes)
+
+    pipeline.run = slow
+
+    errors: list[BaseException] = []
+
+    def post() -> None:
+        try:
+            client.post("/detect", content=frame(jpeg))
+        except BaseException as error:  # noqa: BLE001 - reported, not swallowed
+            errors.append(error)
+
+    threads = [threading.Thread(target=post) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert not errors, errors
+    peak = service.STATE["shedder"].stats()["peak_depth"]
+    assert peak > 1, (
+        f"four concurrent requests reached a peak depth of {peak}. Inference is "
+        f"blocking the event loop, so the shedder can never see a queue and no "
+        f"rung of the degradation ladder can ever fire."
+    )
