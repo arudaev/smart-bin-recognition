@@ -584,19 +584,30 @@ function ConnPanel({
   );
 }
 
+/** Below this many seconds the wait is described rather than counted. */
+const COUNTED_WAIT_FLOOR = 5;
+
 /**
  * The one line on the strip over the camera.
  *
  * `waitMs` is the ladder's deepest rung: the service refused and said how long
  * it will be. docs/05 § 3 is explicit that this must be a stated wait and
  * "never a spinner that lies", so when there is a number the copy carries it.
- * Rounded up, and never to zero – "about 0 seconds" is worse than saying
- * nothing, and a wait that reads as shorter than it is gets people tapping.
+ * Rounded up – a wait that reads as shorter than it is gets people tapping.
+ *
+ * SHORT WAITS GET A DIFFERENT SENTENCE, and not for tidiness. shed.py's
+ * smallest possible wait rounds to one second, and "about 1 seconds" is a bug
+ * that only shows up under load. The obvious fix is a singular key, which would
+ * encode English's two plural forms into a t() layer that has no plural
+ * categories at all - and Arabic, a launch locale, has six. So each key stays a
+ * complete plural-safe sentence, which is also the only shape a translator can
+ * work with. "A few seconds" is true for every value below the floor.
  */
 export function connMessage(state: ConnectionState, t: T, region: Region, waitMs: number | null = null): string {
   if (state === "live") return `${t("conn.live")} · ${REGION_PLACE[region.key]}`;
   if (state === "busy" && waitMs && waitMs > 0) {
-    return t("conn.busyWait", { seconds: Math.max(1, Math.ceil(waitMs / 1000)) });
+    const seconds = Math.ceil(waitMs / 1000);
+    return seconds < COUNTED_WAIT_FLOOR ? t("conn.busyShortWait") : t("conn.busyWait", { seconds });
   }
   return t(`conn.${state}`);
 }

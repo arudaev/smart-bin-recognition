@@ -29,6 +29,7 @@
   "color.white": "White",
   "color.yellow": "Yellow",
   "conn.busy": "Busy just now. Trying again.",
+  "conn.busyShortWait": "Busy just now. A few seconds.",
   "conn.busyWait": "Busy just now. About {seconds} seconds.",
   "conn.connecting": "Connecting.",
   "conn.live": "Connected",
