@@ -48,9 +48,9 @@ tags:
 # {repo}
 
 Training data for **Smart Bin Recognition** – a validator ("is there a bin?")
-and an identifier ("which bin?"). See
-[`docs/04-ml-pipeline.md`](https://github.com/arudaev/Painfully-Trivial) for the
-design, and the manifests in this repo for per-image provenance.
+and an identifier ("which bin?"). The design lives in `docs/04-ml-pipeline.md`
+in the project repo, which is private; the manifests here carry per-image
+provenance and are the authoritative record of what this dataset contains.
 
 **Every image carries provenance**: source, source URL, licence, region,
 capture date, annotator where known, label origin (`human` / `machine` /
@@ -87,9 +87,14 @@ never straddle a split.
 ## What this data is not
 
 The legacy subset is **one city in one week**, 370 usable frames, and not one
-frame of it holds four or more bins. Numbers measured on it are
-in-distribution numbers. See `docs/09-phase2-results.md` for what was measured,
-on which split, and on what hardware.
+frame of it holds four or more bins — every multi-bin frame here comes from
+Open Images. Numbers measured on `legacy` alone are in-distribution numbers.
+
+**There is no geographic holdout.** Every Open Images frame carries
+`region_id: "unknown"`, because the source does not record where a photograph
+was taken, so no split in this dataset answers "does it work in another city".
+See `docs/11-phase2-results.md` in the project repo for what was measured, on
+which split, and on what hardware.
 """
 
 SUBSET_TEMPLATE = """### `{subset}`

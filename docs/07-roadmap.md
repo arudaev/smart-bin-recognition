@@ -49,10 +49,12 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 - [x] Tooling for the human pass – `ml/scripts/adjudicate.py`, 403 crops ordered
       by capture cluster, one keystroke each
 - [ ] **The human pass itself.** Blocks the identifier and nothing else.
-- [x] Negative corpus + out-of-city bins from Open Images, dispatched as a CPU
-      kernel. Open Images has a boxable `Waste container` class with
-      human-verified boxes, which is where the first frames holding four or more
-      bins come from — the legacy archive has none.
+- [x] Negative corpus + out-of-city bins from Open Images. **Landed 2026-08-16**
+      and pinned: 1 110 bin frames carrying 1 936 boxes, of which **98 hold four
+      or more bins** — the legacy archive holds none — plus 17 474 background
+      frames (14 975 street scenes, 2 499 hard negatives), a 15.7:1 negative
+      ratio within the subset. Pools are shard-nested because the Hub refuses a
+      directory over 10 000 files ([04 § 5](04-ml-pipeline.md)).
 - [ ] First training run on a Kaggle kernel
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU HF Space bench**,
@@ -73,9 +75,14 @@ Two things found on the way that change what this phase can conclude:
 
 - **Seven of the ten form factors have no legacy data at all.** The four legacy
   classes reach only `wheelie_small`, `wheelie_large` and `igloo`.
-- **The held-out "city" is not a city yet.** Everything in the legacy subset is
-  Deggendorf, so until the Open Images subset and a second-city capture land,
-  the honest split is group-aware by capture cluster, not geographic.
+- **The held-out "city" is still not a city.** The Open Images subset has now
+  landed and it does broaden the distribution — worldwide photographs, and the
+  only multi-bin frames the project has — but every one of its frames carries
+  `region_id: "unknown"`, because Open Images does not say where a photograph
+  was taken. So it cannot serve as a geographic holdout either. Until a real
+  second-city capture lands, the honest split remains group-aware by capture
+  cluster, and `holdout_region` stays empty. The training kernel already says so
+  rather than quietly reporting an aggregate.
 
 ---
 

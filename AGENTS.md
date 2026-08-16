@@ -18,9 +18,17 @@ Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
 **Status:** phase 1 (design) is done and phase 3's client half is done; the
-vision spike (phase 2) and the service are not. See
+vision spike (phase 2) is part-way and the service has not started. See
 [`docs/07-roadmap.md`](docs/07-roadmap.md) for the checklist. Docs, taxonomy and
-the ML skeleton are in place. `web/` holds the design imported from Claude Design –
+the ML skeleton are in place.
+
+**Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
+`c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
+the first 98 frames with four or more bins, and 17 474 background frames. What
+is left is the human adjudication pass (identifier only) and the first training
+run. No model has been trained yet, and the ship gate is unanswered.
+
+`web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline

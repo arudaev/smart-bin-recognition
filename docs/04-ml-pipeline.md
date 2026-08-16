@@ -182,6 +182,26 @@ Pinned by commit revision in `ml/src/sbr/utils/hub.py`. Every image carries
 provenance: source, region, capture date, label origin
 (`human` / `machine` / `legacy`), and adjudication status.
 
+### What `smart-bin-detect` actually holds
+
+At revision `c39b0f87` (2026-08-16), 18 954 frames over three subsets:
+
+| Subset | Frames | Boxes | Layout | Region | What it buys |
+|---|---:|---:|---|---|---|
+| `legacy` | 370 | 403 | flat | `de-by-deggendorf` | the hand-labelled seed; one city, one week |
+| `open_images` | 1 110 | 1 936 | sharded | `unknown` | worldwide bins, and **98 frames with 4+ bins** |
+| `negatives` | 17 474 | 0 | sharded | `unknown` | 14 975 street + 2 499 hard, all guaranteed bin-free |
+
+The negatives are ~15.7:1 against the bin frames, which is the ratio § 1 argues
+for: a detector trained only on photographs of bins learns that everything is a
+bin, which is what the predecessor did.
+
+Two cautions this table exists to make visible. The `4+` bucket comes entirely
+from Open Images — the legacy archive has no frame with four or more bins, so
+any multi-bin recall number is measured on out-of-city data only. And no subset
+carries a usable second `region_id`, so `holdout_region` is empty and the
+generalisation number this phase wants is **not yet available** from this data.
+
 ### How a subset is laid out, and why it is sharded
 
 Each repo holds one directory per subset – `legacy/`, `open_images/`,
