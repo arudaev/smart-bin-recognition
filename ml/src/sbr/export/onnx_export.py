@@ -337,9 +337,11 @@ def quantise(
             path = next(self._iter, None)
             if path is None:
                 return None
-            with Image.open(path) as image:
-                image = image.convert("RGB").resize((imgsz, imgsz), Image.Resampling.BILINEAR)
-                array = np.asarray(image, dtype=np.float32).transpose(2, 0, 1) / 255.0
+            # Not rebound onto the `with` target: that is an ImageFile, and
+            # convert() returns an Image, so reusing the name is a type error.
+            with Image.open(path) as handle:
+                frame = handle.convert("RGB").resize((imgsz, imgsz), Image.Resampling.BILINEAR)
+                array = np.asarray(frame, dtype=np.float32).transpose(2, 0, 1) / 255.0
             return {"images": array[None, ...]}
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

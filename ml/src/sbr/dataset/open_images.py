@@ -243,8 +243,10 @@ def save_resized(payload: bytes, target: Path, max_edge: int, quality: int, min_
     from PIL import Image
 
     try:
-        with Image.open(io.BytesIO(payload)) as image:
-            image = image.convert("RGB")
+        # `handle` is an ImageFile and convert() returns an Image, so the
+        # converted result gets its own name rather than rebinding the target.
+        with Image.open(io.BytesIO(payload)) as handle:
+            image = handle.convert("RGB")
             width, height = image.size
             if min(width, height) < min_edge:
                 return None
