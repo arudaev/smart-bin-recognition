@@ -5,6 +5,19 @@ goes in it, in your language, anywhere.
 
 Status: draft v1, 2026-08-01. Owner: Alexander Rudaev.
 
+> ⚠️ **Revised 2026-08-16.** § 3.4, § 3.6 and § 4 described **on-device
+> inference with no upload**. That was true when written and is no longer the
+> design: [01-architecture § 1](01-architecture.md#1-the-decision) moved
+> inference to a server, deliberately and with the costs written down. The
+> earlier claims are corrected below rather than deleted, because a requirements
+> document that quietly changes what it promised is worse than one that shows
+> its working. [05-cost-model § 1](05-cost-model.md#1-what-changed) records the
+> same change from the cost side.
+>
+> The document also contradicted **itself**: § 3.4 required the core loop to work
+> with no signal while § 7 already allowed scanning to need a connection. § 7 was
+> right.
+
 ---
 
 ## 1. Problem
@@ -49,20 +62,31 @@ recycling classification of the *contents* of your hand.
 3. **Honest about uncertainty.** "I don't know this bin" is a first-class,
    well-designed result, not an error state. It is also the entry point to
    contributing.
-4. **Works with no signal.** A basement bin room has no reception. The core loop
-   must not care.
+4. **Honest about the connection.** The rules browser, the item vocabulary and a
+   cached region pack work with no signal, and a basement bin room is exactly why.
+   **Scanning and the map do not** – inference is server-side
+   ([01 § 1](01-architecture.md#1-the-decision)) – and the app says so as a
+   designed state rather than failing silently.
 5. **Costs nothing to run, forever.** Any feature that scales in price with
    users is either redesigned or cut. This is a hard constraint, not a preference.
-6. **Nothing leaves the device unless the user chooses.** Camera frames are
-   processed locally; uploads are an explicit, visible act.
+6. **Nothing is kept unless the user chooses.** Frames are sent for recognition,
+   held in memory, and discarded. **Retention** – not transmission – is the
+   explicit, visible act, and it is asked for one frame at a time
+   ([03 § 4](03-registry-geo-trust.md)). There is no user identity to attach a
+   frame to, by design.
 
 ## 4. Scope – v1 (MVP)
 
 **In:**
 
 - Live camera scan with **multiple simultaneous bins**, each boxed and labelled.
-- On-device detection; no image ever uploaded on the common path.
-- Tap-to-scan single-frame mode (default on low-end devices).
+  A bank of six containers is a normal input, not an edge case — which is a
+  **cost** commitment as well as an accuracy one, since each bin is another
+  identifier pass ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
+- Server-side inference over a gated connection; frames are discarded after
+  recognition and retained only with per-frame consent.
+- Tap-to-scan single-frame mode (default on low-end devices, and the primary
+  path wherever streaming is not affordable).
 - Result card per bin: canonical stream, local name, ✅ accepted / ❌ rejected
   lists, common-mistake note.
 - **Full UI + rules localisation.** Launch locales: EN, DE, UA, RU, TR, AR, ES,
@@ -114,12 +138,12 @@ Measured, not vibes. Analytics are anonymous counters only – no journey tracki
 | Metric | v1 target | How measured |
 |---|---|---|
 | Time from app open to first correct answer | ≤ 4 s on a 2020 mid-range Android | Field test, 10 devices |
-| Detection recall on held-out cities | ≥ 0.80 @ IoU 0.5 | [04-ml-pipeline § 5](04-ml-pipeline.md#5-evaluation-protocol) |
+| Detection recall on held-out cities | ≥ 0.97 @ IoU 0.5 | [04-ml-pipeline § 7](04-ml-pipeline.md#7-evaluation) — **not measurable yet**: no dataset subset carries a second `region_id` |
 | Stream resolution accuracy where a pack exists | ≥ 0.95 | Held-out labelled sightings |
 | Escalation rate (scans reaching stage 3) | ≤ 5 % after 3 months in a covered city | Server counter |
 | Monthly infrastructure cost | **€0** at pilot scale; see [05-cost-model § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters) | Vercel + HF + Supabase dashboards |
 | Scan round-trip latency | ≤ 250 ms p50 on 4G | Service metrics |
-| Concurrent scanners before degradation | ≥ 10 on the free tier | Load test |
+| Concurrent scanners before degradation | ≥ 10 on the free tier, **at one bin per frame** | Load test; the six-bin case is a separate row once [docs/12 probe P4](12-validation-protocol.md#p4--multi-bin-cost-curve) has measured it |
 | Lighthouse performance / a11y | ≥ 95 both | CI |
 
 ## 7. Non-negotiable constraints
@@ -142,6 +166,7 @@ Measured, not vibes. Analytics are anonymous counters only – no journey tracki
 | Contributors poison the registry | Bad data, bad training set | Consensus-before-publish; reputation; no unmoderated path from user input into training data |
 | VLM cost spike from abuse | Real money | Hard daily cap on total escalations project-wide; queue and defer rather than autoscale |
 | Sole maintainer | Bus factor 1 | Everything documented here; data files are plain JSON; nothing depends on a proprietary service that cannot be swapped |
+| EU AI Act Art. 50 transparency, **in force since 2026-08-02** | Not a fine at this scale; a blocker to any university or municipal partner | Exposure is disclosure, not content marking — we generate nothing. Say a model produced the identification, surface confidence and `unknown`, cite the municipal source. See [research/07](research/07-compliance-and-consent.md) |
 
 ## 9. Open questions
 

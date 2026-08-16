@@ -44,7 +44,7 @@ loop and the map both require a connection, and that is accepted.
 │         │                        │ │
 │         ▼                        │ │
 │   WebSocket ──── frame ──────────┼─┼──────────►  INFERENCE SERVICE
-│         ◄─────── detections ─────┘ │            HF Space, free CPU tier
+│    (or POST /detect)             │ │            2 vCPU; host per § 2
 │                                    │            FastAPI + ONNX Runtime
 │   draw boxes · result cards        │                  │
 └────────────────────────────────────┘            Model A → Model B
@@ -65,11 +65,38 @@ loop and the map both require a connection, and that is accepted.
 | Host | Runs | Why there |
 |---|---|---|
 | **Vercel** (Hobby) | React frontend, thin serverless API, registry tiles | Free static + edge; already the deployment target for THD Room Finder |
-| **HF Space** (free CPU) | FastAPI + ONNX Runtime, models A and B | Free, **persistent process** – which Vercel functions are not, so WebSockets work; same pattern as CheXVision's demo Space |
+| **Inference host** *(see below)* | FastAPI + ONNX Runtime, models A and B | Needs a **persistent process**, which Vercel functions are not |
 | **Supabase** (free) | Registry Postgres + PostGIS | Real geo queries; free tier is generous |
 
 Vercel serverless functions cannot hold a WebSocket – they are stateless and
 time-limited. That is the specific reason inference does not live on Vercel.
+
+### Which inference host
+
+**Not Hugging Face on the free tier, which is what this table used to say.**
+Creating a Docker Space returns `402 Payment Required`: hosting Gradio and
+Docker Spaces on free `cpu-basic` now requires PRO. Recorded in
+`ml/src/sbr/bench.py` and [05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters).
+
+The replacement decision, argued in
+[research/05](research/05-serving-economics.md):
+
+| | Host | Cost | Trade |
+|---|---|---|---|
+| **Pilot** | **Cloud Run, request-based billing, `POST /detect` primary** | free tier applies | no live streaming |
+| Upgrade | HF PRO `cpu-basic` | USD 9/mo | restores streaming exactly as designed |
+
+The detail that decides it: Cloud Run bills **request-based** (CPU only while
+handling a request; 180 000 vCPU-seconds free) or **instance-based** (CPU and
+memory on idle instances too). **A held-open WebSocket forces instance-based**,
+and one always-on 2-vCPU instance exhausts the monthly free allowance in about
+25 hours. The socket was never free; the arithmetic in 05 § 3 was about compute
+per frame and never about idle time.
+
+So the streaming loop below is the **design**, and single-frame `POST /detect`
+is the **pilot deployment** of it. The client already carries both
+(`VITE_DETECT_WS` / `VITE_DETECT_URL`), and the result lock means a scan is ~15
+frames either way.
 
 ## 3. Two models, and why
 
@@ -175,12 +202,26 @@ Target budget, to be confirmed by measurement in phase 2:
 | Capture + downscale + encode | ~15 ms |
 | Uplink (30 KB, 4G) | ~60 ms |
 | Model A @ 448 | ~40 ms |
-| Model B on crops | ~25 ms |
+| Model B, **per crop** | ~25 ms |
 | Resolve + downlink | ~25 ms |
-| **Round trip** | **~165 ms → ~4 fps** |
+| **Round trip, one bin** | **~165 ms → ~6 fps, capped at 4** |
 
 Good enough. The perceived experience is carried by box smoothing and the result
 lock, not by raw frame rate.
+
+**Model B is per crop, and that is not free.** A bank of six containers — which
+[00-PRD § 4](00-product-requirements.md#4--scope--v1-mvp) calls a normal input —
+costs `40 + 6×25 = 190 ms` of service CPU, roughly three times the one-bin frame.
+docs/04 § 1's "multi-bin scenes are free" is true of **accuracy** (N independent
+crops, no crowding in the detector head) and false of **cost**, which is linear
+in bins. The two were stated as one property until 2026-08-16.
+
+Consequences: the concurrency ceiling in
+[05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters) is
+a range over scene complexity, not a single number; and batching the crops
+through one ONNX call rather than *n* sequential ones is a **service
+requirement**, not an optimisation. [docs/12 probe P4](12-validation-protocol.md#p4--multi-bin-cost-curve)
+measures both — and needs no trained model to do it.
 
 ## 5. Device tiers
 
@@ -216,9 +257,18 @@ Frames leave the device, so this has to be deliberate:
 - Frames are **processed in memory and discarded**. Nothing is written to disk on
   the inference service by default.
 - A frame is **retained only when it is flagged for collection** (§ 3) *and* the
-  user has consented to contribute. Consent is per-session and visible.
+  user has consented. Consent is asked **per frame, at the moment**, naming that
+  frame and why it is worth keeping — not once per session as a blanket. An
+  ordinary successful scan never sees the prompt, because there is nothing to
+  consent to: the frame is already discarded (docs/04 § 2). The full lifecycle,
+  including retention window and deletion, is
+  [03 § 4](03-registry-geo-trust.md).
 - Retained frames are downscaled, EXIF-stripped, and reviewed before entering any
   dataset.
+- Deletion works without an identity: the device keeps a **local receipt** for
+  each pending contribution, and the receipt revokes it. That is what makes
+  "no accounts" compatible with a real deletion path rather than an excuse for
+  not having one.
 - Location sent with a frame is **geohash-6 (~1.2 km)** – enough to select a
   jurisdiction, not enough to locate a household. Precise coordinates are sent
   only on an explicit registry contribution.
