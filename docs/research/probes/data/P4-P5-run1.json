@@ -1,0 +1,150 @@
+{
+  "probe": [
+    "P4",
+    "P5"
+  ],
+  "generated": "2026-08-16T13:58:58Z",
+  "hardware": {
+    "label": "Kaggle CPU kernel, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.20GHz, onnxruntime 1.28.0 [PROXY, not the service]",
+    "where": "Kaggle CPU kernel",
+    "cpu": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+    "cores": 4,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.28.0",
+    "representative": false
+  },
+  "weights": "UNTRAINED on this project's data - stock COCO checkpoints, used only for their architecture. Valid for latency, which depends on architecture and input shape; meaningless for accuracy, which is not measured here.",
+  "int8_calibration": "synthetic noise - see CALIBRATION_IMAGES",
+  "iterations": 30,
+  "warmup": 8,
+  "p4": {
+    "solo": {
+      "validator": {
+        "median_latency_ms": 26.611,
+        "p95_latency_ms": 27.058,
+        "mean_latency_ms": 26.704,
+        "min_latency_ms": 26.359,
+        "max_latency_ms": 27.97,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 448
+      },
+      "identifier": {
+        "median_latency_ms": 17.374,
+        "p95_latency_ms": 26.736,
+        "mean_latency_ms": 19.364,
+        "min_latency_ms": 16.914,
+        "max_latency_ms": 27.089,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 320
+      }
+    },
+    "curve": [
+      {
+        "crops": 0,
+        "batched": null,
+        "median_latency_ms": 26.744,
+        "p95_latency_ms": 27.382,
+        "mean_latency_ms": 26.8,
+        "min_latency_ms": 26.313,
+        "max_latency_ms": 27.916,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 1,
+        "batched": true,
+        "median_latency_ms": 65.669,
+        "p95_latency_ms": 67.908,
+        "mean_latency_ms": 65.985,
+        "min_latency_ms": 65.253,
+        "max_latency_ms": 72.052,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 1,
+        "batched": false,
+        "median_latency_ms": 65.64,
+        "p95_latency_ms": 66.061,
+        "mean_latency_ms": 65.699,
+        "min_latency_ms": 65.429,
+        "max_latency_ms": 66.527,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 3,
+        "batched": true,
+        "median_latency_ms": 88.555,
+        "p95_latency_ms": 89.815,
+        "mean_latency_ms": 89.352,
+        "min_latency_ms": 88.031,
+        "max_latency_ms": 109.578,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 3,
+        "batched": false,
+        "median_latency_ms": 110.647,
+        "p95_latency_ms": 113.857,
+        "mean_latency_ms": 110.963,
+        "min_latency_ms": 109.567,
+        "max_latency_ms": 115.364,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 6,
+        "batched": true,
+        "median_latency_ms": 154.173,
+        "p95_latency_ms": 155.505,
+        "mean_latency_ms": 150.772,
+        "min_latency_ms": 135.599,
+        "max_latency_ms": 155.557,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 6,
+        "batched": false,
+        "median_latency_ms": 162.612,
+        "p95_latency_ms": 164.248,
+        "mean_latency_ms": 159.791,
+        "min_latency_ms": 142.918,
+        "max_latency_ms": 164.353,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      }
+    ]
+  },
+  "p5": {
+    "rf-detr-nano": {
+      "evaluated": false,
+      "reason": "TypeError: RFDETR.export() got an unexpected keyword argument 'simplify'",
+      "traceback": "Traceback (most recent call last):\n  File \"/kaggle/src/script.py\", line 227, in probe_p5\n    results[name] = builder(out_dir)\n                    ^^^^^^^^^^^^^^^^\n  File \"/kaggle/src/script.py\", line 253, in _export_rfdetr\n    model.export(output_dir=str(out_dir / \"rfdetr\"), simplify=True, opset_version=17)\nTypeError: RFDETR.export() got an unexpected keyword argument 'simplify'\n"
+    },
+    "d-fine-nano": {
+      "evaluated": false,
+      "reason": "ModuleNotFoundError: No module named 'onnxscript'",
+      "traceback": "Traceback (most recent call last):\n  File \"/kaggle/src/script.py\", line 227, in probe_p5\n    results[name] = builder(out_dir)\n                    ^^^^^^^^^^^^^^^^\n  File \"/kaggle/src/script.py\", line 271, in _export_dfine\n    torch.onnx.export(\n  File \"/usr/local/lib/python3.12/dist-packages/torch/onnx/__init__.py\", line 282, in export\n    from torch.onnx._internal.exporter import _compat\nModuleNotFoundError: No module named 'onnxscript'\n"
+    }
+  },
+  "elapsed_s": 109.3
+}

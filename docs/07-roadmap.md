@@ -61,10 +61,19 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       undecidable artefact. The kernels now score the quantised graph on the same
       split, and `export.targets` is read rather than decorative
       ([04 § 7](04-ml-pipeline.md#targets-versus-gates--different-things-different-consequences)).
-- [ ] **Probes P4 and P5** — the latency half of the gate, answerable **without a
-      training run**, because ONNX cost depends on architecture and input shape
-      rather than weights ([docs/12](12-validation-protocol.md)). Cheapest
-      evidence available in this project.
+- [x] **Probes P4 and P5** — ran 2026-08-16, without a training run, exactly as
+      [docs/12](12-validation-protocol.md) predicted they could. **Both model
+      budgets pass and the concurrency they were supposed to buy does not**:
+      validator 26.6–33.0 ms and identifier 17.4–21.7 ms per crop, but a one-bin
+      frame costs 66–77 ms and the ceiling re-derives to **4–5 concurrent
+      scanners, not 10**. Two causes, both recorded in
+      [P4](research/probes/P4-multi-bin-cost-curve.md): docs/05 § 3's arithmetic
+      double-counted the vCPUs, and 15–40 ms per frame belongs to neither graph.
+      Crop batching was measured at 1.10–1.25×, never the 2× that would have made
+      it the service requirement docs/01 § 4 called it.
+      [P5](research/probes/P5-validator-architecture.md): RF-DETR-nano is 475 ms,
+      9.5× over budget, so **YOLO11n stays**; D-FINE-N is unevaluated, which is
+      recorded as a gap rather than as a failure.
 - [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
       403 crops are not labelled against a class list that turns out wrong
 - [ ] First training run on a Kaggle kernel
@@ -89,10 +98,20 @@ roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
 end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
 Probe P4 measures the curve.
 
-**Gate status: not yet answered.** Results land in
-[11-phase2-results](11-phase2-results.md), which currently reports every metric
-as *not measured* and says why. The concurrency half needs the service and is
-phase 3 regardless.
+**Gate status, 2026-08-16: the latency half passes and the concurrency half does
+not.** Both models are inside their budgets with headroom. The ceiling those
+budgets were supposed to produce is **4–5 concurrent scanners at one bin per
+frame against a gate of ≥ 10** — and the shortfall is not the models' fault, it
+is a factor-of-two error in docs/05 § 3's arithmetic plus 15–40 ms per frame that
+was never budgeted. Results in [11-phase2-results](11-phase2-results.md).
+
+That figure is still **predicted from single-stream latency on a proxy host**.
+The load test against a pinned 2-vCPU container is what settles it, and it is the
+one thing here that genuinely needed the service to exist first.
+
+If it stands, the kill criterion below fires and the free-tier serving thesis
+needs revisiting rather than rationalising — which is the whole reason it was
+written down in advance.
 
 Two things found on the way that change what this phase can conclude:
 

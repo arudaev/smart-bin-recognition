@@ -1,0 +1,194 @@
+{
+  "probe": [
+    "P4",
+    "P5"
+  ],
+  "generated": "2026-08-16T14:13:12Z",
+  "hardware": {
+    "label": "Kaggle CPU kernel, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.20GHz, onnxruntime 1.28.0 [PROXY, not the service]",
+    "where": "Kaggle CPU kernel",
+    "cpu": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+    "cores": 4,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.28.0",
+    "representative": false
+  },
+  "weights": "UNTRAINED on this project's data - stock COCO checkpoints, used only for their architecture. Valid for latency, which depends on architecture and input shape; meaningless for accuracy, which is not measured here.",
+  "int8_calibration": "synthetic noise - see CALIBRATION_IMAGES",
+  "iterations": 30,
+  "warmup": 8,
+  "p4": {
+    "solo": {
+      "validator": {
+        "median_latency_ms": 32.977,
+        "p95_latency_ms": 34.256,
+        "mean_latency_ms": 33.12,
+        "min_latency_ms": 32.341,
+        "max_latency_ms": 34.45,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 448,
+        "batch": 1
+      },
+      "identifier": {
+        "median_latency_ms": 21.659,
+        "p95_latency_ms": 34.919,
+        "mean_latency_ms": 23.768,
+        "min_latency_ms": 20.626,
+        "max_latency_ms": 41.468,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 320,
+        "batch": 1
+      }
+    },
+    "identifier_batches": {
+      "1": {
+        "median_latency_ms": 21.384,
+        "p95_latency_ms": 23.097,
+        "mean_latency_ms": 21.528,
+        "min_latency_ms": 20.688,
+        "max_latency_ms": 23.3,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 320,
+        "batch": 1
+      },
+      "3": {
+        "median_latency_ms": 60.166,
+        "p95_latency_ms": 61.349,
+        "mean_latency_ms": 60.272,
+        "min_latency_ms": 58.969,
+        "max_latency_ms": 62.245,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 320,
+        "batch": 3
+      },
+      "6": {
+        "median_latency_ms": 117.16,
+        "p95_latency_ms": 119.639,
+        "mean_latency_ms": 117.52,
+        "min_latency_ms": 115.765,
+        "max_latency_ms": 121.715,
+        "iterations": 30,
+        "warmup": 8,
+        "imgsz": 320,
+        "batch": 6
+      }
+    },
+    "curve": [
+      {
+        "crops": 0,
+        "batched": null,
+        "median_latency_ms": 32.778,
+        "p95_latency_ms": 34.092,
+        "mean_latency_ms": 32.868,
+        "min_latency_ms": 31.742,
+        "max_latency_ms": 34.135,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 1,
+        "batched": true,
+        "median_latency_ms": 77.285,
+        "p95_latency_ms": 88.694,
+        "mean_latency_ms": 78.317,
+        "min_latency_ms": 75.761,
+        "max_latency_ms": 97.619,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 1,
+        "batched": false,
+        "median_latency_ms": 77.483,
+        "p95_latency_ms": 79.285,
+        "mean_latency_ms": 77.69,
+        "min_latency_ms": 76.205,
+        "max_latency_ms": 81.719,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 3,
+        "batched": true,
+        "median_latency_ms": 107.674,
+        "p95_latency_ms": 113.039,
+        "mean_latency_ms": 108.047,
+        "min_latency_ms": 105.086,
+        "max_latency_ms": 117.995,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 3,
+        "batched": false,
+        "median_latency_ms": 134.037,
+        "p95_latency_ms": 138.326,
+        "mean_latency_ms": 134.62,
+        "min_latency_ms": 131.349,
+        "max_latency_ms": 149.67,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 6,
+        "batched": true,
+        "median_latency_ms": 188.387,
+        "p95_latency_ms": 196.372,
+        "mean_latency_ms": 185.929,
+        "min_latency_ms": 167.449,
+        "max_latency_ms": 221.961,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      },
+      {
+        "crops": 6,
+        "batched": false,
+        "median_latency_ms": 206.327,
+        "p95_latency_ms": 211.203,
+        "mean_latency_ms": 206.443,
+        "min_latency_ms": 201.097,
+        "max_latency_ms": 214.429,
+        "iterations": 30,
+        "warmup": 8,
+        "validator_imgsz": 448,
+        "identifier_imgsz": 320
+      }
+    ]
+  },
+  "p5": {
+    "rf-detr-nano": {
+      "evaluated": true,
+      "median_latency_ms": 475.251,
+      "p95_latency_ms": 514.371,
+      "mean_latency_ms": 479.079,
+      "min_latency_ms": 466.445,
+      "max_latency_ms": 524.428,
+      "iterations": 30,
+      "warmup": 8,
+      "imgsz": 448,
+      "batch": 1
+    },
+    "d-fine-nano": {
+      "evaluated": false,
+      "reason": "NotImplemented: [ONNXRuntimeError] : 9 : NOT_IMPLEMENTED : Could not find an implementation for Cos(7) node with name '/model/encoder/aifi.0/position_embedding/Cos'",
+      "traceback": "Traceback (most recent call last):\n  File \"/kaggle/src/script.py\", line 244, in probe_p5\n    results[name] = builder(out_dir)\n                    ^^^^^^^^^^^^^^^^\n  File \"/kaggle/src/script.py\", line 304, in _export_dfine\n    return _time_session(onnx, 448, \"images\")\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/kaggle/src/script.py\", line 260, in _time_session\n    session = open_session(onnx_path)\n              ^^^^^^^^^^^^^^^^^^^^^^^\nonnxruntime.capi.onnxruntime_pybind11_state.NotImplemented: [ONNXRuntimeError] : 9 : NOT_IMPLEMENTED : Could not find an implementation for Cos(7) node with name '/model/encoder/aifi.0/position_embedding/Cos'\n"
+    }
+  },
+  "elapsed_s": 181.7
+}

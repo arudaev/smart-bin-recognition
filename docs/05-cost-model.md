@@ -101,51 +101,74 @@ query, at any traffic level.
 > This note exists so that nobody re-derives "€0 serving" from a sentence that
 > was true when it was written.
 
-With model A at ~40 ms and model B at ~25 ms **per crop**, cost per frame is
-linear in the number of bins:
+> **Measured 2026-08-16, and it is worse than this section used to say.**
+> [Probe P4](research/probes/P4-multi-bin-cost-curve.md) ran the curve on a
+> 2-vCPU CPU kernel. Two things came back: the frame costs more than budgeted,
+> and **the arithmetic below had a factor-of-two error in it.**
+>
+> ```
+> 2 vCPU ÷ 0.065 s  ≈  30 frames/second of total capacity    <- WRONG
+> ```
+>
+> That treats 65 ms as *one core-second* of work which two cores can do twice
+> over. It is not: it is a latency measured with onnxruntime **pinned to both
+> cores**. Total capacity is `1 ÷ 0.065 ≈ 15` frames/second, not 30. Running two
+> single-threaded workers instead roughly doubles each frame's latency and lands
+> on the same total, because throughput is bounded by the CPU work either way.
+
+Measured cost per frame, and the ceiling re-derived on it:
 
 | bins in frame | CPU per frame | frames/s on 2 vCPU | concurrent scanners at 3 fps |
 |---:|---:|---:|---:|
-| 1 | 65 ms | ~30 | **~10** |
-| 3 | 115 ms | ~17 | ~6 |
-| 6 | 190 ms | ~10 | **~3.5** |
+| 1 | **66–77 ms** | 12.9–15.2 | **4.3–5.1** |
+| 3 | **89–108 ms** | 9.3–11.3 | 3.1–3.8 |
+| 6 | **154–188 ms** | 5.3–6.5 | **1.8–2.2** |
 
 ```
-2 vCPU ÷ 0.065 s  ≈  30 frames/second of total capacity   (ONE bin per frame)
-client cadence     ≈  3 frames/second per active scanner  (4 fps cap, ~3 achieved)
-                   ─────────────────────────────────────
-concurrent scanners ≈ 10        (before latency degrades)
+one frame, one bin  ≈  66-77 ms on 2 pinned vCPU  (measured, not derived)
+total capacity      ≈  13-15 frames/second
+client cadence      ≈  3 frames/second per active scanner  (4 fps cap, ~3 achieved)
+                    ─────────────────────────────────────
+concurrent scanners ≈  4-5      at ONE bin per frame
+                    ≈  2        at the six-container bank the PRD calls normal
 ```
 
-**Read the table, not just the block.** That arithmetic prices one bin, and
-[00-PRD § 4](00-product-requirements.md#4--scope--v1-mvp) calls a bank of six
-containers a normal input. docs/04 § 1's "multi-bin scenes are free" is an
-**accuracy** claim, not a cost one — see
-[01 § 4](01-architecture.md#latency-budget). The honest headline is therefore
-**3 to 10 concurrent scanners depending on scene complexity**, and the low end is
-what a launch is planned around.
+**The honest headline is 2 to 5 concurrent scanners, not 3 to 10.** The phase-2
+gate asks for ≥ 10 at one bin per frame and this is out by a factor of two before
+scene complexity is considered.
 
-Two things move it, both cheap: batching crops through one ONNX call instead of
-*n* sequential ones, and capping crops per frame with the remainder deferred to
-the next frame. [docs/12 probe P4](12-validation-protocol.md#p4--multi-bin-cost-curve)
-measures the real curve — **and needs no trained model**, since ONNX latency
-depends on architecture and input shape rather than on weights.
+Ranges rather than values because the measuring host is a shared Kaggle kernel
+that varied ~25 % between two runs six minutes apart. And these are predictions
+from single-stream latency; the load test against a pinned container is what
+settles concurrency.
+
+**Batching crops is not the lever this section thought it was.** P4 measured
+1.24× at three crops and 1.10× at six — never the 2× that would have made it a
+requirement. The identifier costs ~20 ms per crop whether batched or not, because
+on two pinned threads it is arithmetic-bound and there is no per-call overhead to
+amortise. The service batches anyway; the cost model may not lean on it. See
+[01 § 4](01-architecture.md#latency-budget).
+
+What is left, in order of cheapness: **drop the validator to 384 px** (it is a
+third of a one-bin frame); **find the 15–40 ms per frame that belongs to neither
+graph** and is most likely session switching; **cap crops harder** than the
+default six, with the remainder deferred to the next frame.
 
 The cadence figure is ~3 fps *achieved* against the **4 fps cap** in 01 § 4: the
 cap is the guarantee, 3 is the average once the motion gate is working.
 
-Ten people scanning **at the same instant**. That sounds small until you convert
-it into users, because a scan is short:
+Four or five people scanning **at the same instant**. That sounds worse than it
+is, because a scan is short:
 
 - one scan ≈ 5 s of streaming, then the **result lock** stops it
-- 10 concurrent × 5 s ⇒ ~7 000 scans/hour of headroom
-- at ~2 scans/user/month ⇒ comfortably **tens of thousands of monthly users**,
-  provided they are not all scanning simultaneously
+- 4 concurrent × 5 s ⇒ ~2 900 scans/hour of headroom
+- at ~2 scans/user/month ⇒ still **thousands to low tens of thousands of monthly
+  users**, provided they are not all scanning simultaneously
 
-So: **the concurrency headroom is real for a pilot and for organic growth in one
-or two towns** – on 2 vCPU from whichever host § 3 settles on. It is
-not real for a launch spike, and it would not survive being posted somewhere
-popular at 9 a.m.
+So: **the headroom is real for a pilot in one town** – on 2 vCPU from whichever
+host § 3 settles on. It was never real for a launch spike, and at four concurrent
+scanners it would not survive being posted somewhere popular at 9 a.m. by a wider
+margin than this document previously claimed.
 
 This is why the client-side gates in
 [01-architecture § 4](01-architecture.md#client-side-gating--the-thing-that-controls-cost)
@@ -268,8 +291,9 @@ is no cliff.
   load-bearing UI, and a cheap cron ping during likely hours is the mitigation.
 - **Frames leave the device.** Requires the privacy handling in
   [01-architecture § 7](01-architecture.md#7-privacy) to be real, not decorative.
-- **Concurrency is a hard ceiling, not a soft one.** Ten simultaneous scanners is
-  the number. Plan launches around it.
+- **Concurrency is a hard ceiling, not a soft one.** Measured 2026-08-16: **four
+  to five** simultaneous scanners at one bin per frame, about two at a bank of
+  six. Not the ten this document asserted for a year. Plan launches around it.
 
 Never: ads, selling user data, or paywalling the disposal rules. The rules are the
 public good; behind a wall, the project has failed at its purpose.
