@@ -140,17 +140,47 @@ Two things found on the way that change what this phase can conclude:
 
 ---
 
-## Phase 3 – Core app *(client done; the service is not)*
+## Phase 3 – Core app *(both halves built; nothing is deployed)*
 
 The client half ran ahead of phase 2, because it could: the loop takes its
 transport as an argument, so an in-process mock drives exactly the loop a socket
-will drive. Nothing here is waiting on a model to be reviewable.
+will drive. The service caught up on 2026-08-16. What is left is the distance
+between "runs locally" and "a person in Deggendorf gets an answer".
 
 - [x] Vite + React + TS scaffold; service worker for the offline rules browser
-- [ ] **FastAPI inference service on an HF Space: WS `/stream` + `POST /detect`**
-      – `service/` is still empty. With neither `VITE_DETECT_WS` nor
-      `VITE_DETECT_URL` set, the client uses the mock and says so on the settings
-      screen rather than implying a service exists.
+- [x] **FastAPI inference service: `POST /detect` + WS `/stream` + `/health`.**
+      `service/` holds nine modules and 111 passing tests: the two transports,
+      the degradation ladder (`shed.py`), sidecar-driven artefact loading with a
+      **hard refusal** on anything whose `gate_result` does not say `may_ship`,
+      provisional colour in CIELAB, and a discipline test that parses the request
+      path and fails if anything on it could write a frame to disk.
+      `POST` is primary and the socket ships unused — a held-open WebSocket
+      forces Cloud Run's instance-based billing
+      ([01 § 2](01-architecture.md#which-inference-host)).
+- [ ] **Deploy.** No Cloud Run configuration exists and the client is not on
+      Vercel, so with neither `VITE_DETECT_WS` nor `VITE_DETECT_URL` set the
+      client still uses the mock and says so on the settings screen.
+- [ ] **The load test** — the phase-2 gate's unanswered half. It must run against
+      `docker run --cpus 2`, **not** against Cloud Run: Cloud Run autoscales, so
+      measuring there measures Google's scheduler rather than the two vCPU the
+      cost model is arithmetic about. It needs no trained model —
+      `SBR_ALLOW_UNGATED=1` with the int8 artefacts under `artifacts/probe2/`
+      is the same trick that let P4 and P5 run.
+- [ ] **CI for `service/` and `web/`.** `.github/workflows/ml.yml` covers `ml/`
+      only, so the newest and least-proven code in the repo — and its 111 tests —
+      never runs on a pull request.
+- [ ] **The wire contract has drifted, and only a byte-level test will catch it.**
+      `service/wire.py` emits `advice` (the ladder) and `pack_status`;
+      `web/src/transport/protocol.ts` declares neither, so the server's
+      load-shedding advice is dropped on the floor today. Two independent
+      readings of [01 § 4](01-architecture.md#4-streaming-protocol) is not a
+      contract; pin both sides to the same bytes.
+- [ ] **The ladder's client half.** `shed.py` implements all three rungs and the
+      service emits them, but `Cadence` takes its interval as a `readonly`
+      constructor argument and there is no `StopReason` for "the service asked me
+      to stop streaming". The designed states exist; there is no way to reach
+      them. Note the server may only ever **lower** a client's cadence — a gate a
+      server could switch off is not a gate.
 - [x] Capability probe; three device tiers
 - [x] Scan loop: motion gate, 4 fps cap, **result lock**, 20 s abort, tap-to-scan
 - [x] Resolver in `domain/`, framework-free, unit-tested against the pack schema
@@ -184,8 +214,20 @@ Built in the same pass, beyond what this phase originally listed:
       out of the production bundle by construction
 
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
-gets a correct answer in Ukrainian. Blocked on the service, the Ukrainian
-bundle, and a Deggendorf pack that is still `draft`.
+gets a correct answer in Ukrainian.
+
+No longer blocked on the service — that exists. Blocked on four things, and it
+is worth being exact about which, because they have different owners:
+
+| Blocker | Owner | Note |
+|---|---|---|
+| **Nothing is deployed** | this phase | no Cloud Run config; client not on Vercel |
+| **No identifier** | the maintainer | the 403-crop human pass in `data/legacy/pool/crops/`. Until then the service answers *where* a bin is, `form_factor` is `null`, the resolver says `unknown`, and `/health` says so — a designed state, but not a correct answer |
+| **The Ukrainian bundle** | this phase | `en` is complete at 419 keys; `de`/`ar` are at 271 (65 %); six locales including `uk` are not started |
+| **The Deggendorf pack is `draft`** | this phase | one source carries `"retrieved": null`, so `RegionPack.is_publishable` is false and correctly so |
+
+The second is the one that decides whether the exit criterion is reachable on
+any particular date, and it is the only one no amount of engineering shortens.
 
 ---
 
