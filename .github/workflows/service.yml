@@ -1,0 +1,76 @@
+name: service
+
+# The newest and least-proven code in the repository, and until now the only
+# tree with no CI at all. ml.yml covers ml/; web.yml covers web/; this covers
+# the thing that stands between a model and a user.
+#
+# Path-filtered on more than service/ on purpose. The service imports
+# sbr.taxonomy rather than re-implementing the resolver, and reads the taxonomy
+# JSON at startup, so a change to either can break it without a line of
+# service/ being touched - which is exactly the kind of break nobody looks for.
+
+on:
+  push:
+    paths:
+      - "service/**"
+      - "ml/src/sbr/**"
+      - "data/taxonomy/**"
+      - ".github/workflows/service.yml"
+  pull_request:
+    paths:
+      - "service/**"
+      - "ml/src/sbr/**"
+      - "data/taxonomy/**"
+      - "web/src/transport/__fixtures__/**"
+      - ".github/workflows/service.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: service
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: service/requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        # loadtest/ is included: it is not in the image, but it is the
+        # instrument the concurrency number in docs/05 comes from, and a
+        # measuring tool nobody lints is a measuring tool nobody trusts.
+        run: ruff check . loadtest/
+
+      - name: Types
+        run: mypy .
+
+      - name: Tests
+        # pyproject puts ../ml/src on pythonpath, so sbr resolves without
+        # installing ml/ - the same way the container does it.
+        run: python -m pytest tests/ -q
+
+      - name: The wire contract still holds
+        # Belt and braces. It runs inside pytest above; naming it separately
+        # means a red build says WHICH thing drifted, and this is the one
+        # failure whose cause is in another language.
+        run: python -m pytest tests/test_wire_contract.py -q
+
+      - name: The fixtures were not quietly regenerated
+        # SBR_REGEN_FIXTURES makes the contract test rewrite what it compares
+        # against. A run that sets it proves nothing, and a commit that leaves a
+        # regenerated fixture behind unnoticed is how a contract stops being one.
+        run: |
+          if [ -n "$(git status --porcelain ../web/src/transport/__fixtures__)" ]; then
+            echo "::error::the contract test modified committed fixtures - regenerate deliberately and commit the diff"
+            git --no-pager diff --stat ../web/src/transport/__fixtures__
+            exit 1
+          fi
