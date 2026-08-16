@@ -14,9 +14,9 @@ _defaults_: default.yaml
 #
 # It is a CLASSIFIER, not a detector. The validator has already localised the
 # object and the crop is filled by it, so re-detecting would spend the 25 ms
-# budget re-deriving a box that is already known. Classification also makes
-# `unknown` principled: it is a max-softmax below `unknown_threshold`, not a
-# box score below a confidence floor.
+# budget re-deriving a box that is already known. Classification also gives
+# `unknown` a better basis: a max-softmax below `unknown_threshold` rather than
+# a box score below a confidence floor.
 
 run_name: identifier
 
@@ -49,6 +49,17 @@ data:
 # Where `unknown` comes from. Below this max-softmax the identifier says it does
 # not know, which is a designed product state and the entry point to the
 # improvement loop – not an error. docs/01-architecture.md § 3.
+#
+# PROVISIONAL. 0.55 is a guess, not a calibrated operating point, and max-softmax
+# is a BASELINE: the literature is explicit that softmax confidence can be
+# arbitrarily high on out-of-distribution inputs, which is exactly the input this
+# threshold exists to catch. It is a strong baseline and hard to beat, so it
+# stays until there is evidence. What it is not is "principled".
+#
+# docs/12 probe P2 replaces it with a threshold chosen at a stated NOVELTY
+# PRECISION over a frozen five-bucket set, after comparing max-softmax against
+# energy, max-logit and kNN-on-embeddings. Pin the run that produced it here when
+# it lands. See docs/research/02-novelty-and-abstention.md.
 inference:
   unknown_threshold: 0.55
 

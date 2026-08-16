@@ -139,6 +139,9 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [06-i18n](docs/06-i18n.md) | adding user-visible text |
 | [07-roadmap](docs/07-roadmap.md) | planning |
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
+| [11-phase2-results](docs/11-phase2-results.md) | quoting a number about a model |
+| [12-validation-protocol](docs/12-validation-protocol.md) | **before hard-coding anything still theoretical** |
+| [docs/research/](docs/research/README.md) | the evidence behind the numbers, and the 2026-08-16 hardening register |
 | [web/CONVENTIONS](web/CONVENTIONS.md) | **any UI work – read this first** |
 | [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) + [handoff/FLOW-NOTES](handoff/FLOW-NOTES.md) | why the UI is the way it is |
 
@@ -227,9 +230,18 @@ Things that must not happen, and why:
   failure. `unknown` is a designed state – use it.
 - **Never let user input reach training data without human label review.**
   Consensus is enough to publish a pack entry; it is not enough to train on.
-  Different blast radii.
+  Different blast radii. This is absolute and turns on the **provenance of the
+  image**, not the confidence of the label: high-agreement machine labels may
+  auto-accept over a *public corpus we harvested*, never over a frame a user
+  contributed, and never for a form factor that has no data yet
+  ([04 § 4](docs/04-ml-pipeline.md)).
 - **Never add a per-inference paid API to the common path.** The €0 constraint
   is architectural. If a feature needs one, it is the wrong feature.
+- **Never state a claim as measured when it is assumed.** A number needs the
+  split and the hardware it came from, and a gate needs something that actually
+  measures it — int8 accuracy had no owner until 2026-08-16 and no artefact could
+  ship. Anything still theoretical gets a probe in
+  [docs/12](docs/12-validation-protocol.md) before it gets hard-coded.
 - **Never ship a model that misses its latency budget** (validator ≤ 50 ms
   @ 448, identifier ≤ 25 ms per crop, on service CPU). Concurrency is the cost
   ceiling, so latency is the budget. The build fails; it does not warn.

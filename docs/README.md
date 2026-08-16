@@ -13,6 +13,17 @@ Read in order on a first pass. After that, use the "read it when" column.
 | 06 | [Internationalisation](06-i18n.md) | adding user-visible text |
 | 07 | [Roadmap](07-roadmap.md) | planning |
 | 08 | [Legacy audit](08-legacy-audit.md) | wondering why something is the way it is |
+| 09 | [Hackathon strategy](09-hackathon-strategy-2026-08-11.md) | deciding where to submit |
+| 10 | [Hacksocial 2026](10-hacksocial-2026-participation.md) | the entry that is actually live |
+| 11 | [Phase 2 results](11-phase2-results.md) | quoting a number about a model |
+| 12 | [Validation protocol](12-validation-protocol.md) | **before hard-coding anything that is still a theory** |
+
+## Research
+
+[`research/`](research/) holds the evidence behind the numbers here — what
+exists outside this repo and what it changes inside it. Every note names the doc
+section it feeds. [`research/00-hardening-register.md`](research/00-hardening-register.md)
+is the audit trail for the 2026-08-16 contradiction pass.
 
 ## Design
 

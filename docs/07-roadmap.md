@@ -55,16 +55,39 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       frames (14 975 street scenes, 2 499 hard negatives), a 15.7:1 negative
       ratio within the subset. Pools are shard-nested because the Hub refuses a
       directory over 10 000 files ([04 § 5](04-ml-pipeline.md)).
+- [x] **Every ship gate has an owner.** Until 2026-08-16 int8 accuracy had none —
+      both kernels deferred it to `gate.py`, which measures only latency, so
+      `may_ship` was unreachable and the first run would have produced an
+      undecidable artefact. The kernels now score the quantised graph on the same
+      split, and `export.targets` is read rather than decorative
+      ([04 § 7](04-ml-pipeline.md#targets-versus-gates--different-things-different-consequences)).
+- [ ] **Probes P4 and P5** — the latency half of the gate, answerable **without a
+      training run**, because ONNX cost depends on architecture and input shape
+      rather than weights ([docs/12](12-validation-protocol.md)). Cheapest
+      evidence available in this project.
+- [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
+      403 crops are not labelled against a class list that turns out wrong
 - [ ] First training run on a Kaggle kernel
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
-- [x] The thing that makes the latency budget real: a **2-vCPU HF Space bench**,
+- [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
-- [ ] Colour extraction from SAM 2 masks, validated against the legacy class labels
+- [ ] Colour extraction, validated against **hand-labelled body/lid colours**
+      ([probe P3](12-validation-protocol.md#p3--colour-measurement)). The earlier
+      wording here — "from SAM 2 masks, validated against the legacy class
+      labels" — was wrong twice: legacy labels are waste *streams* and a stream
+      is not a colour any more than it is a shape, and whether a mask is needed
+      at all is exactly what the probe tests.
 - [ ] **Load-test the service: how many concurrent scanners before degradation?**
 
 **Gate:** validator ≤ 50 ms @ 448 and identifier ≤ 25 ms per crop on service
-CPU, and ≥ 10 concurrent scanners on the free tier. If this fails, the free-tier
-thesis needs revisiting – which is why it is phase 2 and not phase 5.
+CPU, and ≥ 10 concurrent scanners on the free tier **at one bin per frame**. If
+this fails, the free-tier thesis needs revisiting – which is why it is phase 2
+and not phase 5.
+
+The concurrency half now carries a caveat it did not have: a six-bin frame costs
+roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
+end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
+Probe P4 measures the curve.
 
 **Gate status: not yet answered.** Results land in
 [11-phase2-results](11-phase2-results.md), which currently reports every metric
@@ -149,7 +172,7 @@ bundle, and a Deggendorf pack that is still `draft`.
 
 ---
 
-## Phase 5 – Escalation and the flywheel
+## Phase 5 – Escalation and closing the loop
 
 - [ ] `POST /api/escalate`, strict JSON contract, citation required
 - [ ] Project-wide daily ceiling; queue-not-autoscale behaviour

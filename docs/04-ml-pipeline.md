@@ -40,8 +40,24 @@ The majority of A's training data is **not bins**. This is what buys precision.
 | Recycling logos on non-bins (posters, packaging, signage) | breaks the "green + arrows = bin" shortcut | ~500 |
 | Legacy + new bin images | positives | ~500 and growing |
 
-Roughly **30:1 negative to positive.** That ratio is the point. A detector
-trained only on photos of bins learns that everything is a bin.
+**The ratio, defined once.** It is *background frames : frames containing at
+least one bin*, and there is only one number:
+
+| | frames | ratio |
+|---|---:|---|
+| designed, when this table was written | 18 000 : ~500 | ~36:1 |
+| **realised, at revision `8666aa23`** | **17 474 : 1 480** | **11.8:1** |
+
+The realised ratio is lower because the harvest **added positives** (1 110 Open
+Images bin frames on top of 370 legacy), not because it lost negatives. That is a
+good trade and the number needs no defending: what buys precision is that the
+detector sees far more not-bins than bins, and 12:1 does that. The claim to
+retire is "30:1 is the point" — the *asymmetry* is the point, and the specific
+figure was never load-bearing.
+
+Two earlier statements of this are superseded: "roughly 30:1" here, and "~15.7:1"
+in § 5 below, which divided the negatives by the Open Images bins alone and left
+the legacy frames out.
 
 Hard negatives are also harvested automatically: any frame where A fires but a
 contributor marks "there is no bin here" becomes a hard negative for the next
@@ -53,13 +69,28 @@ Model B never sees a full frame. It sees a normalised, centred crop with the
 background mostly removed. Three consequences:
 
 1. A smaller, cheaper model reaches higher accuracy on the same data.
-2. **Colour measurement is taken from the object, not the scene.** With the SAM 2
-   mask (§ 3) it is taken from the *mask*, so a bin photographed against grass no
-   longer reads as greenish.
-3. Multi-bin scenes are free – N crops, N independent identifications, no
-   crowding in the detector head.
+2. **Colour measurement is taken from the object, not the scene.** A mask (§ 3)
+   would tighten this further, so a bin photographed against grass does not read
+   as greenish — but *whether a mask is needed at all is unmeasured*. The crop is
+   already filled by the object (`identifier.yaml` pads by 0.12), and a mask does
+   not solve the harder problem of separating lid from body.
+   [docs/12 probe P3](12-validation-protocol.md#p3--colour-measurement) tests
+   whether SAM belongs on the critical path before it is put there.
+3. Multi-bin scenes are free **in accuracy** – N crops, N independent
+   identifications, no crowding in the detector head. They are **linear in
+   cost**: N crops is N × 25 ms, and a bank of six triples the frame's CPU. The
+   two were stated as one property until 2026-08-16; see
+   [01 § 4](01-architecture.md#latency-budget) and
+   [05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters).
 
-## 2. The improvement loop
+## 2. The human-reviewed improvement loop
+
+> Named carefully. It is **not** a self-improving system and calling it a
+> flywheel overstates what is automated. Software finds valuable examples,
+> deduplicates them, and proposes labels; **a human decides what becomes truth**,
+> and promotion to a deployed model is a separate, manual, gated step. That is a
+> controlled release cycle with machine assistance, which is the honest
+> description and also the safe design — see the guardrails in § 4.
 
 ```
    user scans
@@ -109,9 +140,14 @@ because it matters for picking the right one:
 - **GroundingDINO** – **open-vocabulary detection from text**. This is the one
   that boxes things from a prompt like `"waste container . wheelie bin ."`.
 - **SAM 2** (Meta) – segments given a box or point prompt. Turns a loose box into
-  a tight mask.
+  a tight mask. **One object per prompt.**
+- **SAM 3** (Meta, Nov 2025) – takes a *noun phrase* and returns masks for
+  **every** matching instance at once. This is boxes and masks in one call, and
+  it makes steps [2] and [3] below a single step.
 - **YOLO-World / YOLOE** – open-vocab detection, faster and lighter than
-  GroundingDINO, slightly less accurate.
+  GroundingDINO, slightly less accurate. Note that this pipeline is **batch and
+  offline**, so throughput is worth nothing here and accuracy is worth
+  everything — the opposite of how one would choose for the request path.
 
 ### The pipeline
 
@@ -122,12 +158,14 @@ new frames from the collection queue
         │                            (a 5 s scan yields 15 near-identical frames –
         │                             keep the sharpest, drop the rest)
         ▼
-   [2] candidate boxes               GroundingDINO, prompt:
+   [2+3] boxes AND masks             SAM 3, concept prompt:
         │                            "waste container . wheelie bin . dumpster .
         │                             bottle bank . recycling container ."
-        ▼
-   [3] tight masks                   SAM 2, prompted by [2]'s boxes
-        │                            → precise boxes AND a colour-measurement mask
+        │                            → every instance at once, boxes + masks.
+        │                            GroundingDINO → SAM 2 remains the documented
+        │                            fallback for near-miss discrimination
+        │                            (planter vs bin), which is a naming problem
+        │                            SAM 3 does not obviously solve.
         ▼
    [4] semantic label                VLM on each masked crop → form factor,
         │                            candidate stream, citation to municipal
@@ -141,14 +179,52 @@ new frames from the collection queue
 ```
 
 Steps 1–3 need no waste-domain knowledge and run free on a Kaggle GPU kernel.
-Step 4 is the only paid step, it runs in **batch offline** rather than in the
-user's request path, and it is capped.
+Step 4 **no longer has to be paid either**: an open-weight VLM (InternVL3,
+Qwen3-VL) runs on the same free Kaggle GPU, with a hosted batch API retained as
+fallback for schema reliability
+([05 § 5](05-cost-model.md#5-the-paid-path-and-how-it-stopped-being-one),
+[research/04](research/04-labelling-and-vlms.md)). Either way it runs **batch
+offline**, never in the user's request path, and it is capped.
 
-**Agreement gating.** Where GroundingDINO and SAM 2 agree with high confidence
-*and* the VLM's form factor matches model B's guess, the label is accepted
-automatically into a `machine_labelled` pool. Everything else goes to a human.
-The pools stay separate in the dataset so their contribution can be measured –
-and rolled back if machine labels turn out to hurt.
+### How accurate is any of this?
+
+**Unmeasured, and no published number transfers to our bins.** Until
+[docs/12 probes P1 and P6](12-validation-protocol.md) report, every accuracy
+claim about auto-labelling in this document is a **prior**. What can be said now
+is that "auto-labelling" is four tasks of very different difficulty and they
+should not be quoted as one number:
+
+| Sub-task | Expectation | Note |
+|---|---|---|
+| **Boxes** | decent recall, moderate precision | failure mode is exactly our hard-negative list — planters, postboxes, utility cabinets |
+| **Per-location categorisation** | *not a model at all* | geohash → jurisdiction → pack is a deterministic lookup. The thing that could most harm a user is not model-driven |
+| **Form factor** | hardest, possibly ill-posed | `wheelie_small` vs `wheelie_large` is a size distinction asked of a resized crop — probe P1 |
+| **Colour** | a measurement, not a label | § 1, probe P3 |
+
+**Accuracy is also the wrong headline metric**, because no auto-label ever
+reaches a user — it is a proposal to a reviewer. What matters is *time saved per
+human decision*: a 70 %-correct proposal confirmable with one keystroke is a win,
+since the reviewer was going to look anyway. Accuracy starts mattering
+enormously the moment auto-**accept** is on the table, which is the next
+paragraph.
+
+**Agreement gating.** Where the proposal step and the VLM agree with high
+confidence *and* the VLM's form factor matches model B's guess, the label may be
+accepted into a `machine_labelled` pool. Everything else goes to a human. The
+pools stay separate in the dataset so their contribution can be measured – and
+rolled back if machine labels turn out to hurt.
+
+Two honest caveats on that gate:
+
+- **It is circular by construction.** It auto-accepts what B already knows and
+  routes disagreements to a human. That is the *safe* direction, but it means
+  auto-labelling saves least effort exactly where value is highest — and the
+  collection queue is prioritised by **A-confident + B-unknown** (§ 2), which is
+  precisely the population the gate cannot accept. At pilot volume, expect most
+  of the queue to reach a human regardless.
+- **Label noise is expensive at our size.** At 85 % accuracy, auto-accepting puts
+  15 % wrong labels into training; with ~1 480 positives that is not absorbable.
+  This is the concrete reason behind the guardrail in § 4.
 
 ### Why not label with the legacy model
 
@@ -166,17 +242,36 @@ The only irreplaceable step, so it is made as small as possible:
   corrects. Confirmation is one keystroke.
 - Anything touching **safety-relevant rules** (what may be thrown where) is
   reviewed against a cited municipal source, never accepted on model confidence.
-- Machine labels never enter the training set unreviewed *for new form factors*.
-  For form factors already well represented, high-agreement machine labels may
-  auto-accept.
+### What may auto-accept, and what may never
+
+The guardrail in AGENTS.md says *"never let user input reach training data
+without human label review"*, and this section used to permit high-agreement
+machine labels to auto-accept. Both cannot be true. **The resolution is the
+provenance of the image, not the confidence of the label** — because the two
+cases have completely different blast radii:
+
+| Image came from | May auto-accept? | Why |
+|---|---|---|
+| **A user's contributed frame** | **Never.** Human review, always | Poisoning the registry costs data; poisoning the training set costs every future answer. This is the guardrail and it is absolute |
+| A public corpus we harvested (Open Images, and similar) | Yes, at high agreement, into `machine_labelled` | Nobody can aim it at us, and the pool is separated so its contribution is measurable and reversible |
+| Any **new** form factor, from any source | **Never** | There is no well-represented prior to agree with, so "high agreement" is meaningless |
+
+`identifier.yaml`'s `label_sources: ["human", "machine_agreed", "legacy"]` is
+consistent with this — `machine_agreed` means the public-corpus row, never the
+user row.
 
 ## 5. Datasets
 
-| HF repo | Contents |
-|---|---|
-| `arudaev/smart-bin-detect` | Model A: bins + negatives + hard negatives |
-| `arudaev/smart-bin-identify` | Model B: crops labelled by form factor |
-| `arudaev/smart-bin-raw` | private – retained frames pending adjudication |
+| HF repo | Contents | Exists? |
+|---|---|---|
+| `arudaev/smart-bin-detect` *(dataset)* | Model A: bins + negatives + hard negatives | **yes**, pinned at `8666aa23` |
+| `arudaev/smart-bin-detect` *(model)* | both artefacts + sidecars, `hub.model_repo` | not yet – no run has completed |
+| `arudaev/smart-bin-identify` | Model B: crops labelled by form factor | **planned**; blocked on the adjudication pass |
+| `arudaev/smart-bin-raw` | private – retained frames pending adjudication | **planned**; needs the service and the consent flow first |
+
+The first two share an id: the Hub namespaces datasets and models separately, so
+`arudaev/smart-bin-detect` is both a dataset repo and a model repo and they do
+not collide. Worth stating, because it reads like a mistake.
 
 Pinned by commit revision in `ml/src/sbr/utils/hub.py`. Every image carries
 provenance: source, region, capture date, label origin
@@ -192,9 +287,9 @@ At revision `c39b0f87` (2026-08-16), 18 954 frames over three subsets:
 | `open_images` | 1 110 | 1 936 | sharded | `unknown` | worldwide bins, and **98 frames with 4+ bins** |
 | `negatives` | 17 474 | 0 | sharded | `unknown` | 14 975 street + 2 499 hard, all guaranteed bin-free |
 
-The negatives are ~15.7:1 against the bin frames, which is the ratio § 1 argues
-for: a detector trained only on photographs of bins learns that everything is a
-bin, which is what the predecessor did.
+Against **all** bin frames the negatives are **11.8:1** (§ 1 defines the ratio and
+records why the earlier 15.7:1 here was wrong — it divided by the Open Images
+bins alone and dropped the legacy 370).
 
 Two cautions this table exists to make visible. The `4+` bucket comes entirely
 from Open Images — the legacy archive has no frame with four or more bins, so
@@ -348,41 +443,84 @@ Three splits, always reported together:
 
 Grouping is by capture cluster, so frames of the same bin never straddle a split.
 
-Per-model targets:
+### Targets versus gates – different things, different consequences
 
-| Metric | Target |
-|---|---|
-| A recall (held-out city) | ≥ 0.97 |
-| A precision on the negative corpus | ≥ 0.97 |
-| B form-factor accuracy (held-out city) | ≥ 0.85 |
-| End-to-end stream accuracy where a pack exists | ≥ 0.95 |
-| Novelty precision – flagged items that were genuinely new | ≥ 0.70 |
+A **gate** is arithmetic the free tier depends on: miss it and the service costs
+money, so the build fails. A **target** is how good the model is: miss it and the
+answer is to write the number down and go and fix it, not to refuse to ship the
+only model that exists.
 
-The last one is the health metric for the whole loop. If the flag fires on things
-that are not actually novel, adjudication time is being wasted.
+| Metric | Target | Where it lives |
+|---|---|---|
+| A recall (held-out city) | ≥ 0.97 | `validator.yaml` `export.targets` |
+| A precision on the negative corpus | ≥ 0.97 | `validator.yaml` `export.targets` |
+| B form-factor accuracy (held-out city) | ≥ 0.85 | `identifier.yaml` `export.targets` |
+| End-to-end stream accuracy where a pack exists | ≥ 0.95 | needs the service; phase 3 |
+| Novelty precision – flagged items that were genuinely new | ≥ 0.70 | [probe P2](12-validation-protocol.md#p2--novelty-scoring-bake-off) |
+
+Until 2026-08-16 these were **decorative**: `export.targets` was read by nothing,
+so a fast but useless model produced a sidecar indistinguishable from a good one.
+`sbr.export.onnx_export.check_targets` now reads them and writes a verdict into
+the sidecar beside the gates, in three categories — met, missed, and
+**unmeasurable**.
+
+That third category is the one that matters today: the held-out-city targets need
+a second `region_id` and no subset has one (§ 5), so they report as *missing
+evidence* rather than being silently skipped. That is what stops the
+generalisation question — the one this whole phase exists to answer — from being
+quietly dropped.
+
+Novelty precision is the health metric for the whole loop: if the flag fires on
+things that are not actually novel, adjudication time is being wasted. It has a
+target here and a kill criterion in
+[07-roadmap](07-roadmap.md#kill-criteria), and until probe P2 defines the frozen
+set it has no measurement procedure at all.
+
+### The gate that does not exist yet
+
+Nothing stops **v2 from being worse than v1**. The ship gates judge an artefact
+in isolation — latency, quantisation cost — and never against the deployed model.
+A regression gate (compare the candidate to the pinned production sidecar on the
+frozen set, refuse promotion on a regression) is the one idea worth taking from
+industrial pipelines, and it costs one comparison
+([research/03 § 2](research/03-data-engine-patterns.md)). It belongs with the
+second training run, since v1 has nothing to regress against.
 
 ## 8. Layout
 
+**What exists today:**
+
 ```
 ml/
-├── configs/            default.yaml · validator.yaml · identifier.yaml
+├── configs/            default · validator · identifier · legacy_archive · open_images
 ├── src/sbr/
 │   ├── taxonomy.py             ontology, region packs, resolver
 │   ├── config.py               YAML inheritance, cloud guard
+│   ├── bench.py                the measuring instrument, and what "service CPU" means
 │   ├── dataset/
+│   │   ├── archive.py          the legacy archive's contract; refuses a short copy
 │   │   ├── legacy_import.py    reconstructs the predecessor's split archive
 │   │   ├── open_images.py      open-corpus + hard-negative assembly
 │   │   ├── pool.py             the on-disk layout: shards, and the Hub's cap
 │   │   └── prepare.py          group-aware / region-holdout splits
-│   ├── autolabel/
-│   │   ├── dedupe.py           DINOv2 embeddings, near-duplicate removal
-│   │   ├── propose.py          GroundingDINO → SAM 2 → boxes + masks
-│   │   ├── semantic.py         VLM crop → form factor + stream + citation
-│   │   └── cluster.py          HDBSCAN over embeddings for batch review
-│   ├── export/onnx_export.py
+│   ├── export/onnx_export.py   int8 export, the ship gates, and the targets
 │   ├── escalation/schema.py
 │   └── utils/hub.py
-├── kaggle/{train_validator,train_identifier,autolabel_batch}/
-├── scripts/            dispatch.py · validate_taxonomy.py · benchmark.py
+├── kaggle/             train_validator · train_identifier · build_negatives · bench_latency
+├── scripts/            dispatch · adjudicate · gate · evaluate · push_dataset
+│                       inventory_legacy · benchmark_legacy · validate_taxonomy
 └── tests/
 ```
+
+**Planned, and deliberately not built yet** – `src/sbr/autolabel/` and
+`kaggle/autolabel_batch/`: near-duplicate removal, SAM 3 proposal, VLM semantics,
+and HDBSCAN clustering for batch review. This block used to list them as though
+they existed.
+
+Two of the four are probably **not ours to write**: FiftyOne does embedding
+dedup, clustering and mistakenness out of the box and is open source
+([research/03 § 5](research/03-data-engine-patterns.md)). Evaluate it before
+writing `dedupe.py` and `cluster.py`. And none of this is built before
+[probes P1, P3 and P6](12-validation-protocol.md) report — building an
+auto-labelling stack around unmeasured assumptions is the specific mistake this
+sequencing exists to avoid.
