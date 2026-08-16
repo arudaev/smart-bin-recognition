@@ -23,6 +23,35 @@ inference service, which is phase 3. Latency is the half that can be
 answered now, and it is the half the cost model's arithmetic rests on
 (docs/05 § 3).
 
+Two corrections to how this page should be read, from the 2026-08-16
+hardening pass:
+
+- **Latency does not need a trained model.** ONNX cost depends on
+  architecture and input shape, not on weights, so
+  [probes P4 and P5](12-validation-protocol.md) can fill the table above
+  from untrained exports. This page reports *not measured* because
+  nobody has run them yet, not because it is blocked.
+- **The concurrency figure is a range.** Ten concurrent scanners assumes
+  one bin per frame; a bank of six costs roughly three times as much
+  (docs/05 § 3). Whatever lands here names the scene complexity it was
+  measured at.
+
+### Targets, as distinct from gates
+
+A gate is arithmetic the free tier depends on and it fails the build. A
+target is how good the model is and it is reported. The sidecar now
+carries both, in three categories — met, missed, and **unmeasurable**:
+
+| target | role | status |
+|---|---|---|
+| `min_recall_heldout_city` ≥ 0.97 | validator | **unmeasurable** – no subset carries a second `region_id` |
+| `min_precision_on_negatives` ≥ 0.97 | validator | _not measured_ – the run has not completed |
+| `min_formfactor_acc_heldout_city` ≥ 0.85 | identifier | **unmeasurable** – same reason |
+
+*Unmeasurable* is not *missed*. It means the evidence does not exist,
+and it is reported rather than omitted so that the generalisation
+question this phase exists to answer cannot be quietly dropped.
+
 ## What the models were trained on
 
 _The validator run has not completed._

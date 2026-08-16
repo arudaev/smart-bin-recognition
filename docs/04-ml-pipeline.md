@@ -4,7 +4,7 @@
 > human only adjudicates. The goal is accuracy that compounds: the more the app
 > is used, the better it gets.
 
-Training pattern mirrors [CheXVision](../../11-CheXVision/AGENTS.md): HF Hub for
+Training pattern mirrors [CheXVision](../../11-CheXVision/README.md): HF Hub for
 data and artefacts, Kaggle GPU kernels for training, a laptop for dispatch only.
 No local training, no Colab, no notebooks.
 
