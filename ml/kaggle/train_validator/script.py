@@ -289,7 +289,7 @@ def main() -> None:
     # --- export ------------------------------------------------------------- #
     artifacts = WORKING / "artifacts"
     fp32 = export_onnx(
-        best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"]
+        best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"], role=ROLE
     )
     int8 = quantise(
         fp32,
