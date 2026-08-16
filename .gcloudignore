@@ -1,0 +1,45 @@
+# What gets uploaded as a Cloud Build context. DENY EVERYTHING, then re-include
+# exactly the three trees service/Dockerfile copies.
+#
+# Written this way round after the allow-list version cost a stalled upload.
+# This repository is 8.9 GB: data/legacy is 4.3 GB and cv_garbage - the
+# predecessor's photo archive - is another 3.8 GB. An exclude-list has to
+# remember every one of those, and the moment somebody drops a new dataset at
+# the root it is silently uploaded to a build machine.
+#
+# THE TRAP THAT CAUSED IT. gcloud falls back to .gitignore ONLY when there is no
+# .gcloudignore. Creating this file made gcloud stop reading .gitignore entirely,
+# so cv_garbage/ - which .gitignore has excluded for months - became part of the
+# build context. The two files answer different questions and neither implies
+# the other, so this one names what it wants rather than what it does not.
+
+# Everything at the root, gone.
+/*
+
+# The image needs precisely these, and the Dockerfile explains why each:
+#   ml/src/sbr     the resolver - imported, never re-implemented
+#   ml/configs     crop padding, min box size, the unknown threshold
+#   data/taxonomy  streams, form factors, the eleven colours, region packs
+#   service/       the service itself
+!/ml/
+!/data/
+!/service/
+
+# data/ is re-included above only so taxonomy can be; legacy is 4.3 GB.
+/data/*
+!/data/taxonomy/
+
+# The load test is a client, deliberately not in the image.
+/service/loadtest/
+
+# Caches, wherever they are. These change on every local run and would bust the
+# build cache for no reason even if they were small.
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/*.pyc
+
+# Never. Cloud Run gets its configuration as environment variables set at
+# deploy time, not baked into a layer.
+**/.env
