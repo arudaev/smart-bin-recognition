@@ -62,7 +62,7 @@ def unpack_bundle() -> None:
 
 def install_dependencies() -> None:
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "-q", "huggingface_hub>=0.26.0", "pyyaml", "pillow"]
+        [sys.executable, "-m", "pip", "install", "-q", "huggingface_hub>=1.2.0", "pyyaml", "pillow"]
     )
     log("dependencies installed")
 
