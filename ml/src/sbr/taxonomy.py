@@ -198,6 +198,13 @@ class RegionPack:
     local_names: dict[str, str] = field(default_factory=dict)
     overrides: dict[str, Any] = field(default_factory=dict)
     sources: tuple[dict[str, Any], ...] = ()
+    updated: str = ""
+    default_locale: str | None = None
+    #: [minLon, minLat, maxLon, maxLat]
+    bbox: tuple[float, float, float, float] | None = None
+    #: Geohash-5 tiles (~5x5 km) this pack covers. A pack may span several.
+    geohash_tiles: tuple[str, ...] = ()
+    operator: dict[str, Any] | None = None
 
     @property
     def is_publishable(self) -> bool:
@@ -361,6 +368,7 @@ def load_region_pack(region_id: str, directory: Path | None = None) -> RegionPac
         for entry in raw["rules"]
     )
 
+    bbox = raw.get("bbox")
     return RegionPack(
         region_id=raw["region_id"],
         pack_version=raw["pack_version"],
@@ -372,6 +380,11 @@ def load_region_pack(region_id: str, directory: Path | None = None) -> RegionPac
         local_names=raw.get("local_names", {}),
         overrides=raw.get("overrides", {}),
         sources=tuple(raw.get("sources", ())),
+        updated=raw.get("updated", ""),
+        default_locale=raw.get("default_locale"),
+        bbox=tuple(bbox) if bbox else None,  # type: ignore[arg-type]
+        geohash_tiles=tuple(raw.get("geohash_tiles", ())),
+        operator=raw.get("operator"),
     )
 
 
@@ -382,3 +395,43 @@ def load_all_region_packs(directory: Path | None = None) -> dict[str, RegionPack
         path.stem: load_region_pack(path.stem, directory)
         for path in sorted(directory.glob("*.json"))
     }
+
+
+# --------------------------------------------------------------------------- #
+# Which jurisdiction a frame is in
+# --------------------------------------------------------------------------- #
+
+#: Region packs declare coverage as geohash-5 tiles (~5x5 km). The wire carries
+#: geohash-6 (~1.2 km) – enough to pick a jurisdiction, not enough to locate a
+#: household (docs/01 § 7). So selecting a pack is a prefix match, and this is
+#: the precision the prefix is taken at.
+GEOHASH_TILE_PRECISION = 5
+
+
+def region_for_geohash(
+    geohash: str | None, packs: dict[str, RegionPack] | None = None
+) -> RegionPack | None:
+    """The pack covering this location, or ``None``.
+
+    ``None`` is a real answer and the common one: most of the world has no pack.
+    The caller must treat it as *no rule exists here* and say ``unknown`` – never
+    as licence to fall back to a neighbouring pack or to the taxonomy's typical
+    colours. Being confidently wrong about what goes in which bin is this
+    product's worst failure (``docs/02-waste-taxonomy.md`` § 4).
+
+    Where two packs claim the same tile the more specific one wins, measured by
+    how few tiles it claims: a city pack inside a state pack should answer for
+    the city. Ties break on region id so the result is deterministic.
+    """
+    if not geohash:
+        return None
+
+    packs = load_all_region_packs() if packs is None else packs
+    tile = geohash[:GEOHASH_TILE_PRECISION].lower()
+    if len(tile) < GEOHASH_TILE_PRECISION:
+        return None
+
+    covering = [pack for pack in packs.values() if tile in pack.geohash_tiles]
+    if not covering:
+        return None
+    return min(covering, key=lambda pack: (len(pack.geohash_tiles), pack.region_id))

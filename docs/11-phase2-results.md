@@ -13,28 +13,63 @@ on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 
 | model | measured p50 | budget | verdict |
 |---|---|---|---|
-| validator | _not measured_ | ≤ 50 ms | **no artefact** – the run has not completed |
-| identifier | _not measured_ | ≤ 25 ms | **no artefact** – the run has not completed |
+| validator @ 448 | **26.6 – 33.0 ms** | ≤ 50 ms | **within budget**, ~40 % headroom |
+| identifier @ 320, per crop | **17.4 – 21.7 ms** | ≤ 25 ms | **within budget** |
+| concurrent scanners, 1 bin | **4.3 – 5.1** (predicted) | ≥ 10 | **not met** |
 
-Latency hardware: _not measured_
+Latency hardware: **Kaggle CPU kernel, Intel Xeon @ 2.20 GHz, onnxruntime
+pinned to 2 of 4 vCPU, onnxruntime 1.28.0.** `representative: false` – a
+proxy for a service container, not one, and about **25 % noisy** between
+two runs six minutes apart. Both runs are reported as a range for that
+reason.
 
-The concurrency half of the gate is **not answered here**: it needs the
-inference service, which is phase 3. Latency is the half that can be
-answered now, and it is the half the cost model's arithmetic rests on
-(docs/05 § 3).
+Measured 2026-08-16 by
+[probe P4](research/probes/P4-multi-bin-cost-curve.md), on **stock COCO
+architectures untrained on this project's data**. That is sound for
+latency, which depends on architecture and input shape, and meaningless
+for accuracy, which is not measured there.
 
-Two corrections to how this page should be read, from the 2026-08-16
-hardening pass:
+**The two model budgets pass and the thing they were supposed to buy does
+not.** The concurrency figure is derived from the measured frame cost, and
+it is out by a factor of two against the gate. Two contributing findings,
+both in P4:
 
-- **Latency does not need a trained model.** ONNX cost depends on
-  architecture and input shape, not on weights, so
-  [probes P4 and P5](12-validation-protocol.md) can fill the table above
-  from untrained exports. This page reports *not measured* because
-  nobody has run them yet, not because it is blocked.
-- **The concurrency figure is a range.** Ten concurrent scanners assumes
-  one bin per frame; a bank of six costs roughly three times as much
-  (docs/05 § 3). Whatever lands here names the scene complexity it was
-  measured at.
+- docs/05 § 3's arithmetic **double-counted the vCPUs** – it divided 2 vCPU
+  by a latency that had already been measured on both of them. Capacity is
+  ~13–15 frames/second, not 30.
+- a frame costs **15–40 ms more than its two graphs**, most likely from
+  alternating between two onnxruntime sessions. At one bin that is a third
+  of the frame and nothing had budgeted for it.
+
+The concurrency number above is still a **prediction from single-stream
+latency**. The load test against a pinned 2-vCPU container measures it.
+
+Two notes on how this page should be read:
+
+- **Latency did not need a trained model**, and that is why the table
+  above is no longer empty. ONNX cost depends on architecture and input
+  shape rather than on weights, so P4 and P5 filled it from stock
+  exports while the identifier is still blocked on the human pass.
+- **The concurrency figure is a range over scene complexity.** One bin per
+  frame is the easy end; a bank of six — which the PRD calls a normal
+  input — costs about two and a half times as much and drops the ceiling
+  to roughly two scanners.
+
+## Architecture
+
+[Probe P5](research/probes/P5-validator-architecture.md), same hardware.
+
+| candidate | p50 @ 448 | budget | verdict |
+|---|---|---|---|
+| YOLO11n (incumbent) | 26.6 – 33.0 ms | ≤ 50 ms | fits |
+| RF-DETR-nano | **475.3 ms** | ≤ 50 ms | **9.5× over** |
+| D-FINE-N | – | ≤ 50 ms | **not evaluated** – export failed |
+
+**YOLO11n stays.** 475 ms is not a near miss and no amount of tuning
+closes a 9.5× gap. D-FINE-N is recorded as *not evaluated* rather than
+*did not fit*, because a candidate that never ran has not answered the
+question and writing it down as a failure would be manufacturing evidence
+for a convenient conclusion.
 
 ### Targets, as distinct from gates
 

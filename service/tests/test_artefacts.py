@@ -1,0 +1,96 @@
+"""The refusal.
+
+An ungated model reaching users is the failure the whole gate apparatus in
+``ml/`` exists to prevent. Every other test in this repo checks that gates are
+*computed* correctly; these check that the answer is *obeyed* - which is the half
+that was missing, because until ``service/`` existed there was nothing on the
+other end of the verdict.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from artefacts import ArtefactMissingError, UngatedArtefactError, load_artefact
+from settings import Settings
+
+
+def _settings(directory, **overrides) -> Settings:
+    return Settings(artefact_dir=directory, **overrides)
+
+
+def test_an_artefact_that_may_not_ship_is_refused(artefact_dir):
+    directory = artefact_dir("validator", may_ship=False)
+    with pytest.raises(UngatedArtefactError) as raised:
+        load_artefact("validator", _settings(directory))
+
+    # The message has to name what failed. An operator reading a 503 at 3 a.m.
+    # needs the gate, not the fact that there was one.
+    assert "exceeds the 50 ms budget" in str(raised.value)
+
+
+def test_the_refusal_happens_before_the_graph_is_opened(artefact_dir):
+    """A gate that ran after loading would be a gate that had already lost.
+
+    The .onnx files this fixture writes are empty, so onnxruntime would raise if
+    it were ever reached. UngatedArtefactError rather than an onnxruntime error
+    is the proof that it is not.
+    """
+    directory = artefact_dir("validator", may_ship=False)
+    with pytest.raises(UngatedArtefactError):
+        load_artefact("validator", _settings(directory))
+
+
+def test_an_unmeasured_gate_is_also_a_refusal(artefact_dir):
+    # GateResult distinguishes measured-and-over-budget from not-yet-judgeable,
+    # and neither is permission to ship. Only may_ship is.
+    directory = artefact_dir(
+        "validator",
+        may_ship=False,
+        gate_result={
+            "failures": [],
+            "unmeasured": ["median latency has not been measured on the service CPU"],
+            "may_ship": False,
+        },
+    )
+    with pytest.raises(UngatedArtefactError) as raised:
+        load_artefact("validator", _settings(directory))
+    assert "has not been measured" in str(raised.value)
+
+
+def test_a_sidecar_with_no_verdict_at_all_is_refused(artefact_dir):
+    # Absence is not consent. A sidecar predating the gates, or one truncated in
+    # transit, must not read as permission.
+    directory = artefact_dir("validator", may_ship=True, gate_result=None)
+    with pytest.raises(UngatedArtefactError):
+        load_artefact("validator", _settings(directory))
+
+
+def test_the_override_exists_and_announces_itself(artefact_dir, caplog):
+    """SBR_ALLOW_UNGATED is how latency and concurrency get measured before a
+    model is trained. It must be loud, and it must mark the artefact."""
+    directory = artefact_dir("validator", may_ship=False)
+    with pytest.raises(Exception) as raised:  # noqa: B017 - onnxruntime on an empty file
+        load_artefact("validator", _settings(directory, allow_ungated=True))
+
+    # It got past the gate - the failure is now the empty graph, not the verdict.
+    assert not isinstance(raised.value, UngatedArtefactError)
+    assert any("SERVING AN UNGATED ARTEFACT" in record.message for record in caplog.records)
+
+
+def test_a_missing_artefact_is_not_an_ungated_one(artefact_dir):
+    """The distinction the service runs on today.
+
+    "There is no identifier yet" is an expected state - it is blocked on the
+    human adjudication pass - and the service answers where a bin is without it.
+    "There is an identifier and it failed its gates" must never be silently the
+    same thing.
+    """
+    directory = artefact_dir("validator")
+    with pytest.raises(ArtefactMissingError):
+        load_artefact("identifier", _settings(directory))
+
+
+def test_an_unknown_role_is_rejected_before_any_io(artefact_dir):
+    with pytest.raises(ValueError, match="unknown model role"):
+        load_artefact("detector", _settings(artefact_dir("validator")))

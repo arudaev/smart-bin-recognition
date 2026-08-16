@@ -195,33 +195,43 @@ Realistic scan: ~5 s of streaming, ~15 frames, ~450 KB, then lock.
 
 ### Latency budget
 
-Target budget, to be confirmed by measurement in phase 2:
+**Measured 2026-08-16** by [probe P4](research/probes/P4-multi-bin-cost-curve.md)
+on a Kaggle CPU kernel with onnxruntime pinned to 2 vCPU — a *proxy* for the
+service container, and about 25 % noisy run to run. Model stages are measured;
+network stages are still estimates.
 
-| Stage | Budget |
-|---|---|
-| Capture + downscale + encode | ~15 ms |
-| Uplink (30 KB, 4G) | ~60 ms |
-| Model A @ 448 | ~40 ms |
-| Model B, **per crop** | ~25 ms |
-| Resolve + downlink | ~25 ms |
-| **Round trip, one bin** | **~165 ms → ~6 fps, capped at 4** |
+| Stage | | |
+|---|---|---|
+| Capture + downscale + encode | ~15 ms | estimated |
+| Uplink (30 KB, 4G) | ~60 ms | estimated |
+| Model A @ 448 | **27–33 ms** | measured, budget 50 ms |
+| Model B, **per crop** @ 320 | **20–22 ms** | measured, budget 25 ms |
+| Per-frame cost belonging to neither graph | **15–40 ms** | measured, unexplained |
+| Resolve + downlink | ~25 ms | estimated |
+| **Service CPU, one bin** | **66–77 ms** | measured |
 
-Good enough. The perceived experience is carried by box smoothing and the result
-lock, not by raw frame rate.
+Both model budgets are met. The row that was not in the budget at all is the
+third from bottom: a frame costs 15–40 ms *more* than its two graphs, most likely
+from alternating between two onnxruntime sessions on two cores. At one bin that
+is a third of the frame, and it is the cheapest thing left to go and find.
 
 **Model B is per crop, and that is not free.** A bank of six containers — which
 [00-PRD § 4](00-product-requirements.md#4--scope--v1-mvp) calls a normal input —
-costs `40 + 6×25 = 190 ms` of service CPU, roughly three times the one-bin frame.
-docs/04 § 1's "multi-bin scenes are free" is true of **accuracy** (N independent
-crops, no crowding in the detector head) and false of **cost**, which is linear
-in bins. The two were stated as one property until 2026-08-16.
+costs **154–188 ms** of service CPU, roughly two and a half times the one-bin
+frame. docs/04 § 1's "multi-bin scenes are free" is true of **accuracy** (N
+independent crops, no crowding in the detector head) and false of **cost**, which
+is linear in bins. The two were stated as one property until 2026-08-16.
 
-Consequences: the concurrency ceiling in
-[05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters) is
-a range over scene complexity, not a single number; and batching the crops
-through one ONNX call rather than *n* sequential ones is a **service
-requirement**, not an optimisation. [docs/12 probe P4](12-validation-protocol.md#p4--multi-bin-cost-curve)
-measures both — and needs no trained model to do it.
+**Correction, 2026-08-16.** This section used to say batching the crops through
+one ONNX call was *"a **service requirement**, not an optimisation"*. P4 measured
+it: batching is worth **1.24× at three crops and 1.10× at six**, never the 2× the
+probe's decision rule required to make it a requirement. The identifier costs
+21.4 / 20.1 / 19.5 ms per crop at batch 1 / 3 / 6 — on two pinned threads the
+graph is already arithmetic-bound and there is no per-call overhead left to
+amortise. Batching is a GPU technique and this is a CPU.
+
+The service batches anyway, because 10–25 % is worth having and the code is
+written. What changed is that **the cost model may not be built on it**.
 
 ## 5. Device tiers
 

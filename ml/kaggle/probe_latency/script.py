@@ -188,6 +188,18 @@ def probe_p4(out_dir: pathlib.Path) -> dict:
         f"identifier p50 {solo['identifier']['median_latency_ms']:.1f} ms @320"
     )
 
+    # The identifier alone, at each batch size. This is what lets a frame's cost
+    # be decomposed rather than merely stated: the 2026-08-16 run found a one-crop
+    # frame costing 65.7 ms against 44.0 ms of graph time, and "where did 22 ms
+    # go" is not answerable from the composite alone.
+    identifier_batches = {
+        str(n): measure(identifier.session, identifier_sidecar, ITERATIONS, WARMUP, batch=n)
+        for n in CROP_COUNTS
+        if n > 0
+    }
+    for n, m in identifier_batches.items():
+        log(f"identifier alone at batch {n}: p50 {m['median_latency_ms']:.1f} ms")
+
     curve = []
     for crops in CROP_COUNTS:
         modes = [False] if crops == 0 else [True, False]
@@ -202,8 +214,13 @@ def probe_p4(out_dir: pathlib.Path) -> dict:
                 f"p50 {result['median_latency_ms']:.1f} ms, p95 {result['p95_latency_ms']:.1f} ms"
             )
 
-    return {"solo": solo, "curve": curve,
-            "validator_sidecar": validator_sidecar, "identifier_sidecar": identifier_sidecar}
+    return {
+        "solo": solo,
+        "identifier_batches": identifier_batches,
+        "curve": curve,
+        "validator_sidecar": validator_sidecar,
+        "identifier_sidecar": identifier_sidecar,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -246,12 +263,15 @@ def _time_session(onnx_path: pathlib.Path, imgsz: int, input_name: str) -> dict:
 
 
 def _export_rfdetr(out_dir: pathlib.Path) -> dict:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "rfdetr"])
+    # `simplify` and `opset_version` were rejected as unexpected keywords on the
+    # 2026-08-16 run. The export defaults are fine for a latency measurement, so
+    # nothing is passed that is not needed.
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "rfdetr", "onnxscript"])
     from rfdetr import RFDETRNano
 
-    model = RFDETRNano()
-    model.export(output_dir=str(out_dir / "rfdetr"), simplify=True, opset_version=17)
-    onnx = next((out_dir / "rfdetr").rglob("*.onnx"))
+    target = out_dir / "rfdetr"
+    RFDETRNano(resolution=448).export(output_dir=str(target))
+    onnx = next(target.rglob("*.onnx"))
 
     import onnxruntime as ort
 
@@ -260,18 +280,27 @@ def _export_rfdetr(out_dir: pathlib.Path) -> dict:
 
 
 def _export_dfine(out_dir: pathlib.Path) -> dict:
-    """D-FINE via transformers, which is where it actually ships."""
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "transformers>=4.48", "torch"])
+    """D-FINE via transformers, which is where it actually ships.
+
+    ``onnxscript`` is an explicit dependency: torch's exporter now defaults to
+    the dynamo path, which needs it, and its absence was what stopped this
+    candidate being evaluated on the 2026-08-16 run. ``dynamo=False`` keeps the
+    older tracing exporter, which handles this graph without it.
+    """
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "transformers>=4.48", "torch", "onnxscript"]
+    )
     import torch
     from transformers import DFineForObjectDetection
 
     model = DFineForObjectDetection.from_pretrained("ustc-community/dfine-nano-coco").eval()
     onnx = out_dir / "dfine-nano.onnx"
     dummy = torch.randn(1, 3, 448, 448)
-    torch.onnx.export(
-        model, (dummy,), str(onnx),
-        input_names=["images"], opset_version=17, do_constant_folding=True,
-    )
+    with torch.no_grad():
+        torch.onnx.export(
+            model, (dummy,), str(onnx),
+            input_names=["images"], opset_version=17, do_constant_folding=True, dynamo=False,
+        )
     return _time_session(onnx, 448, "images")
 
 
