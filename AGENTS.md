@@ -17,33 +17,44 @@ name comes from that project's own presentation, slide 3: *"Our Solution – Sma
 Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
-**Status:** phase 1 (design) is done and phase 3's client half is done; the
-vision spike (phase 2) is part-way and the service has not started. See
-[`docs/07-roadmap.md`](docs/07-roadmap.md) for the checklist. Docs, taxonomy and
-the ML skeleton are in place.
+**Status:** phase 1 is done. Phase 3's two halves are built and, as of
+2026-08-17, actually joined: the wire is pinned to shared byte fixtures across
+both languages, the degradation ladder runs end to end, and CI covers `ml/`,
+`service/` and `web/`. **Phase 2's gate is answered and its concurrency half
+failed** — 4 concurrent scanners at one bin per frame against a gate of 10,
+measured on a pinned 2-vCPU container, so the kill criterion has fired. See
+[`docs/07-roadmap.md`](docs/07-roadmap.md).
+
+**Everything now waits on a model.** The service refuses to start without an
+artefact whose sidecar says `may_ship`, and neither role has one: the identifier
+needs the 403-crop human pass, and the validator's first training run failed on
+Kaggle with no log. Google Cloud is provisioned, budgeted and documented, and
+nothing is deployed, because deploying an untrained graph would make the product
+confidently wrong.
 
 **Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
 `c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
 the first 98 frames with four or more bins, and 17 474 background frames. What
-is left is the human adjudication pass (identifier only) and the first training
-run. No model has been trained yet, and the ship gate is unanswered.
+is left is the human adjudication pass (identifier only) and a training run
+that completes. No model has been trained yet. The ship gate is **answered**:
+both latency budgets pass and the concurrency half fails at 4 concurrent
+scanners against a gate of 10 ([docs/11](docs/11-phase2-results.md)).
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline
 split docs/01 § 6 states, an installable manifest, a settings surface, a
-performance budget, and 236 tests. The shell around all of it is a real
+performance budget, and 274 tests. The shell around all of it is a real
 application shell as of `refactor/web-app-shell`: real URLs on a hand-rolled
 History API router, the theme on `<html>`, `100dvh` and safe-area insets rather
 than a drawn phone, and the state director dynamically imported so it leaves
 the production bundle entirely.
 
-**The one thing still missing is the service.** `service/` is empty, so with no
-`VITE_DETECT_WS` configured the client talks to an in-process mock and says so
-on the settings screen. Everything else on the client side is real: the loop
-that mock drives is the same loop a socket will drive, and swapping one for the
-other is one environment variable.
+The client still runs against the in-process mock and says so on the settings
+screen, because there is no model for the service to serve — not because the
+service is missing. The loop that mock drives is the same loop a socket drives,
+and swapping one for the other is one environment variable.
 
 ## The three decisions that define this repo
 
@@ -103,7 +114,8 @@ web/                     React + TS + Vite PWA – design imported from Claude D
 ├── src/domain/                 resolver, freshness, geohash – no framework, ever
 ├── src/data/                   taxonomy, region packs + offline cache, frames, registry
 ├── src/capture/                capability probe, camera, the four gates, encoder, loop
-├── src/transport/              the wire contract, socket, REST, and the in-process mock
+├── src/transport/              the wire, socket, REST, mock, and __fixtures__/ -
+|                               bytes shared with service/tests/test_wire_contract.py
 ├── src/perf/                   metric vocabulary, budgets, web vitals
 ├── src/pwa/                    registration, update flow, install prompt
 ├── src/app/                    what spans screens: routes, theme, preferences, session
@@ -114,14 +126,20 @@ web/                     React + TS + Vite PWA – design imported from Claude D
 │   └── answers.ts              answered / confirmed / reported
 ├── src/components/             the 26 design-system components
 ├── src/features/               scan, answer, rules, contribute, firstrun, desk, settings
-├── src/i18n/                   en (complete) + de/ar (~65%), and t()
+├── src/i18n/                   en (complete, 422 keys) + de/ar (64%), and t()
 ├── src/styles/tokens/          the design system's token layer
 ├── src/test/                   fake clock, fake camera, fake service; the discipline test
 └── src/dev/                    state director + metrics overlay – development only,
                                 and enforced so: dynamically imported behind a DEV
                                 branch, and check-bundle.mjs fails if it reaches dist
 
-service/                 FastAPI + ONNX inference service (HF Space) – EMPTY
+service/                 FastAPI + ONNX inference service (Cloud Run)
+├── app.py                      the two transports, /health, the load-shedding edge
+├── artefacts.py                sidecar loading and the refusal on may_ship
+├── shed.py                     the degradation ladder's three rungs
+├── wire.py                     the framing; pinned to web/ by shared byte fixtures
+├── loadtest/                   the concurrency measurement – a client, not in the image
+└── deploy/                     cloudrun.sh, cloudbuild.yaml, and the runbook
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
 handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two prompts
 ```
@@ -152,7 +170,7 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 npm --prefix web install
 npm --prefix web run dev          # http://localhost:5173
 npm --prefix web run verify       # typecheck, tests, locales, build, bundle budget
-npm --prefix web test             # 236 tests, no browser
+npm --prefix web test             # 274 tests, no browser
 npm --prefix web run preview      # a real build, so the service worker registers
 
 # Point the client at a service. With neither set it uses the in-process mock

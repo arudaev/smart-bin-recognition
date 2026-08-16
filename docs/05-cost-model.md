@@ -116,6 +116,35 @@ query, at any traffic level.
 > single-threaded workers instead roughly doubles each frame's latency and lands
 > on the same total, because throughput is bounded by the CPU work either way.
 
+> **MEASURED FOR REAL, 2026-08-17.** Everything below this line down to the next
+> rule was *derived* from single-stream latency. The load test has now run
+> against a pinned container, and it agrees:
+>
+> | bins/frame | predicted (P4) | **measured** | throughput |
+> |---:|---:|---:|---:|
+> | 1 | 4.3 – 5.1 | **4** | 15.8 – 16.0 frames/s |
+> | 6 | 1.8 – 2.2 | **1** | 7.8 – 8.3 frames/s |
+>
+> Concurrent scanners whose **p95 stayed under 250 ms**, each running strict
+> request-response at 3 fps. Host: `docker run --cpus 2`, `linux/arm64` native
+> on a Snapdragon X1E80100 @ 3.40 GHz, onnxruntime 1.28.0. **Not
+> representative**: Cloud Run is x86_64, so this is a second proxy rather than
+> the tier itself – but a *pinned* one, which the Kaggle box was not. Reports in
+> `artifacts/loadtest-{1,6}bin.json`.
+>
+> Measured throughput of 15.8 frames/s lands inside the corrected 13–15
+> prediction, which is the strongest evidence the arithmetic error below is
+> genuinely fixed.
+>
+> **The load test also found that the degradation ladder had never been
+> reachable.** Inference blocked the event loop, so requests queued in the ASGI
+> layer instead of arriving at the shedder: twelve concurrent scanners produced
+> `peak_depth: 1` and not one rung fired. The service got slower and said
+> nothing, which is the behaviour § 3 forbids by name. Fixed by separating
+> admission from execution – the shedder counts everyone waiting, a semaphore
+> bounds how many are inside onnxruntime. Rung 1 now fires at 5 concurrent
+> scanners and rung 2 at 10.
+
 Measured cost per frame, and the ceiling re-derived on it:
 
 | bins in frame | CPU per frame | frames/s on 2 vCPU | concurrent scanners at 3 fps |
@@ -133,14 +162,20 @@ concurrent scanners ≈  4-5      at ONE bin per frame
                     ≈  2        at the six-container bank the PRD calls normal
 ```
 
-**The honest headline is 2 to 5 concurrent scanners, not 3 to 10.** The phase-2
-gate asks for ≥ 10 at one bin per frame and this is out by a factor of two before
-scene complexity is considered.
+**The honest headline is 1 to 4 concurrent scanners, not 3 to 10.** The phase-2
+gate asks for ≥ 10 at one bin per frame; the measured figure is **4**, and at the
+six-container bank the PRD calls a normal input it is **1**. Out by a factor of
+2.5 at the easy end and by an order of magnitude at the realistic one.
 
-Ranges rather than values because the measuring host is a shared Kaggle kernel
-that varied ~25 % between two runs six minutes apart. And these are predictions
-from single-stream latency; the load test against a pinned container is what
-settles concurrency.
+The prediction and the measurement agree closely enough that neither rescues the
+other. Ranges above are ranges because the *predicting* host was a shared Kaggle
+kernel that varied ~25 % between runs six minutes apart; the measured figures
+below them come from a pinned container and are single values.
+
+The load test settles the concurrency question and does not settle the hardware
+one: both hosts are proxies for Cloud Run's x86_64. The Snapdragon core is a
+fast modern one, so if anything it flatters the result — a slower shared vCPU
+would give fewer scanners, not more.
 
 **Batching crops is not the lever this section thought it was.** P4 measured
 1.24× at three crops and 1.10× at six — never the 2× that would have made it a
@@ -157,13 +192,16 @@ default six, with the remainder deferred to the next frame.
 The cadence figure is ~3 fps *achieved* against the **4 fps cap** in 01 § 4: the
 cap is the guarantee, 3 is the average once the motion gate is working.
 
-Four or five people scanning **at the same instant**. That sounds worse than it
-is, because a scan is short:
+Four people scanning **at the same instant**, at one bin each. That sounds worse
+than it is, because a scan is short:
 
 - one scan ≈ 5 s of streaming, then the **result lock** stops it
 - 4 concurrent × 5 s ⇒ ~2 900 scans/hour of headroom
 - at ~2 scans/user/month ⇒ still **thousands to low tens of thousands of monthly
   users**, provided they are not all scanning simultaneously
+
+At six bins per frame the same arithmetic gives one concurrent scanner and
+~720 scans/hour, which is a pilot in one town and nothing beyond it.
 
 So: **the headroom is real for a pilot in one town** – on 2 vCPU from whichever
 host § 3 settles on. It was never real for a launch spike, and at four concurrent
@@ -291,9 +329,11 @@ is no cliff.
   load-bearing UI, and a cheap cron ping during likely hours is the mitigation.
 - **Frames leave the device.** Requires the privacy handling in
   [01-architecture § 7](01-architecture.md#7-privacy) to be real, not decorative.
-- **Concurrency is a hard ceiling, not a soft one.** Measured 2026-08-16: **four
-  to five** simultaneous scanners at one bin per frame, about two at a bank of
-  six. Not the ten this document asserted for a year. Plan launches around it.
+- **Concurrency is a hard ceiling, not a soft one.** Measured on a pinned
+  2-vCPU container 2026-08-17: **four** simultaneous scanners at one bin per
+  frame, and **one** at the bank of six the PRD calls a normal input. Not the
+  ten this document asserted for a year, and not the four-to-five predicted
+  from single-stream latency the day before. Plan launches around it.
 
 Never: ads, selling user data, or paywalling the disposal rules. The rules are the
 public good; behind a wall, the project has failed at its purpose.
