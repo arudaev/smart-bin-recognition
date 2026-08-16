@@ -124,6 +124,7 @@ def main() -> None:
         ExportReport,
         Gates,
         check_gates,
+        evaluate_int8,
         export_onnx,
         quantise,
         write_sidecar,
@@ -231,6 +232,14 @@ def main() -> None:
         calibration_images=config["export"]["calibration_images"],
     )
 
+    # Gate 3 is fp32-vs-int8, so int8 has to be scored on the SAME split the
+    # fp32 number came from - which only this machine still has.
+    top1_int8 = evaluate_int8(
+        int8, role=ROLE, data=tree, imgsz=config["data"]["imgsz"], split="test"
+    )
+    history["test"]["top1_int8"] = top1_int8
+    history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
+
     gates = Gates.from_config(ROLE, config)
     report = ExportReport(
         role=ROLE,
@@ -251,8 +260,12 @@ def main() -> None:
         classes=[model.names[index] for index in sorted(model.names)],
         quantised=True,
         top1_fp32=top1,
-        top1_int8=None,          # measured by ml/scripts/gate.py
+        top1_int8=top1_int8,
         median_latency_ms=None,  # measured on the 2-vCPU bench, not here
+        # docs/04 7's target. There is no held-out city to measure it on, so it
+        # reports UNMEASURABLE rather than being quietly omitted - which is the
+        # whole point of carrying it (docs/04 5, docs/07 phase 2).
+        targets_measured={"min_formfactor_acc_heldout_city": None},
     )
     sidecar = write_sidecar(report, artifacts, gates)
     check_gates(report, gates).log()

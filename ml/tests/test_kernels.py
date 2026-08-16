@@ -103,6 +103,28 @@ def test_the_kernel_does_not_claim_to_decide_shipping(kernel):
     assert "gate.py" in text
 
 
+@pytest.mark.parametrize("kernel", KERNELS)
+def test_the_kernel_measures_int8_accuracy(kernel):
+    """Every gate must have an owner, or the artefact can never ship.
+
+    Until 2026-08-16 neither did: both kernels wrote ``*_int8=None`` deferring
+    to ``gate.py``, and ``gate.py`` measures only latency. ``check_gates``
+    requires an accuracy drop for ``may_ship``, so the documented promotion path
+    terminated in a permanently *unmeasured* artefact.
+
+    ``check_gates`` itself was tested and correct - see
+    ``test_export_gates.py::test_a_healthy_artefact_ships``. What nothing tested
+    was whether any *producer* fills the fields it needs. That is this test.
+    """
+    text = source(kernel)
+    assert "evaluate_int8(" in text
+    metric = "top1" if kernel == "train_identifier" else "map50"
+    assert f"{metric}_int8=None" not in text, (
+        f"{kernel} defers int8 accuracy to nothing; the artefact can never ship"
+    )
+    assert f"{metric}_int8={metric}_int8" in text
+
+
 def test_the_validator_refuses_a_multi_class_dataset():
     assert "must train on exactly ['bin']" in source("train_validator")
 

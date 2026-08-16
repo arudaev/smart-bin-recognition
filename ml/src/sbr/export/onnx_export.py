@@ -12,6 +12,13 @@ runtimes and costs ~30 lines either way.
 is judged on mAP@0.5; the identifier is a classifier over crops and is judged on
 top-1. The int8 budget – two points – is the same for both.
 
+**Who measures what.** The training kernel measures accuracy, fp32 *and* int8
+(:func:`evaluate_int8`), because it is the only place holding both the artefact
+and the split. ``ml/scripts/gate.py`` measures latency, because that is the only
+thing a training kernel cannot measure. Between them every gate has an owner –
+which was not true until 2026-08-16, when int8 accuracy had none and
+:attr:`GateResult.may_ship` was consequently unreachable.
+
 **Latency is never guessed.** A model whose latency has not been measured on the
 service CPU is *unmeasured*, not *passing*: see :class:`GateResult`. The Kaggle
 kernel cannot measure it (it has a GPU and a different CPU), so it exports and
@@ -75,6 +82,79 @@ class Gates:
         return cls.from_config(role, load_config(role))
 
 
+@dataclass(frozen=True)
+class Targets:
+    """The accuracy targets from ``docs/04-ml-pipeline.md`` § 7. **Reported,
+    never gating.**
+
+    The distinction from :class:`Gates` is deliberate and is a product decision.
+    A gate is arithmetic the free tier depends on: miss it and the service costs
+    money, so the build fails. A target is how good the model is: miss it and
+    the answer is to write the number down and go and fix it, not to refuse to
+    ship the only model that exists.
+
+    They were unread until 2026-08-16 – ``Gates.from_config`` looks only at
+    ``export.gates`` – which meant a fast but useless model produced a sidecar
+    indistinguishable from a good one.
+    """
+
+    role: str
+    values: dict[str, float] = field(default_factory=dict)
+
+    @classmethod
+    def from_config(cls, role: str, config: dict[str, Any]) -> Targets:
+        raw = config.get("export", {}).get("targets", {}) or {}
+        return cls(role=role, values={k: float(v) for k, v in raw.items()})
+
+    @classmethod
+    def for_role(cls, role: str) -> Targets:
+        from sbr.config import load_config
+
+        return cls.from_config(role, load_config(role))
+
+
+@dataclass(frozen=True)
+class TargetResult:
+    """Which targets were met, missed, or could not be measured at all.
+
+    ``unmeasurable`` is the row that matters most today: the held-out-city
+    targets need a second `region_id`, and no subset of the pinned dataset has
+    one (docs/04 § 5). Reporting them as *missing evidence* rather than omitting
+    them is what stops the generalisation question being quietly dropped.
+    """
+
+    met: dict[str, float] = field(default_factory=dict)
+    missed: dict[str, tuple[float, float]] = field(default_factory=dict)
+    unmeasurable: list[str] = field(default_factory=list)
+
+    def log(self) -> None:
+        for name, value in self.met.items():
+            logger.info("target met: %s = %.4f", name, value)
+        for name, (value, target) in self.missed.items():
+            logger.warning("TARGET MISSED: %s = %.4f, target %.4f", name, value, target)
+        for name in self.unmeasurable:
+            logger.warning("TARGET UNMEASURABLE: %s - no measurement exists for it", name)
+
+
+def check_targets(measured: dict[str, float | None], targets: Targets) -> TargetResult:
+    """Compare measurements against the role's targets.
+
+    ``measured`` is keyed by target name, so the caller states which measurement
+    answers which target rather than this module guessing from a metric name.
+    A key that is absent or ``None`` is *unmeasurable*, never a pass.
+    """
+    result = TargetResult()
+    for name, target in sorted(targets.values.items()):
+        value = measured.get(name)
+        if value is None:
+            result.unmeasurable.append(name)
+        elif value >= target:
+            result.met[name] = value
+        else:
+            result.missed[name] = (value, target)
+    return result
+
+
 @dataclass
 class ExportReport:
     """Everything the service and the ship gate need to know about an artefact."""
@@ -97,6 +177,11 @@ class ExportReport:
     median_latency_ms: float | None = None
     p95_latency_ms: float | None = None
     latency_hardware: str | None = None
+
+    #: Measurements answering ``export.targets``, keyed by target name. A target
+    #: with no key here is reported *unmeasurable* rather than skipped – see
+    #: :class:`TargetResult`.
+    targets_measured: dict[str, float | None] = field(default_factory=dict)
 
     @property
     def accuracy_metric(self) -> str:
@@ -275,6 +360,50 @@ def quantise(
     return out_path
 
 
+def evaluate_int8(
+    onnx_path: Path,
+    *,
+    role: str,
+    data: Path | str,
+    imgsz: int,
+    split: str = "test",
+) -> float | None:
+    """Score the **quantised** graph, in the metric this role is judged on.
+
+    Gate 3 compares fp32 against int8, so somebody has to measure int8. It has
+    to be here rather than in ``ml/scripts/gate.py``: the training kernel is the
+    only place that holds both the artefact and the split the fp32 number came
+    from, and a drop computed against a *different* split is not a drop.
+
+    Scored through ultralytics for the same reason – the fp32 number came from
+    ``model.val()``, and two metrics computed by two implementations are not
+    comparable to two decimal places, which is the resolution the 0.02 gate
+    needs.
+
+    Returns ``None`` if the quantised graph could not be scored, which leaves
+    the gate **unmeasured** rather than passed. That is the honest verdict and
+    :class:`GateResult` already distinguishes it from a failure.
+    """
+    from ultralytics import YOLO
+
+    task = "classify" if role == "identifier" else "detect"
+    try:
+        metrics = YOLO(str(onnx_path), task=task).val(
+            data=str(data), imgsz=imgsz, split=split, verbose=False
+        )
+    except Exception as error:  # noqa: BLE001 – any failure here means "unmeasured"
+        logger.error(
+            "could not score the int8 graph (%s: %s). The int8 accuracy gate "
+            "stays UNMEASURED, so this artefact cannot ship until it is scored.",
+            type(error).__name__, error,
+        )
+        return None
+
+    value = float(metrics.top1) if task == "classify" else float(metrics.box.map50)
+    logger.info("int8 %s on %s = %.4f", ACCURACY_METRIC[role], split, value)
+    return value
+
+
 def sidecar_path(out_dir: Path, role: str, version: int) -> Path:
     return out_dir / f"{role}-v{version}.json"
 
@@ -290,6 +419,11 @@ def write_sidecar(report: ExportReport, out_dir: Path, gates: Gates | None = Non
     gates = gates or Gates.for_role(report.role)
     result = check_gates(report, gates)
 
+    # Targets ride along beside the gates and never affect `may_ship`. Their
+    # value is that docs/11 can be generated from the sidecar rather than typed.
+    targets = Targets.for_role(report.role)
+    target_result = check_targets(report.targets_measured, targets)
+
     payload = asdict(report) | {
         "accuracy_metric": report.accuracy_metric,
         "accuracy_drop": report.accuracy_drop,
@@ -302,6 +436,12 @@ def write_sidecar(report: ExportReport, out_dir: Path, gates: Gates | None = Non
             "failures": result.failures,
             "unmeasured": result.unmeasured,
             "may_ship": result.may_ship,
+        },
+        "targets": targets.values,
+        "target_result": {
+            "met": target_result.met,
+            "missed": {k: {"value": v, "target": t} for k, (v, t) in target_result.missed.items()},
+            "unmeasurable": target_result.unmeasurable,
         },
     }
 

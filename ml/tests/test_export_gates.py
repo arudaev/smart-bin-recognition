@@ -16,7 +16,13 @@ from __future__ import annotations
 import pytest
 
 from sbr.config import load_config
-from sbr.export.onnx_export import ExportReport, Gates, check_gates
+from sbr.export.onnx_export import (
+    ExportReport,
+    Gates,
+    Targets,
+    check_gates,
+    check_targets,
+)
 
 # --------------------------------------------------------------------------- #
 # The pinned budgets
@@ -152,6 +158,50 @@ def test_unmeasured_int8_drop_is_not_a_pass():
 def test_validator_is_judged_on_map_and_identifier_on_top1():
     assert _report("validator").accuracy_metric == "map50"
     assert _report("identifier").accuracy_metric == "top1"
+
+
+# --------------------------------------------------------------------------- #
+# Targets - reported, never gating
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        ("validator", {"min_recall_heldout_city", "min_precision_on_negatives"}),
+        ("identifier", {"min_formfactor_acc_heldout_city"}),
+    ],
+)
+def test_each_role_states_the_targets_docs_04_7_promises(role, expected):
+    assert set(Targets.for_role(role).values) == expected
+
+
+def test_a_missed_target_does_not_block_shipping():
+    # The distinction that makes targets useful: a gate is arithmetic the free
+    # tier depends on, a target is how good the model is. Missing one is a
+    # result to act on, not a reason to refuse the only model that exists.
+    targets = Targets.for_role("validator")
+    result = check_targets({"min_recall_heldout_city": 0.10}, targets)
+    assert result.missed["min_recall_heldout_city"] == (0.10, 0.97)
+    assert check_gates(_report("validator"), Gates.for_role("validator")).may_ship
+
+
+def test_an_unmeasured_target_is_unmeasurable_not_met():
+    # Silently skipping the held-out-city target is how the generalisation
+    # question gets quietly dropped. It has to show up as missing evidence.
+    result = check_targets({"min_recall_heldout_city": None}, Targets.for_role("validator"))
+    assert "min_recall_heldout_city" in result.unmeasurable
+    assert not result.met
+
+
+def test_a_target_absent_from_the_measurements_is_also_unmeasurable():
+    result = check_targets({}, Targets.for_role("identifier"))
+    assert result.unmeasurable == ["min_formfactor_acc_heldout_city"]
+
+
+def test_a_met_target_is_reported_with_its_value():
+    result = check_targets({"min_precision_on_negatives": 0.99}, Targets.for_role("validator"))
+    assert result.met["min_precision_on_negatives"] == 0.99
 
 
 def test_identifier_ignores_map_and_reads_top1():

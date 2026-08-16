@@ -173,6 +173,7 @@ def main() -> None:
         ExportReport,
         Gates,
         check_gates,
+        evaluate_int8,
         export_onnx,
         quantise,
         write_sidecar,
@@ -298,6 +299,14 @@ def main() -> None:
         calibration_images=config["export"]["calibration_images"],
     )
 
+    # Gate 3 is fp32-vs-int8, so int8 has to be scored on the SAME split the
+    # fp32 number came from - which only this machine still has.
+    map50_int8 = evaluate_int8(
+        int8, role=ROLE, data=data_yaml, imgsz=config["data"]["imgsz"], split="test"
+    )
+    history["test"]["map50_int8"] = map50_int8
+    history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
+
     gates = Gates.from_config(ROLE, config)
     report = ExportReport(
         role=ROLE,
@@ -308,10 +317,19 @@ def main() -> None:
         classes=classes,
         quantised=True,
         map50_fp32=map50,
-        # Measured by ml/scripts/gate.py against the int8 graph; latency is
-        # measured there too, on the CPU the budget is actually stated for.
-        map50_int8=None,
+        map50_int8=map50_int8,
+        # Latency alone is left to ml/scripts/gate.py, on the CPU the budget is
+        # actually stated for. This machine has a GPU and somebody else's CPU.
         median_latency_ms=None,
+        # docs/04 7's targets. Reported, never gating - and `None` where no
+        # measurement exists, which is the honest state of the held-out-city
+        # target until a second region_id lands (docs/04 5).
+        targets_measured={
+            "min_recall_heldout_city": history.get("holdout_region", {}).get("recall"),
+            "min_precision_on_negatives": history["precision_on_negatives"].get(
+                "frame_level_specificity"
+            ),
+        },
     )
     sidecar = write_sidecar(report, artifacts, gates)
     check_gates(report, gates).log()
