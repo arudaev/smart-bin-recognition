@@ -249,4 +249,150 @@ describe("ScanLoop", () => {
     expect(r.last().phase).toBe("stopped");
     expect(r.clock.pending).toBe(0);
   });
+
+  /* THE DEGRADATION LADDER, docs/05 § 3.
+     service/shed.py decides; this is the other end. The rungs were implemented
+     and emitted for weeks with no way for a client to be told, so these are the
+     tests that make "the designed states exist" mean "the designed states are
+     reachable". */
+  describe("what the service asks for under load", () => {
+    /** Keep the scene moving, so nothing here is confused with the motion gate. */
+    const stir = async (rig: Rig, ms: number) => {
+      const steps = Math.max(1, Math.round(ms / 50));
+      for (let i = 0; i < steps; i += 1) {
+        rig.source.scene += 40;
+        await rig.clock.advance(50);
+      }
+    };
+
+    it("rung 1: halves the cadence, and still shows the answer that carried it", async () => {
+      r.client.advice = () => ({ max_fps: 2 });
+      await r.loop.start();
+      await r.clock.advance(0);
+
+      // The frame that carried the advice was answered perfectly well. Nothing
+      // is refused until rung 3, and throwing that result away would waste the
+      // one frame we had already paid for.
+      expect(r.last().detections).toHaveLength(1);
+      expect(r.last().advice).toEqual({ max_fps: 2 });
+      expect(r.last().phase).toBe("ready");
+    });
+
+    it("rung 1: actually sends at the slower rate", async () => {
+      r.client.advice = () => ({ max_fps: 2 });
+      await r.loop.start();
+      await stir(r, 2000);
+
+      /* Two seconds at 2 fps is about four frames; at the 4 fps cap it would be
+         about eight. Asserted as a band rather than an exact count because the
+         motion gate and the result lock also have opinions, and pinning the
+         exact number would make this a test of their interaction instead. */
+      expect(r.client.requests.length).toBeLessThanOrEqual(5);
+      expect(r.client.requests.length).toBeGreaterThan(1);
+    });
+
+    it("REFUSES a cadence above the cap, however the service asks", async () => {
+      // The gate is enforced at both ends on purpose: client and service deploy
+      // separately, and a client running against a service six weeks ahead of
+      // it is the ordinary case.
+      r.client.advice = () => ({ max_fps: 30 });
+      await r.loop.start();
+      await stir(r, 1000);
+
+      // One second at the 4 fps cap is at most four frames, plus the one the
+      // convergence window lets through before the motion gate engages.
+      expect(r.client.requests.length).toBeLessThanOrEqual(5);
+    });
+
+    it("rung 2: stops streaming with a reason of its own", async () => {
+      r.client.advice = () => ({ max_fps: 0 });
+      await r.loop.start();
+      await r.clock.advance(0);
+
+      expect(r.last().phase).toBe("stopped");
+      // Not "timeout". The interface says a different sentence for each: one is
+      // about this angle, the other is about our capacity.
+      expect(r.last().stopReason).toBe("shed");
+      expect(r.last().detections).toHaveLength(1);
+    });
+
+    it("rung 2: sends nothing further once it has stopped", async () => {
+      r.client.advice = () => ({ max_fps: 0 });
+      await r.loop.start();
+      await r.clock.advance(0);
+      const sent = r.client.requests.length;
+
+      await stir(r, 3000);
+      expect(r.client.requests).toHaveLength(sent);
+    });
+
+    it("rung 2: one tap still works, which is the whole promise", async () => {
+      /* The affordance appearing is not the feature - the affordance WORKING is.
+         send() used to bail on any frame after the first once the loop had
+         stopped, so tap-to-scan after a stop silently did nothing. */
+      r.client.advice = () => ({ max_fps: 0 });
+      await r.loop.start();
+      await r.clock.advance(0);
+      const sent = r.client.requests.length;
+
+      r.client.advice = () => undefined;
+      await r.loop.captureOnce();
+
+      expect(r.client.requests).toHaveLength(sent + 1);
+      expect(r.last().detections).toHaveLength(1);
+    });
+
+    it("rung 3: a refusal carries its advice and is not counted as being offline", async () => {
+      /* A service that is up, answering and asking for room is not the same as
+         no signal, and `offline` is the state that tells a user their own
+         connection is at fault. Three busy frames must not produce it. */
+      r.client.failures = 5;
+      r.client.failureRetryMs = 4000;
+      r.client.failureAdvice = { max_fps: 0, queue_wait_ms: 4000 };
+
+      await r.loop.start();
+      await r.clock.advance(0);
+
+      expect(r.last().stopReason).toBe("shed");
+      expect(r.last().advice).toEqual({ max_fps: 0, queue_wait_ms: 4000 });
+      expect(r.last().stopReason).not.toBe("offline");
+    });
+
+    it("still goes offline for failures that carry no advice", async () => {
+      // The ladder must not become a way for a genuinely broken connection to
+      // be reported as a busy one.
+      r.client.failures = 10;
+      await r.loop.start();
+      await r.clock.advance(2000);
+      expect(r.last().stopReason).toBe("offline");
+    });
+
+    it("goes back to full cadence when the service stops shedding", async () => {
+      let loaded = true;
+      r.client.advice = () => (loaded ? { max_fps: 2 } : undefined);
+
+      await r.loop.start();
+      await r.clock.advance(0);
+      expect(r.last().advice).toEqual({ max_fps: 2 });
+
+      loaded = false;
+      await stir(r, 1000);
+      expect(r.last().advice).toBeNull();
+    });
+
+    it("starts a new scan unbound by advice about a load that has passed", async () => {
+      r.client.advice = () => ({ max_fps: 2 });
+      await r.loop.start();
+      await r.clock.advance(0);
+      expect(r.last().advice).toEqual({ max_fps: 2 });
+
+      r.client.advice = () => undefined;
+      await r.loop.retry();
+      expect(r.last().advice).toBeNull();
+
+      await stir(r, 1000);
+      // Back at the 4 fps cap rather than stuck at the 2 fps of a previous scan.
+      expect(r.client.requests.length).toBeGreaterThan(2);
+    });
+  });
 });

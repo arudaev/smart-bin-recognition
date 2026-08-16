@@ -21,7 +21,7 @@ import { Scanner } from "@/features/scan/Scanner";
 import { Settings } from "@/features/settings/Settings";
 import type { Locale } from "@/i18n";
 import { translator } from "@/i18n";
-import { createClient } from "@/transport";
+import { MockClient, createClient } from "@/transport";
 
 /* THE SHELL.
  *
@@ -89,10 +89,21 @@ export default function App() {
      rather than off the resolved route to keep this out of a cycle: the route
      needs the tier, the tier comes from the probe, and the probe lives here.
      Anywhere but /scan the camera is closed and the indicator light is out. */
+  /* The ladder's rungs are things a loaded SERVICE does, so reaching them means
+     standing one in. `live` is the only value production ever holds, so this is
+     undefined in every build and the configured transport is used - MockClient
+     is already in the bundle as createClient's fallback, so naming it here
+     costs nothing beyond this line. */
+  const ladder = useMemo(
+    () => (director.ladder === "live" ? undefined : new MockClient({ mode: director.ladder })),
+    [director.ladder],
+  );
+
   const live = useScan({
     enabled: director.source === "live" && normalisePath(path) === PATH.scan,
     locale,
     debug: import.meta.env.DEV,
+    client: ladder,
   });
 
   const transport = useMemo(() => createClient(live.tier).kind, [live.tier]);

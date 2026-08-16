@@ -64,10 +64,59 @@ export class MotionGate {
 /** Never more than this many frames per second, whatever the network allows. */
 export const MAX_FPS = 4;
 
+/**
+ * The cadence cap, which a loaded service may tighten and may never loosen.
+ *
+ * docs/05 § 3's ladder lets the service ask for 2 fps when its queue is deep,
+ * so the interval cannot be `readonly` any more. What must not follow from that
+ * is a cap the server controls: `MAX_FPS` is clamped against here, so `max_fps:
+ * 30` from a server that is wrong, misconfigured or hostile buys exactly
+ * nothing. `service/shed.py` enforces the same rule at its end and neither side
+ * trusts the other to, because they are deployed separately – a client running
+ * against a service six weeks ahead of it is the ordinary case, not the
+ * exotic one.
+ */
 export class Cadence {
   private lastAt = Number.NEGATIVE_INFINITY;
+  private minIntervalMs: number;
+  private readonly floorMs: number;
 
-  constructor(private readonly minIntervalMs = 1000 / MAX_FPS) {}
+  constructor(minIntervalMs = 1000 / MAX_FPS) {
+    // Whatever this was constructed with is the fastest it will ever go. A test
+    // that builds a slower Cadence gets a slower ceiling, not a licence to be
+    // sped up to 4 fps by a response.
+    this.minIntervalMs = minIntervalMs;
+    this.floorMs = minIntervalMs;
+  }
+
+  /**
+   * Apply the service's advice. Lowering only.
+   *
+   * `fps` of 0 is not this class's problem: "stop streaming and offer a tap" is
+   * a scan-level decision, and the loop handles it by stopping with reason
+   * `"shed"`. Anything at or below zero is ignored here rather than producing an
+   * infinite interval that would silently wedge the loop.
+   */
+  setMaxFps(fps: number): void {
+    if (!Number.isFinite(fps) || fps <= 0) return;
+    this.minIntervalMs = Math.max(this.floorMs, 1000 / fps);
+  }
+
+  /**
+   * Forget any advice and go back to the ceiling.
+   *
+   * Rungs are not sticky. A service that has stopped sending advice has stopped
+   * shedding, and a client that stayed at 2 fps for the rest of the session
+   * after one busy moment would be costing its user answers for nothing.
+   */
+  clearAdvice(): void {
+    this.minIntervalMs = this.floorMs;
+  }
+
+  /** The interval currently in force. Read by the debug overlay and the tests. */
+  get intervalMs(): number {
+    return this.minIntervalMs;
+  }
 
   ready(now: number): boolean {
     return now - this.lastAt >= this.minIntervalMs;
@@ -83,8 +132,11 @@ export class Cadence {
     return Math.max(0, this.minIntervalMs - (now - this.lastAt));
   }
 
+  /* A new scan is not bound by advice about a load that may long since have
+     passed, so the interval goes back to the ceiling along with the clock. */
   reset(): void {
     this.lastAt = Number.NEGATIVE_INFINITY;
+    this.minIntervalMs = this.floorMs;
   }
 }
 
@@ -142,7 +194,17 @@ export class ResultLock {
 /** Give up on live streaming after this long without a confident result. */
 export const ABORT_MS = 20_000;
 
-export type StopReason = "locked" | "timeout" | "hidden" | "offline" | "stopped";
+/**
+ * Why the loop stopped sending.
+ *
+ * `shed` is the service asking, rather than anything about this scan: docs/05
+ * § 3's rung 2, where streaming is off and one tap still works. It is kept
+ * distinct from `timeout` because the two are different sentences to a person
+ * standing in front of a bin – "nothing held still long enough from this angle"
+ * is about them, and "busy right now" is about us. They share an affordance and
+ * must not share an explanation.
+ */
+export type StopReason = "locked" | "timeout" | "hidden" | "offline" | "stopped" | "shed";
 
 /**
  * Whether the loop should still be running.

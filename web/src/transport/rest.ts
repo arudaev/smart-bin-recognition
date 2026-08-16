@@ -10,7 +10,7 @@
 
 import { metrics, now } from "@/perf/metrics";
 import { BaseClient, InFlightError, TransportError } from "./client";
-import type { DetectRequest, DetectResponse } from "./protocol";
+import type { DetectRequest, DetectResponse, WireError } from "./protocol";
 import { encodeFrameMessage } from "./protocol";
 
 export interface RestOptions {
@@ -50,9 +50,22 @@ export class RestClient extends BaseClient {
       });
 
       if (response.status === 429 || response.status === 503) {
-        const retryAfter = Number(response.headers.get("retry-after") ?? 0) * 1000;
+        /* The body carries the ladder's deepest rung – `retry_after_ms` at
+           millisecond resolution and the `advice` that lets the interface state
+           a wait rather than show a spinner. The `retry-after` header is whole
+           seconds and stays as the fallback for an intermediary that refused on
+           the service's behalf and never ran wire.py. */
+        const body = (await response.json().catch(() => null)) as WireError | null;
+        const header = Number(response.headers.get("retry-after") ?? 0) * 1000;
         this.setState("busy");
-        throw new TransportError("the service is busy", retryAfter || 5000);
+        // `|| 5000` and not `??`: an absent header parses to 0, and a refusal
+        // quoting a zero wait is how every client that was just refused comes
+        // back at once. There is always a positive wait.
+        throw new TransportError(
+          body?.error ?? "the service is busy",
+          body?.retry_after_ms || header || 5000,
+          body?.advice,
+        );
       }
       if (!response.ok) {
         throw new TransportError(`service returned ${response.status}`);
