@@ -12,6 +12,7 @@ of those lies impossible:
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -254,6 +255,133 @@ def test_a_frame_with_no_boxes_becomes_a_background_image(legacy_pool, tmp_path)
 
     composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
     assert composition["background_images"] == 1
+
+
+# --------------------------------------------------------------------------- #
+# The negative corpus – how composition.json counts it
+#
+# The harvested corpus ships background frames as EMPTY label files, because a
+# missing file is an unlabelled image to YOLO and gets dropped. Counting
+# "no label file" as the definition of background therefore reported
+# `background_images: 0` and `positives: 18954` over a pool that is 92 %
+# background – and `min_precision_on_negatives >= 0.97` looked unreachable when
+# in fact the corpus was in the training set all along.
+# --------------------------------------------------------------------------- #
+
+
+def _negatives_pool(source: Path, root: Path, count: int) -> Path:
+    """A subset shaped like the harvested corpus: images, EMPTY label files."""
+    pool = root / "negatives"
+    (pool / "images").mkdir(parents=True)
+    (pool / "labels").mkdir(parents=True)
+
+    manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+    pixels = (source / "images" / manifest["records"][0]["file"]).read_bytes()
+
+    records = []
+    for index in range(count):
+        name = f"street{index}.jpg"
+        (pool / "images" / name).write_bytes(pixels)
+        # Empty, not absent. This is the whole point.
+        (pool / "labels" / f"street{index}.txt").write_text("", encoding="utf-8")
+        records.append(
+            {
+                "file": name, "boxes": 0, "bins_in_frame": 0,
+                "region_id": "unknown", "capture_cluster": f"open-images/street{index}",
+            }
+        )
+
+    (pool / "manifest.json").write_text(
+        json.dumps({"images": count, "boxes": 0, "records": records, "crop_records": []}),
+        encoding="utf-8",
+    )
+    return pool
+
+
+def test_an_empty_label_file_is_counted_as_a_background_image(legacy_pool, tmp_path):
+    # The defect: the file exists, so `source_label.exists()` was true and every
+    # negative in the corpus was counted as a positive.
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    _negatives_pool(legacy_pool, root, count=20)
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+
+    positives = len(json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))["records"])
+    assert composition["background_images"] == 20
+    assert composition["positives"] == positives
+    assert composition["negative_ratio"] == round(20 / positives, 1)
+
+
+def test_the_composition_matches_the_pinned_pool_shape(legacy_pool, tmp_path):
+    """Pin the arithmetic the real pool is built on.
+
+    `arudaev/smart-bin-detect@c39b0f87` is 370 legacy + 1 110 Open Images bins +
+    17 474 background frames. Scaled down here to keep the test cheap, but the
+    shape is the shape: three subsets, one of them all background, and
+    `positives + background_images == every pooled image`.
+    """
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    shutil.copytree(legacy_pool, root / "open_images")
+    _negatives_pool(legacy_pool, root, count=50)
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+
+    bins = len(json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))["records"])
+    assert composition["per_pool"] == {"legacy": bins, "negatives": 50, "open_images": bins}
+    assert composition["positives"] == 2 * bins
+    assert composition["background_images"] == 50
+    # Every pooled image is one or the other, and never both.
+    assert composition["positives"] + composition["background_images"] == sum(
+        composition["per_pool"].values()
+    ) == sum(composition["per_split"].values())
+
+
+def test_background_images_are_reported_per_split(legacy_pool, tmp_path):
+    # `precision_on_negatives` can only be measured on the background frames that
+    # landed in test. A zero there is a missing number, not a bad model.
+    root = tmp_path / "snapshot"
+    shutil.copytree(legacy_pool, root / "legacy")
+    _negatives_pool(legacy_pool, root, count=60)
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(root, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+
+    assert sum(composition["background_per_split"].values()) == composition["background_images"]
+    assert composition["background_per_split"].get("test", 0) > 0
+    for split, count in composition["background_per_split"].items():
+        assert count <= composition["per_split"][split]
+
+
+def test_a_blank_line_in_a_label_is_not_a_box(legacy_pool, tmp_path):
+    # Trailing newlines are how every writer in this repo ends a label file.
+    label = next((legacy_pool / "labels").glob("*.txt"))
+    label.write_text("\n\n  \n", encoding="utf-8")
+
+    out = tmp_path / "yolo"
+    build_yolo_tree(legacy_pool, out, VALIDATOR_CONFIG)
+    composition = json.loads((out / "composition.json").read_text(encoding="utf-8"))
+    assert composition["background_images"] == 1
+
+
+def test_a_manifest_that_disagrees_with_the_labels_on_disk_is_warned_about(
+    legacy_pool, tmp_path, caplog
+):
+    # Two independent statements about one frame. When they disagree, one of the
+    # numbers in this report is a fiction and it must not be silent.
+    manifest = json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))
+    manifest["records"][0]["boxes"] = 9
+    (legacy_pool / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    with caplog.at_level("WARNING"):
+        build_yolo_tree(legacy_pool, tmp_path / "yolo", VALIDATOR_CONFIG)
+    assert "disagrees with their label file" in caplog.text
 
 
 def test_several_subsets_assemble_into_one_tree(legacy_pool, tmp_path):
