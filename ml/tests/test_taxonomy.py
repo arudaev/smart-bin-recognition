@@ -17,6 +17,7 @@ from sbr.taxonomy import (
     load_all_region_packs,
     load_region_pack,
     load_taxonomy,
+    region_for_geohash,
 )
 
 # --------------------------------------------------------------------------- #
@@ -160,3 +161,67 @@ def test_tie_break_prefers_higher_confidence():
         ),
     )
     assert pack.resolve(Observation(form_factor="igloo")).rule_id == "high"
+
+
+# --------------------------------------------------------------------------- #
+# Which jurisdiction a frame is in
+# --------------------------------------------------------------------------- #
+
+
+def _pack(region_id: str, tiles: tuple[str, ...]) -> RegionPack:
+    return RegionPack(
+        region_id=region_id,
+        pack_version="1.0.0",
+        taxonomy_version="1.0.0",
+        status="draft",
+        name=region_id,
+        country="DE",
+        rules=(),
+        geohash_tiles=tiles,
+    )
+
+
+def test_the_pack_loader_reads_the_tiles_it_is_selected_by():
+    # geohash_tiles is in the schema and in the Deggendorf pack, and the loader
+    # dropped it - so the reference implementation could not answer the one
+    # question the inference service has to ask on every frame.
+    pack = load_region_pack("de-by-deggendorf")
+    assert pack.geohash_tiles == ("u2853", "u2856")
+    assert pack.bbox == (12.885, 48.79, 13.035, 48.885)
+
+
+def test_a_geohash_inside_the_coverage_finds_the_pack():
+    packs = load_all_region_packs()
+    found = region_for_geohash("u2853x", packs)
+    assert found is not None and found.region_id == "de-by-deggendorf"
+
+
+def test_a_geohash_outside_every_pack_is_none_not_a_guess():
+    # The whole guardrail in one assertion. Most of the world has no pack, and
+    # the answer there is `unknown` - never a neighbouring pack's rules and never
+    # the taxonomy's typical colours.
+    assert region_for_geohash("u1q0rz", load_all_region_packs()) is None
+
+
+@pytest.mark.parametrize("geohash", [None, "", "u28", "u2"])
+def test_a_geohash_too_coarse_to_pick_a_jurisdiction_is_none(geohash):
+    # Tiles are precision 5. Anything shorter cannot identify a jurisdiction, and
+    # matching on a shorter prefix would hand one city's rules to a whole region.
+    assert region_for_geohash(geohash, load_all_region_packs()) is None
+
+
+def test_the_more_specific_pack_wins_where_two_overlap():
+    # A city pack inside a state pack must answer for the city.
+    packs = {
+        "state": _pack("state", ("u2853", "u2856", "u2857", "u2858")),
+        "city": _pack("city", ("u2853",)),
+    }
+    found = region_for_geohash("u2853x", packs)
+    assert found is not None and found.region_id == "city"
+
+
+def test_pack_selection_is_case_insensitive():
+    # Geohash alphabets are lower case, but a client that upper-cased one should
+    # get its own town's rules rather than silently none.
+    packs = load_all_region_packs()
+    assert region_for_geohash("U2853X", packs) is region_for_geohash("u2853x", packs)

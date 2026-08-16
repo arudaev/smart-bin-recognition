@@ -127,6 +127,7 @@ def measure(
     sidecar: dict[str, Any],
     iterations: int = DEFAULT_ITERATIONS,
     warmup: int = DEFAULT_WARMUP,
+    batch: int = 1,
 ) -> dict[str, Any]:
     """Time one forward pass, repeatedly.
 
@@ -136,12 +137,17 @@ def measure(
 
     Nothing about the model is assumed: input name and size come from the
     sidecar, which is the same contract the inference service will read.
+
+    ``batch`` above 1 needs a graph exported with a dynamic batch axis. It exists
+    so a frame's cost can be *decomposed*: measuring the identifier at batch n
+    separately from the whole frame is what turns "a six-bin frame costs 154 ms"
+    into an account of where those milliseconds went.
     """
     import numpy as np
 
     imgsz = int(sidecar["imgsz"])
     name = sidecar.get("input_name", "images")
-    frame = np.random.default_rng(0).random((1, 3, imgsz, imgsz), dtype=np.float32)
+    frame = np.random.default_rng(0).random((batch, 3, imgsz, imgsz), dtype=np.float32)
 
     for _ in range(warmup):
         session.run(None, {name: frame})
@@ -162,6 +168,7 @@ def measure(
         "iterations": iterations,
         "warmup": warmup,
         "imgsz": imgsz,
+        "batch": batch,
     }
 
 

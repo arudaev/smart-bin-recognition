@@ -1,0 +1,33 @@
+# The service is not a package - it is a container's contents, imported flat by
+# uvicorn from --app-dir. This file exists so ruff, mypy and pytest use the same
+# rules here as in ml/, because two Python codebases in one repo with two
+# different linting standards is how one of them quietly rots.
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+# The service is imported flat, so its own modules look like third-party ones to
+# an import sorter that has not been told otherwise.
+known-first-party = [
+    "app", "artefacts", "colour", "pipeline", "settings", "shed", "wire", "conftest",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+no_strict_optional = true
+# sbr lives outside this directory and is on PYTHONPATH in the container.
+mypy_path = "../ml/src"
+# bench/ is a separate deployable with its own app.py - the latency bench, not
+# the inference service. Two flat modules called `app` cannot both be checked.
+exclude = "^bench/"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../ml/src"]
