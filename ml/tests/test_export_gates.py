@@ -20,6 +20,7 @@ from sbr.export.onnx_export import (
     ExportReport,
     Gates,
     Targets,
+    batched_role,
     check_gates,
     check_targets,
 )
@@ -202,6 +203,40 @@ def test_a_target_absent_from_the_measurements_is_also_unmeasurable():
 def test_a_met_target_is_reported_with_its_value():
     result = check_targets({"min_precision_on_negatives": 0.99}, Targets.for_role("validator"))
     assert result.met["min_precision_on_negatives"] == 0.99
+
+
+# --------------------------------------------------------------------------- #
+# The batch axis - a service requirement, not an optimisation
+# --------------------------------------------------------------------------- #
+
+
+def test_only_the_identifier_gets_a_dynamic_batch_axis():
+    """docs/01 § 4 makes batching the crops through ONE call a requirement.
+
+    A graph exported with a fixed batch of 1 cannot do it, and the failure is
+    silent: the graph loads, serves, and quietly costs *n* sequential calls per
+    frame - which at six bins is the difference between the cost model docs/05
+    § 3 states and three times it. The validator stays static because it sees
+    exactly one frame, every time.
+    """
+    assert batched_role("identifier") is True
+    assert batched_role("validator") is False
+
+
+def test_the_sidecar_tells_the_service_whether_it_may_batch():
+    # Read, never assumed. The service falls back to sequential when this is
+    # false, and says so, rather than crashing on a shape it guessed.
+    import json
+    import tempfile
+    from pathlib import Path
+
+    from sbr.export.onnx_export import sidecar_path, write_sidecar
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        write_sidecar(_report("identifier"), out, Gates.for_role("identifier"))
+        payload = json.loads(sidecar_path(out, "identifier", 1).read_text(encoding="utf-8"))
+    assert payload["dynamic_batch"] is True
 
 
 def test_identifier_ignores_map_and_reads_top1():

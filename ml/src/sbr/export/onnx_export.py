@@ -282,21 +282,48 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
     return GateResult(failures=failures, unmeasured=unmeasured)
 
 
-def export_onnx(weights: Path, out_dir: Path, imgsz: int, opset: int) -> Path:
-    """Export ``best.pt`` to ONNX. Returns the fp32 ONNX path."""
+def batched_role(role: str) -> bool:
+    """Whether this role's graph must accept a batch of more than one.
+
+    The identifier runs **per crop**, and a frame can hold several bins – the
+    PRD calls a bank of six a normal input. ``docs/01-architecture.md`` § 4 makes
+    pushing those crops through *one* ONNX call a service requirement rather than
+    an optimisation, and a graph exported with a fixed batch of 1 simply cannot
+    do it. So the identifier gets a dynamic batch axis and the validator does
+    not: the validator sees exactly one frame, every time, and a static shape is
+    the faster and more predictable export.
+    """
+    return role == "identifier"
+
+
+def export_onnx(weights: Path, out_dir: Path, imgsz: int, opset: int, role: str) -> Path:
+    """Export ``best.pt`` to ONNX. Returns the fp32 ONNX path.
+
+    ``role`` decides whether the batch axis is dynamic – see :func:`batched_role`.
+    It is a required argument rather than a flag with a default because getting it
+    wrong is silent: a static identifier graph loads, serves, and quietly forces
+    the service back to *n* sequential calls.
+    """
     from ultralytics import YOLO  # imported lazily – the web CI does not have it
 
     out_dir.mkdir(parents=True, exist_ok=True)
     model = YOLO(str(weights))
-    exported = model.export(
-        format="onnx",
-        imgsz=imgsz,
-        opset=opset,
-        simplify=True,
-        dynamic=False,
-        nms=False,          # postprocess runs in the service
-        half=False,
-    )
+
+    options: dict[str, Any] = {
+        "format": "onnx",
+        "imgsz": imgsz,
+        "opset": opset,
+        "simplify": True,
+        "dynamic": batched_role(role),
+        "half": False,
+    }
+    # `nms` is a detection argument. The identifier is a classifier and has no
+    # boxes to suppress, so passing it there is at best ignored and at worst an
+    # error, depending on the ultralytics version.
+    if role == "validator":
+        options["nms"] = False   # postprocess runs in the service
+
+    exported = model.export(**options)
     exported = Path(exported)
     target = out_dir / "model-fp32.onnx"
     target.write_bytes(exported.read_bytes())
@@ -432,6 +459,10 @@ def write_sidecar(report: ExportReport, out_dir: Path, gates: Gates | None = Non
         "normalisation": {"scale": 1 / 255.0, "mean": [0, 0, 0], "std": [1, 1, 1]},
         "input_name": "images",
         "layout": "NCHW",
+        # Whether the service may push several crops through one call. Read, not
+        # assumed: a graph exported with a fixed batch of 1 loads and serves
+        # perfectly well, and would silently cost n sequential calls per frame.
+        "dynamic_batch": batched_role(report.role),
         "nms": {"in_graph": False, "iou": 0.45, "score": 0.35},
         "gates": asdict(gates),
         "gate_result": {
@@ -481,7 +512,9 @@ def main() -> None:
     gates = Gates.from_config(args.role, config)
     imgsz = int(config["export"]["imgsz"])
 
-    fp32 = export_onnx(args.weights, args.out, imgsz=imgsz, opset=int(config["export"]["opset"]))
+    fp32 = export_onnx(
+        args.weights, args.out, imgsz=imgsz, opset=int(config["export"]["opset"]), role=args.role
+    )
     int8 = quantise(
         fp32,
         args.calibration,
