@@ -27,7 +27,14 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
-ALL_KERNELS = (*KERNELS, "build_negatives", "bench_latency")
+CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency")
+ALL_KERNELS = (*KERNELS, *CPU_KERNELS)
+
+#: Kernels that read from or write to the Hub, and therefore need the token the
+#: secrets dataset carries. ``probe_latency`` is deliberately not one: it builds
+#: its own untrained artefacts and reports through the kernel log, so attaching a
+#: token it never uses would be cargo cult rather than configuration.
+HUB_KERNELS = (*KERNELS, "build_negatives", "bench_latency")
 
 
 def source(kernel: str) -> str:
@@ -199,7 +206,7 @@ def test_the_training_kernels_ask_for_a_gpu(kernel):
     assert meta["enable_internet"] is True
 
 
-@pytest.mark.parametrize("kernel", ("build_negatives", "bench_latency"))
+@pytest.mark.parametrize("kernel", CPU_KERNELS)
 def test_the_cpu_kernels_do_not_burn_gpu_quota(kernel):
     # Downloading JPEGs and timing an int8 graph on two threads are both
     # bandwidth or CPU. The GPU quota is 30 h/week and training needs it.
@@ -216,6 +223,36 @@ def test_the_bench_kernel_admits_it_is_not_the_service():
     assert "402" in text
 
 
+def test_the_probe_kernel_needs_no_trained_model():
+    """P4 and P5 exist because latency is answerable before training.
+
+    ONNX cost depends on architecture and input shape rather than on learned
+    weights, so the probe builds its own untrained exports. If it ever grew a
+    dependency on a Hub artefact it would stop being runnable today, which is
+    the entire reason docs/12 sequences it first.
+    """
+    text = source("probe_latency")
+    assert "hf_hub_download" not in text
+    assert "UNTRAINED" in text
+
+
+def test_the_probe_kernel_measures_both_batched_and_sequential_crops():
+    # docs/12 P4's third decision rule turns on the ratio between them. Measuring
+    # only the batched path cannot fire it.
+    text = source("probe_latency")
+    assert "batched=batched" in text
+    assert "CROP_COUNTS = (0, 1, 3, 6)" in text
+
+
+def test_the_probe_kernel_separates_not_evaluated_from_did_not_fit():
+    # P5's rule asks whether a candidate FITS 50 ms. A candidate that failed to
+    # install has not answered that question, and collapsing the two would read
+    # as evidence for "YOLO11n stays" when none was gathered.
+    text = source("probe_latency")
+    assert '"evaluated": False' in text
+    assert "NOT EVALUATED" in text
+
+
 def test_the_harvest_kernel_does_not_burn_gpu_quota():
     # Downloading JPEGs is bandwidth, not compute. The GPU quota is 30 h/week
     # and training is what needs it.
@@ -224,7 +261,7 @@ def test_the_harvest_kernel_does_not_burn_gpu_quota():
     assert meta["enable_internet"] is True
 
 
-@pytest.mark.parametrize("kernel", ALL_KERNELS)
+@pytest.mark.parametrize("kernel", HUB_KERNELS)
 def test_the_secrets_dataset_is_attached(kernel):
     # How the HF token reaches an API-pushed kernel; UserSecretsClient only
     # works in an interactive session.
