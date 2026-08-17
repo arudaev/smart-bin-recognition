@@ -21,7 +21,7 @@ a GPU hour.
 |---|---:|---:|---|
 | **YOLO11n** (incumbent) | **26.6 – 33.0 ms** | 50 ms | fits, with ~40 % headroom |
 | **RF-DETR-nano** | **475.3 ms** | 50 ms | **9.5× over** |
-| D-FINE-N | – | 50 ms | **not evaluated** |
+| D-FINE-N | – | 50 ms | **not evaluated** – the session will not open |
 
 ### RF-DETR-nano
 
@@ -47,6 +47,43 @@ recorded as a gap.
 Fixing it is a higher opset or a different export path, and it is cheap. It is
 not urgent: D-FINE-N is the same class of architecture as RF-DETR-nano, which
 missed by 9.5×, so the prior is poor.
+
+#### Re-attempted 2026-08-17, and it is the graph, not the kernel
+
+The exported graph survived — `artifacts/probe2/probe/dfine-nano.onnx`,
+15 421 442 bytes, written by run 2 — so the load was retried on a **different
+machine and a different runtime** to find out whether the failure belonged to
+Kaggle or to the artefact. It belongs to the artefact:
+
+```
+NotImplemented: [ONNXRuntimeError] : 9 : NOT_IMPLEMENTED :
+Could not find an implementation for Cos(7) node with name
+'/model/encoder/aifi.0/position_embedding/Cos'
+```
+
+- onnxruntime **1.26.0**, `CPUExecutionProvider`, local x86-64 Python 3.13
+- the same op, the same node, at **session creation** — before any input is fed
+- constant folding also declines it first:
+  *"Could not find a CPU kernel and hence can't constant fold Cos node"*
+
+So there is **no latency to measure**, on any host: the session cannot be
+created. The node is in the AIFI encoder's sinusoidal positional embedding,
+where `Cos` is emitted at a type this build has no CPU kernel for — which is an
+export-time type choice, fixable by re-exporting at a higher opset or by casting
+the embedding to float32 before the trig ops.
+
+**Still `not evaluated`, and still not `did not fit`.** The distinction is the
+whole point of this section and it now has a precise reason attached rather than
+a summary of one.
+
+**And it is not a docs/12 P8 candidate.** P8 is measuring what can recover the
+concurrency gate; a validator that cannot open a session is not a recovery. Even
+a working latency number would not make it one — the service's decoder reads a
+YOLO head shape from the sidecar (`4 + len(classes)`, deliberately, so a
+transposed head raises rather than producing plausible boxes in the wrong
+places), and a DETR head is a different output contract. Adopting D-FINE-N means
+pipeline integration, and that is separate work with its own reasons, not
+something to fold into a concurrency verdict.
 
 ---
 

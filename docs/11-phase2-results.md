@@ -100,13 +100,22 @@ Two notes on how this page should be read:
 |---|---|---|---|
 | YOLO11n (incumbent) | 26.6 – 33.0 ms | ≤ 50 ms | fits |
 | RF-DETR-nano | **475.3 ms** | ≤ 50 ms | **9.5× over** |
-| D-FINE-N | – | ≤ 50 ms | **not evaluated** – export failed |
+| D-FINE-N | – | ≤ 50 ms | **not evaluated** – the session will not open |
 
 **YOLO11n stays.** 475 ms is not a near miss and no amount of tuning
 closes a 9.5× gap. D-FINE-N is recorded as *not evaluated* rather than
 *did not fit*, because a candidate that never ran has not answered the
 question and writing it down as a failure would be manufacturing evidence
 for a convenient conclusion.
+
+The D-FINE-N gap was re-examined on 2026-08-17 and is now precise rather than
+summarised: the exported graph fails at **session creation** with
+`NOT_IMPLEMENTED: Could not find an implementation for Cos(7)` at
+`/model/encoder/aifi.0/position_embedding/Cos`, reproduced on onnxruntime 1.26.0
+on a different machine from the one that exported it. There is no latency to
+measure on any host, and the cause is an export-time type choice in the AIFI
+positional encoding rather than anything about the architecture's speed. See
+[P5](research/probes/P5-validator-architecture.md).
 
 ### Targets, as distinct from gates
 
