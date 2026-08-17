@@ -22,9 +22,17 @@ from pathlib import Path
 #: the tier we pay for" rather than "one frame on whatever the scheduler gave us".
 DEFAULT_INTRA_OP_THREADS = 2
 
-#: Crops per frame. docs/05 § 3 names capping this, with the remainder deferred
-#: to the next frame, as one of the two cheap ways to move the concurrency
-#: ceiling. Six is what the PRD calls a normal input, so six is the default.
+#: Crops per frame. docs/05 § 7 names capping this as one of the cheap ways to
+#: move the concurrency ceiling. Six is what the PRD calls a normal input, so six
+#: is the default.
+#:
+#: **The remainder is NOT deferred to the next frame.** This constant's docstring
+#: and docs/05 § 7 both said it was; neither the pipeline nor the client ever
+#: implemented it. `pipeline.run` truncates and never revisits, so a box past the
+#: cap is drawn with `form_factor: null` and no colour - lowering this trades
+#: coverage for cost, and the trade has to be stated wherever the number is.
+#: Deferral is buildable and the client's result lock is the natural place for
+#: it; docs/12 P8c records what it would take.
 DEFAULT_MAX_CROPS = 6
 
 #: How many frames may be inside onnxruntime at the same time.
