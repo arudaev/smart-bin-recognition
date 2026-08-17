@@ -56,7 +56,10 @@ artefact's sidecar.
 | `SBR_VALIDATOR_VERSION` / `SBR_IDENTIFIER_VERSION` | `1` | which version to load |
 | `SBR_ARTEFACT_DIR` | – | load from a directory instead of the Hub |
 | `SBR_INTRA_OP_THREADS` | `2` | onnxruntime threads; the service has 2 vCPU |
-| `SBR_MAX_CROPS` | `6` | crops per frame; the rest are reported unidentified |
+| `SBR_MAX_CROPS` | `6` | crops per frame; the rest are reported unidentified, NOT deferred |
+| `SBR_ORT_SHARED_POOL` | `1` | one onnxruntime thread pool for both graphs. **On by default** since docs/12 P8b; `0` restores one pool per session |
+| `SBR_ORT_SPINNING` | `1` | whether idle intra-op threads spin |
+| `SBR_IDENTIFIER_THREADS` | – | threads for the identifier alone; needs `SBR_ORT_SHARED_POOL=0` |
 | `SBR_SHED_SLOW` / `_TAP` / `_QUEUE` | `4` / `8` / `16` | the three rungs of the ladder |
 | `SBR_ALLOWED_ORIGINS` | `*` | CORS; the client is cross-origin by construction |
 | `SBR_ALLOW_UNGATED` | unset | **see below** |

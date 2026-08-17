@@ -35,18 +35,27 @@ def _clean_env(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_the_threading_defaults_are_the_runtimes_own():
-    """P8b's baseline has to be the runtime as it ships.
+def test_the_shared_thread_pool_is_on_by_default():
+    """The one recovery of P8's three that survived measurement.
 
-    A default of "spinning off" would make the probe measure a recovery against
-    a configuration nobody was running, and the 15-40 ms it exists to explain
-    was measured on the defaults.
+    Two sessions on two cores get two intra-op pools and both spin, so the idle
+    model burns the running model's cycles: switching measured +36.9 ms, and one
+    shared pool removed it. It is a default rather than a flag because a flag
+    nobody sets buys nothing, and because the cost model prices a two-model
+    pipeline - which is the shape this helps.
     """
     settings = Settings.from_env()
+    assert settings.ort_shared_pool is True
     assert settings.ort_spinning is True
-    assert settings.ort_shared_pool is False
     assert settings.identifier_threads is None
     assert settings.intra_op_threads == DEFAULT_INTRA_OP_THREADS
+
+
+def test_the_shared_pool_can_be_turned_off_again(monkeypatch):
+    # It was measured on arm64, and an x86 host may yet disagree. A recovery
+    # with no way back is not a recovery, it is a commitment.
+    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "0")
+    assert Settings.from_env().ort_shared_pool is False
 
 
 def test_spinning_can_be_turned_off(monkeypatch):
@@ -54,12 +63,10 @@ def test_spinning_can_be_turned_off(monkeypatch):
     assert Settings.from_env().ort_spinning is False
 
 
-def test_the_shared_pool_is_opt_in(monkeypatch):
-    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "1")
-    assert Settings.from_env().ort_shared_pool is True
-
-
 def test_the_identifier_can_be_given_its_own_thread_count(monkeypatch):
+    # Only with the shared pool off - one pool has one size. The refusal below
+    # is what says so rather than letting the setting be ignored.
+    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "0")
     monkeypatch.setenv("SBR_IDENTIFIER_THREADS", "1")
     assert Settings.from_env().identifier_threads == 1
 
@@ -69,12 +76,14 @@ def test_the_identifier_can_be_given_its_own_thread_count(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_a_shared_pool_and_a_per_session_count_cannot_both_be_set(monkeypatch):
-    # A shared pool has one size, so the per-session count would be ignored -
-    # and the probe would report the effect of one change having made two.
-    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "1")
+def test_a_per_session_count_under_the_shared_pool_is_refused(monkeypatch):
+    """It would be ignored, not applied, and the refusal says which knob to move.
+
+    This fires against the *default* now that the shared pool is on, so the
+    message has to name the way out rather than only the problem.
+    """
     monkeypatch.setenv("SBR_IDENTIFIER_THREADS", "1")
-    with pytest.raises(ValueError, match="cannot both be set"):
+    with pytest.raises(ValueError, match="SBR_ORT_SHARED_POOL=0"):
         Settings.from_env()
 
 

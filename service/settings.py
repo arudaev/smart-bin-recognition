@@ -50,18 +50,32 @@ DEFAULT_MAX_CROPS = 6
 DEFAULT_INFERENCE_SLOTS = 1
 
 
-#: onnxruntime's own defaults for the two threading knobs docs/12 probe P8b
-#: tests. They are *its* defaults rather than ours on purpose: the probe's
-#: baseline has to be the runtime as it ships, or the recovery it measures is
-#: against a configuration nobody was running.
+#: The two onnxruntime threading knobs docs/12 probe P8b tested, and the one it
+#: changed.
 #:
-#: Both matter here for the same reason. This service holds TWO sessions on TWO
-#: cores, and by default each session gets its own intra-op pool and each pool
-#: spins while idle - so four threads contend for two cores and the idle model's
-#: threads burn the running model's cycles. That is the standing hypothesis for
-#: the 15-40 ms per frame that P4 could attribute to neither graph.
+#: **The shared pool is ON, and it is the only recovery of the three that
+#: survived measurement.** This service holds TWO sessions on TWO cores. By
+#: default onnxruntime gives each session its own intra-op pool and each pool
+#: spins while idle, so four threads contend for two cores and the idle model
+#: burns the running model's cycles. That was P4's unexplained 15-40 ms per
+#: frame, and P8b measured it directly by varying the SESSION count while
+#: holding the graph fixed: **switching cost +36.9 ms**, one shared pool removed
+#: it, and the two-graph call fell from 57.1 ms to 26.3 ms. Under load it is
+#: worth a median 105 ms at p95, in 41 of 48 paired comparisons.
+#:
+#: Two honest caveats travel with the default:
+#:
+#: - **It is a small loss for a service holding ONE session** - one hot session
+#:   benefits from spinning, and the measurement showed 29.6 ms becoming 33.0 ms.
+#:   The service runs single-session today only because the identifier does not
+#:   exist yet; the cost model prices two models and this is sized for that.
+#: - **It was measured on arm64.** The mechanism is an onnxruntime threading
+#:   property rather than an architecture one, but the number is not x86 and the
+#:   x86 confirmation run should measure both settings.
+#:
+#: `SBR_ORT_SHARED_POOL=0` restores per-session pools.
 DEFAULT_ORT_SPINNING = True
-DEFAULT_ORT_SHARED_POOL = False
+DEFAULT_ORT_SHARED_POOL = True
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -169,10 +183,13 @@ class Settings:
         identifier_threads = _optional_int("SBR_IDENTIFIER_THREADS")
         if shared_pool and identifier_threads is not None:
             raise ValueError(
-                "SBR_ORT_SHARED_POOL and SBR_IDENTIFIER_THREADS cannot both be set. A "
-                "shared pool has one size for both sessions, so the per-session count "
-                "would be silently ignored - and a probe that moves two variables while "
-                "measuring one is not a probe (docs/12 P8b)."
+                "SBR_IDENTIFIER_THREADS has no effect while the shared thread pool is "
+                "on, and the shared pool is now the DEFAULT (docs/12 P8b). One pool has "
+                "one size, so a per-session count would be silently ignored rather than "
+                "applied - which is how a measurement ends up describing a configuration "
+                "nobody ran.\n"
+                "Set SBR_ORT_SHARED_POOL=0 as well if you mean to give the identifier "
+                "its own thread count."
             )
 
         return cls(
