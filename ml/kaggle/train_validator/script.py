@@ -168,6 +168,7 @@ def main() -> None:
     install_dependencies()
 
     from sbr.config import load_config
+    from sbr.dataset.expected import check_composition, expectation_for
     from sbr.dataset.prepare import build_yolo_tree
     from sbr.export.onnx_export import (
         ExportReport,
@@ -182,6 +183,7 @@ def main() -> None:
         configure_hf_runtime,
         download_dataset,
         require_hf_token,
+        resolve_revision,
         upload_artifacts,
     )
 
@@ -207,6 +209,29 @@ def main() -> None:
     data_yaml = build_yolo_tree(pool, tree, config)
     composition = json.loads((tree / "composition.json").read_text(encoding="utf-8"))
     log(f"composition: {json.dumps(composition)}")
+
+    # BEFORE THE GPU HOUR, not after it. A pin says which data; it does not say
+    # what is in it. The 2026-08-16 run got this far, reported background_images:
+    # 0 over a pool that is 92 % background, and trained anyway - the number was
+    # right there in the log and nothing was watching it. This is what watches.
+    expectation = expectation_for(config["data"]["repo_id"])
+    if expectation is None:
+        log(f"no composition contract for {config['data']['repo_id']} - proceeding unchecked")
+    else:
+        resolved = resolve_revision(config["data"]["repo_id"], config["data"]["revision"], strict=True)
+        if resolved != expectation.revision:
+            raise SystemExit(
+                f"this run resolved {resolved[:12]} but sbr.dataset.expected describes "
+                f"{expectation.revision[:12]}. Pinning new data is a deliberate act: update "
+                "the contract in the same commit as the pin, with the reason in the message."
+            )
+        check_composition(composition, expectation)
+        log(
+            f"composition matches the contract for {expectation.revision[:12]}: "
+            f"{expectation.total_frames} frames = {expectation.background_frames} background "
+            f"+ {expectation.positive_frames} positive. Negative ratio "
+            f"{json.dumps(expectation.ratios())}"
+        )
 
     # --- train ------------------------------------------------------------- #
     import torch
