@@ -171,6 +171,11 @@ export function Scanner(p: Props) {
     ? (live.state.phase === "connecting" || live.state.phase === "searching") && bins.length === 0
     : phase === "searching";
   const timedOut = live?.state.phase === "stopped" && live.state.stopReason === "timeout";
+  /* The service asked us to stop streaming – docs/05 § 3's rung 2. A different
+     sentence from the timeout even though it offers the same button: one is
+     about this angle and the other is about our capacity, and telling somebody
+     to step back when the answer is "we are busy" wastes their time. */
+  const shed = live?.state.phase === "stopped" && live.state.stopReason === "shed";
 
   const resolveBin = (b: FrameBin): BinAnswer =>
     answerFor(b, region, session, {
@@ -274,7 +279,11 @@ export function Scanner(p: Props) {
           gap: "var(--space-2)",
         }}
       >
-        <StatusStrip state={effConn} message={connMessage(effConn, t, region)} onCamera />
+        <StatusStrip
+          state={effConn}
+          message={connMessage(effConn, t, region, live?.state.advice?.queue_wait_ms ?? null)}
+          onCamera
+        />
       </div>
 
       <div
@@ -343,7 +352,16 @@ export function Scanner(p: Props) {
               onAnswer={(stream) => p.onAnswer(openBin.n, stream)}
             />
           ) : blocked ? (
-            <ConnPanel state={effConn} t={t} region={region} onBrowse={p.onBrowse} onRetry={live?.retry} />
+            <ConnPanel
+              state={effConn}
+              t={t}
+              region={region}
+              waitMs={live?.state.advice?.queue_wait_ms ?? null}
+              onBrowse={p.onBrowse}
+              onRetry={live?.retry}
+            />
+          ) : shed ? (
+            <ShedPanel t={t} onCapture={live!.captureOnce} onBrowse={p.onBrowse} />
           ) : timedOut ? (
             <TimedOutPanel t={t} onCapture={live!.captureOnce} onBrowse={p.onBrowse} />
           ) : searching ? (
@@ -502,24 +520,46 @@ function TimedOutPanel({ t, onCapture, onBrowse }: { t: T; onCapture: () => void
   );
 }
 
+/* The service is up and shedding load, and has asked us to stop streaming.
+   docs/05 § 3 rung 2. Same affordance as the timeout, different explanation –
+   and deliberately not written as an error, because nothing has gone wrong. */
+function ShedPanel({ t, onCapture, onBrowse }: { t: T; onCapture: () => void; onBrowse: () => void }) {
+  return (
+    <div style={{ display: "grid", gap: "var(--space-4)", alignContent: "start" }}>
+      <div style={{ display: "grid", gap: "var(--space-2)" }}>
+        <h3 style={{ font: "var(--type-heading)", color: "var(--text-strong)" }}>{t("scan.shedTitle")}</h3>
+        <p style={{ font: "var(--type-body)", color: "var(--text-muted)" }}>{t("scan.shedBody")}</p>
+      </div>
+      <Button size="outdoor" block icon="camera" onClick={onCapture}>
+        {t("scan.takeOne")}
+      </Button>
+      <Button variant="quiet" block icon="search" onClick={onBrowse}>
+        {t("scan.browse")}
+      </Button>
+    </div>
+  );
+}
+
 /* Connection states are ordinary. None of them is an error, so none of them
    gets an error's typography – a sentence, and the thing that still works. */
 function ConnPanel({
   state,
   t,
   region,
+  waitMs,
   onBrowse,
   onRetry,
 }: {
   state: ConnectionState;
   t: T;
   region: Region;
+  waitMs: number | null;
   onBrowse: () => void;
   onRetry?: () => void;
 }) {
   return (
     <div style={{ display: "grid", gap: "var(--space-4)", alignContent: "start" }}>
-      <StatusStrip state={state} message={connMessage(state, t, region)} />
+      <StatusStrip state={state} message={connMessage(state, t, region, waitMs)} />
       {state === "offline" ? (
         <>
           <div style={{ display: "grid", gap: "var(--space-2)" }}>
@@ -544,7 +584,30 @@ function ConnPanel({
   );
 }
 
-export function connMessage(state: ConnectionState, t: T, region: Region): string {
+/** Below this many seconds the wait is described rather than counted. */
+const COUNTED_WAIT_FLOOR = 5;
+
+/**
+ * The one line on the strip over the camera.
+ *
+ * `waitMs` is the ladder's deepest rung: the service refused and said how long
+ * it will be. docs/05 § 3 is explicit that this must be a stated wait and
+ * "never a spinner that lies", so when there is a number the copy carries it.
+ * Rounded up – a wait that reads as shorter than it is gets people tapping.
+ *
+ * SHORT WAITS GET A DIFFERENT SENTENCE, and not for tidiness. shed.py's
+ * smallest possible wait rounds to one second, and "about 1 seconds" is a bug
+ * that only shows up under load. The obvious fix is a singular key, which would
+ * encode English's two plural forms into a t() layer that has no plural
+ * categories at all - and Arabic, a launch locale, has six. So each key stays a
+ * complete plural-safe sentence, which is also the only shape a translator can
+ * work with. "A few seconds" is true for every value below the floor.
+ */
+export function connMessage(state: ConnectionState, t: T, region: Region, waitMs: number | null = null): string {
   if (state === "live") return `${t("conn.live")} · ${REGION_PLACE[region.key]}`;
+  if (state === "busy" && waitMs && waitMs > 0) {
+    const seconds = Math.ceil(waitMs / 1000);
+    return seconds < COUNTED_WAIT_FLOOR ? t("conn.busyShortWait") : t("conn.busyWait", { seconds });
+  }
   return t(`conn.${state}`);
 }

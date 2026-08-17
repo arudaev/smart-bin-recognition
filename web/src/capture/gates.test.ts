@@ -77,6 +77,77 @@ describe("Cadence", () => {
     expect(cadence.waitFor(1000)).toBe(1000 / MAX_FPS);
     expect(cadence.waitFor(9999)).toBe(0);
   });
+
+  /* THE HALF OF THE LADDER THE SERVICE MUST NOT CONTROL.
+     docs/05 § 3 lets a loaded service ask for 2 fps, which means the interval
+     cannot be readonly any more. What must not come with that is a cap the
+     server owns: the gates are load-bearing infrastructure precisely because a
+     client that streams whenever it can is one user eating a third of the
+     service, and a gate a server could switch off is not a gate. */
+  describe("advice from the service", () => {
+    it("lowers the cadence when asked", () => {
+      const cadence = new Cadence();
+      cadence.setMaxFps(2);
+      expect(cadence.intervalMs).toBe(500);
+
+      cadence.mark(0);
+      expect(cadence.ready(499)).toBe(false);
+      expect(cadence.ready(500)).toBe(true);
+    });
+
+    it("REFUSES to raise it above MAX_FPS", () => {
+      const cadence = new Cadence();
+      cadence.setMaxFps(30);
+      expect(cadence.intervalMs).toBe(1000 / MAX_FPS);
+
+      cadence.mark(0);
+      // 33 ms would be 30 fps. The cap is 250 ms and stays 250 ms.
+      expect(cadence.ready(33)).toBe(false);
+      expect(cadence.ready(1000 / MAX_FPS)).toBe(true);
+    });
+
+    it("refuses to raise it even one frame per second over", () => {
+      // The obvious version of this bug is a server asking for 30. The one that
+      // would actually ship is a server asking for 5.
+      const cadence = new Cadence();
+      cadence.setMaxFps(MAX_FPS + 1);
+      expect(cadence.intervalMs).toBe(1000 / MAX_FPS);
+    });
+
+    it("ignores nonsense rather than wedging the loop", () => {
+      // An interval of Infinity would stop the scan for ever, and it would do
+      // so silently - the loop would simply never think a frame was due.
+      const cadence = new Cadence();
+      for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+        cadence.setMaxFps(bad);
+        expect(cadence.intervalMs).toBe(1000 / MAX_FPS);
+      }
+    });
+
+    it("keeps a slower ceiling than the default when it was built with one", () => {
+      // Whatever a Cadence was constructed with is the fastest it will ever go.
+      // Advice may not talk it up to 4 fps.
+      const cadence = new Cadence(1000);
+      cadence.setMaxFps(MAX_FPS);
+      expect(cadence.intervalMs).toBe(1000);
+    });
+
+    it("goes back to the ceiling when the service stops shedding", () => {
+      // Rungs are not sticky. A client stuck at 2 fps for the rest of a session
+      // after one busy moment is costing its user answers for nothing.
+      const cadence = new Cadence();
+      cadence.setMaxFps(2);
+      cadence.clearAdvice();
+      expect(cadence.intervalMs).toBe(1000 / MAX_FPS);
+    });
+
+    it("forgets advice on reset, because a new scan is a new question", () => {
+      const cadence = new Cadence();
+      cadence.setMaxFps(2);
+      cadence.reset();
+      expect(cadence.intervalMs).toBe(1000 / MAX_FPS);
+    });
+  });
 });
 
 describe("ResultLock", () => {

@@ -1,0 +1,12 @@
+# What it takes to check the service, as distinct from running it. Kept out of
+# requirements.txt because everything in that file lands in the image, and a
+# container carrying its own test runner is a container shipping more attack
+# surface than service.
+-r requirements.txt
+
+pytest>=8.0
+ruff>=0.6
+mypy>=1.11
+# The TestClient lives in starlette, which fastapi already pulls in, but the
+# client it drives does not.
+httpx>=0.27

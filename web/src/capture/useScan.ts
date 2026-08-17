@@ -56,6 +56,7 @@ const INITIAL: ScanState = {
   detections: [],
   locked: false,
   stopReason: null,
+  advice: null,
   framesSent: 0,
   results: 0,
   lastError: null,

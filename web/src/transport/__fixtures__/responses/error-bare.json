@@ -1,0 +1,7 @@
+{
+  "why": "a framing error. No seq, because the header could not be read far enough to have one, and no advice because load is not why this failed",
+  "payload": {
+    "seq": null,
+    "error": "frame header is not valid UTF-8 JSON"
+  }
+}

@@ -22,7 +22,7 @@ import { metrics as defaultMetrics, now as defaultNow, ScanTimer } from "@/perf/
 import type { Metrics } from "@/perf/metrics";
 import type { DetectClient } from "@/transport/client";
 import { InFlightError, TransportError } from "@/transport/client";
-import type { DetectResponse, WireDetection } from "@/transport/protocol";
+import type { DetectResponse, LoadAdvice, WireDetection } from "@/transport/protocol";
 import { resultSignature, usableDetections } from "@/transport/protocol";
 import { FrameProcessor } from "./encode";
 import type { EncodedFrame } from "./encode";
@@ -56,6 +56,10 @@ export interface ScanState {
   locked: boolean;
   /** Set when phase is "stopped", so the interface knows which sentence to use. */
   stopReason: StopReason | null;
+  /** The last thing the service said about its load, or null when it is coping.
+   *  Drives the stated wait on the status strip; the cadence change it also
+   *  causes has already been applied to the Cadence by the time this is set. */
+  advice: LoadAdvice | null;
   /** Frames actually sent in this scan. Shown in debug, asserted in tests. */
   framesSent: number;
   /** Answers received in this scan. */
@@ -71,6 +75,7 @@ const IDLE: ScanState = {
   detections: [],
   locked: false,
   stopReason: null,
+  advice: null,
   framesSent: 0,
   results: 0,
   lastError: null,
@@ -175,6 +180,10 @@ export class ScanLoop {
     this.emit({
       phase: "connecting",
       stopReason: null,
+      // `cadence.reset()` above already restored the interval. This clears the
+      // interface's memory of it: a new scan is not bound by advice about a
+      // load that may long since have passed.
+      advice: null,
       lastError: null,
       framesSent: 0,
       results: 0,
@@ -263,7 +272,7 @@ export class ScanLoop {
     this.startedAt = this.now();
     this.lock.release();
     this.emit({ phase: "searching", locked: false, stopReason: null });
-    await this.send();
+    await this.send(true);
   }
 
   private schedule(ms: number): void {
@@ -325,7 +334,17 @@ export class ScanLoop {
     this.schedule(verdict.reason === "cadence" ? Math.max(1, verdict.waitMs ?? POLL_MS) : POLL_MS);
   }
 
-  private async send(): Promise<void> {
+  /**
+   * Encode one frame and send it.
+   *
+   * `explicit` marks a frame a person asked for by tapping, which is the one
+   * kind that survives a stopped loop. Every designed fallback in the product
+   * depends on it: the `capture` tier never starts a loop at all, and both the
+   * twenty-second timeout and the service's own "stop streaming" rung offer a
+   * tap afterwards. This used to be `seq !== 1`, which let exactly the first tap
+   * through and silently swallowed every one after it.
+   */
+  private async send(explicit = false): Promise<void> {
     const source = this.options.source;
     this.inFlight = true;
     this.seq += 1;
@@ -333,7 +352,9 @@ export class ScanLoop {
 
     try {
       const frame = await this.processor.encode(source.image, source.width, source.height);
-      if (!this.running && seq !== 1) return;
+      // Stopped while we were encoding. A loop-driven frame is abandoned; a
+      // tap is not, because somebody is waiting for it.
+      if (!this.running && !explicit) return;
 
       this.cadence.mark(this.now());
       this.scan?.frameSent(frame.bytes.byteLength);
@@ -358,6 +379,42 @@ export class ScanLoop {
     }
   }
 
+  /**
+   * Do what the service asked about load. docs/05 § 3's ladder, at this end.
+   *
+   * Returns true when the loop has been stopped, so the caller knows not to
+   * carry on describing a scan that is over.
+   *
+   * The clamp against MAX_FPS lives in `Cadence.setMaxFps` rather than here –
+   * one place, so there is one thing to audit, and it holds for every caller
+   * including a future one that has forgotten why it matters.
+   */
+  private advise(advice: LoadAdvice | undefined): boolean {
+    if (!advice) {
+      // Absent means the service is coping. Rungs are not sticky: the cadence
+      // goes back to the ceiling, because a client that stayed at 2 fps for the
+      // rest of the session after one busy moment costs the user answers.
+      if (this.state.advice) {
+        this.cadence.clearAdvice();
+        this.emit({ advice: null });
+      }
+      return false;
+    }
+
+    this.emit({ advice });
+
+    if (advice.max_fps === 0) {
+      // Rung 2 or 3: stop streaming and offer a tap. Not an error – the frame
+      // that carried this advice was answered perfectly well, and captureOnce
+      // still works, which is the whole difference between shedding and failing.
+      this.stop("shed");
+      return true;
+    }
+
+    this.cadence.setMaxFps(advice.max_fps);
+    return false;
+  }
+
   private receive(response: DetectResponse): void {
     const detections = usableDetections(response);
     const locked = this.lock.push(resultSignature(detections));
@@ -373,6 +430,10 @@ export class ScanLoop {
       lastError: null,
       debug: response.debug ?? null,
     });
+
+    // After the answer is on screen, never before. Rungs 1 and 2 ride along
+    // with a perfectly good result and the user should see it either way.
+    this.advise(response.advice);
   }
 
   private note(error: unknown): void {
@@ -380,6 +441,17 @@ export class ScanLoop {
 
     const message = error instanceof Error ? error.message : String(error);
     this.emit({ lastError: message });
+
+    /* Rung 3 is a refusal, and a refusal is not a failure of the connection.
+       Counting it toward FAILURES_BEFORE_OFFLINE would report a service that is
+       up, answering, and politely asking for room as "offline" after three
+       busy frames - and offline is the one state that tells the user their own
+       signal is at fault. Advice first, and it is allowed to stop the loop. */
+    if (error instanceof TransportError && error.advice) {
+      if (this.advise(error.advice)) return;
+      if (error.retryAfterMs) this.schedule(error.retryAfterMs);
+      return;
+    }
 
     this.failures += 1;
     if (this.failures >= FAILURES_BEFORE_OFFLINE) {

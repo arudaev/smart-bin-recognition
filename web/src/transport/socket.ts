@@ -131,7 +131,9 @@ export class SocketClient extends BaseClient {
       // A sequence-less error is about the connection, not about this frame.
       if (message.seq != null && message.seq !== pending.seq) return;
       if (message.retry_after_ms) this.setState("busy");
-      this.settle(null, new TransportError(message.error, message.retry_after_ms));
+      // The ladder's deepest rung travels on the refusal, so the advice has to
+      // come with it rather than being dropped at the transport boundary.
+      this.settle(null, new TransportError(message.error, message.retry_after_ms, message.advice));
       return;
     }
 

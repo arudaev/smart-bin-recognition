@@ -207,7 +207,15 @@ def decode_frame(buffer: bytes) -> tuple[DetectRequest, bytes]:
 
 
 def encode_frame(request: DetectRequest, jpeg: bytes) -> bytes:
-    """The inverse. Used by the tests and the load test, never by the service."""
+    """The inverse. Used by the tests and the load test, never by the service.
+
+    ``ensure_ascii=False`` is load-bearing and not a style choice. Python's
+    default escapes non-ASCII, so a locale of ``ar-Ω`` would go out as the six
+    characters ``ar-\\u03a9`` and produce a 64-byte header where the browser's
+    ``TextEncoder`` produces 60. Both decode, so nothing would fail - the load
+    test would simply be measuring a frame no real client ever sends.
+    ``tests/test_wire_contract.py`` caught exactly this, which is why it exists.
+    """
     header = json.dumps(
         {
             "seq": request.seq,
@@ -216,5 +224,6 @@ def encode_frame(request: DetectRequest, jpeg: bytes) -> bytes:
             "debug": request.debug,
         },
         separators=(",", ":"),
+        ensure_ascii=False,
     ).encode("utf-8")
     return struct.pack(">I", len(header)) + header + jpeg

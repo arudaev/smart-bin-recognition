@@ -76,7 +76,14 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       recorded as a gap rather than as a failure.
 - [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
       403 crops are not labelled against a class list that turns out wrong
-- [ ] First training run on a Kaggle kernel
+- [ ] **First training run on a Kaggle kernel — attempted 2026-08-16, failed.**
+      The kernel pulled the pinned pool, built the dataset (18 954 images, split
+      13 265/2 823/2 866) and started Ultralytics, then ended with status
+      `ERROR`, **no weights, an empty log and an empty failure message**. GPU was
+      enabled, so that is not the cause; a re-push of the cheap CPU bench kernel
+      failed identically, which points at the account or the platform rather
+      than at either script. Recorded in
+      [11 § the validator run](11-phase2-results.md); unresolved.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
@@ -86,7 +93,11 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       labels" — was wrong twice: legacy labels are waste *streams* and a stream
       is not a colour any more than it is a shape, and whether a mask is needed
       at all is exactly what the probe tests.
-- [ ] **Load-test the service: how many concurrent scanners before degradation?**
+- [x] **Load-test the service: how many concurrent scanners before degradation?**
+      Done 2026-08-17. **4 at one bin per frame, 1 at six**, on a pinned 2-vCPU
+      container. It also found that the degradation ladder had never been
+      reachable in production — inference blocked the event loop, so the load
+      shedder never saw a queue and no rung ever fired.
 
 **Gate:** validator ≤ 50 ms @ 448 and identifier ≤ 25 ms per crop on service
 CPU, and ≥ 10 concurrent scanners on the free tier **at one bin per frame**. If
@@ -98,20 +109,49 @@ roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
 end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
 Probe P4 measures the curve.
 
-**Gate status, 2026-08-16: the latency half passes and the concurrency half does
-not.** Both models are inside their budgets with headroom. The ceiling those
-budgets were supposed to produce is **4–5 concurrent scanners at one bin per
-frame against a gate of ≥ 10** — and the shortfall is not the models' fault, it
-is a factor-of-two error in docs/05 § 3's arithmetic plus 15–40 ms per frame that
-was never budgeted. Results in [11-phase2-results](11-phase2-results.md).
+### Gate status, 2026-08-17: ANSWERED. The latency half passes, the concurrency half fails, and the kill criterion fires.
 
-That figure is still **predicted from single-stream latency on a proxy host**.
-The load test against a pinned 2-vCPU container is what settles it, and it is the
-one thing here that genuinely needed the service to exist first.
+| half | budget | measured | verdict |
+|---|---|---|---|
+| validator @ 448 | ≤ 50 ms | 26.6 – 33.0 ms | **pass**, ~40 % headroom |
+| identifier @ 320 per crop | ≤ 25 ms | 17.4 – 21.7 ms | **pass** |
+| concurrent scanners @ 1 bin | ≥ 10 | **4** | **FAIL** |
+| concurrent scanners @ 6 bins | – | **1** | the PRD's normal input |
 
-If it stands, the kill criterion below fires and the free-tier serving thesis
-needs revisiting rather than rationalising — which is the whole reason it was
-written down in advance.
+No longer a prediction. Measured 2026-08-17 by `service/loadtest/run.py` against
+`docker run --cpus 2`, virtual scanners at 3 fps in strict request-response,
+ramped until p95 crossed 250 ms. Full curve and hardware in
+[11-phase2-results](11-phase2-results.md).
+
+**So: the kill criterion below fires.** It is stated as *"phase 2 gate fails and
+cannot be recovered → the free-tier serving thesis is wrong. Stop and cost a
+paid tier honestly rather than shipping something that falls over at launch."*
+
+The gate fails. Whether it **cannot be recovered** is the open half, and it is
+worth being exact rather than reaching for either conclusion:
+
+- Four is against a gate of ten, on a *pinned proxy* whose core is faster than a
+  shared Cloud Run vCPU. The real host is unlikely to do better.
+- The measurement agrees with the prediction that preceded it, so this is not
+  one noisy result.
+- What has **not** been tried is the recovery list docs/05 § 7 wrote down in
+  advance: the validator at 384 px (it is a third of a one-bin frame), finding
+  the 15–40 ms that belongs to neither graph, and capping crops at 3 rather
+  than 6. Each is cheap and none has been measured.
+- What **has** been fixed since the prediction is the degradation ladder, which
+  had never once fired in production ([11](11-phase2-results.md)). That does not
+  raise the ceiling; it means the product now degrades honestly at it instead of
+  getting silently slower.
+
+**The honest reading: the thesis as written — ten concurrent scanners free — is
+dead. A pilot in one town at four concurrent scanners is intact, and the
+client-side gates are what make that liveable.** Before rationalising or
+abandoning, run the three cheap recoveries and re-measure; if they land the
+figure short of ten, cost the paid tier honestly, which docs/05 § 7 already
+prices at USD 9/month for the first step.
+
+Nothing about this is blocked on a trained model. It was measurable without one,
+and it was.
 
 Two things found on the way that change what this phase can conclude:
 
@@ -140,12 +180,18 @@ Two things found on the way that change what this phase can conclude:
 
 ---
 
-## Phase 3 – Core app *(both halves built; nothing is deployed)*
+## Phase 3 – Core app *(both halves built and now joined; blocked on a model)*
 
 The client half ran ahead of phase 2, because it could: the loop takes its
 transport as an argument, so an in-process mock drives exactly the loop a socket
-will drive. The service caught up on 2026-08-16. What is left is the distance
-between "runs locally" and "a person in Deggendorf gets an answer".
+will drive. The service caught up on 2026-08-16, and on 2026-08-17 the two were
+actually joined — pinned to the same bytes rather than to the same paragraph,
+with the degradation ladder wired end to end and CI running both trees.
+
+What is left is no longer engineering between here and "a person in Deggendorf
+gets an answer". It is **a model**. The service will not start without one, by
+design, and both roles are now blocked: the identifier on the human pass, the
+validator on a training run that failed with no log.
 
 - [x] Vite + React + TS scaffold; service worker for the offline rules browser
 - [x] **FastAPI inference service: `POST /detect` + WS `/stream` + `/health`.**
@@ -157,36 +203,48 @@ between "runs locally" and "a person in Deggendorf gets an answer".
       `POST` is primary and the socket ships unused — a held-open WebSocket
       forces Cloud Run's instance-based billing
       ([01 § 2](01-architecture.md#which-inference-host)).
-- [ ] **Deploy.** No Cloud Run configuration exists and the client is not on
-      Vercel, so with neither `VITE_DETECT_WS` nor `VITE_DETECT_URL` set the
-      client still uses the mock and says so on the settings screen.
-- [ ] **The load test** — the phase-2 gate's unanswered half. It must run against
-      `docker run --cpus 2`, **not** against Cloud Run: Cloud Run autoscales, so
-      measuring there measures Google's scheduler rather than the two vCPU the
-      cost model is arithmetic about. It needs no trained model —
+- [ ] **Deploy.** The Google Cloud side is **built and paid for** as of
+      2026-08-17 — project `smart-bin-recognition`, billing linked, a €5/month
+      budget with alerts created *before* any billable resource, Artifact
+      Registry, an `amd64` image, `service/deploy/cloudrun.sh` and a full
+      runbook. **No service is running, and that is correct:** the container
+      refuses to start because no artefact's sidecar says `may_ship`. That
+      refusal has now been exercised in production, which is the first time it
+      has run anywhere but a test. The client is therefore not on Vercel either
+      — pointing it at an untrained COCO graph would make it confidently wrong,
+      which is the one thing this product must not be. Deploying is one command
+      once a model exists.
+- [x] **The load test** — done 2026-08-17, against `docker run --cpus 2` as
+      required. See the phase-2 gate above. It needed no trained model:
       `SBR_ALLOW_UNGATED=1` with the int8 artefacts under `artifacts/probe2/`
       is the same trick that let P4 and P5 run.
-- [ ] **CI for `service/` and `web/`.** `.github/workflows/ml.yml` covers `ml/`
-      only, so the newest and least-proven code in the repo — and its 111 tests —
-      never runs on a pull request.
-- [ ] **The wire contract has drifted, and only a byte-level test will catch it.**
-      `service/wire.py` emits `advice` (the ladder) and `pack_status`;
-      `web/src/transport/protocol.ts` declares neither, so the server's
-      load-shedding advice is dropped on the floor today. Two independent
-      readings of [01 § 4](01-architecture.md#4-streaming-protocol) is not a
-      contract; pin both sides to the same bytes.
-- [ ] **The ladder's client half.** `shed.py` implements all three rungs and the
-      service emits them, but `Cadence` takes its interval as a `readonly`
-      constructor argument and there is no `StopReason` for "the service asked me
-      to stop streaming". The designed states exist; there is no way to reach
-      them. Note the server may only ever **lower** a client's cadence — a gate a
-      server could switch off is not a gate.
+- [x] **CI for `service/` and `web/`.** `service.yml` runs ruff, mypy and 141
+      tests; `web.yml` runs `npm run verify` (typecheck, 274 tests, locales,
+      build, transfer budget). Both are path-filtered on more than their own
+      directory, because both read `data/taxonomy` and the service imports
+      `sbr.taxonomy`. Each also guards the wire contract from its own side.
+- [x] **The wire contract has drifted, and only a byte-level test will catch it.**
+      Fixed. `emit-wire-fixtures.mjs` encodes requests with the shipped
+      TypeScript encoder; `test_wire_contract.py` decodes those bytes and emits
+      responses; `contract.test.ts` reads them back. `protocol.ts` gained
+      `advice` and `pack_status`, typed to mirror the wire's distinction between
+      *absent* and *null*. It caught real drift on its first run: `encode_frame`
+      escaped non-ASCII, so a locale of `ar-Ω` produced a 64-byte header where
+      the browser produces 60.
+- [x] **The ladder's client half.** `Cadence.setMaxFps` clamps against
+      `MAX_FPS`, so the service may lower a cadence and never raise it — enforced
+      at both ends, because they deploy separately. `StopReason` gained `shed`,
+      `TransportError` carries advice so rung 3 survives being thrown, and
+      `loop.ts` applies all three rungs. Fixed a bug it would otherwise have
+      inherited: `send()` bailed on any frame after the first once the loop had
+      stopped, so tap-to-scan after the twenty-second timeout silently did
+      nothing — the affordance appeared and the button was dead.
 - [x] Capability probe; three device tiers
 - [x] Scan loop: motion gate, 4 fps cap, **result lock**, 20 s abort, tap-to-scan
 - [x] Resolver in `domain/`, framework-free, unit-tested against the pack schema
 - [x] Multi-bin result cards
-- [ ] Nine locales, including RTL – `en` is complete (419 keys) and `de` / `ar`
-      are at 65 % and fall back to English; six locales are not started.
+- [ ] Nine locales, including RTL – `en` is complete (422 keys) and `de` / `ar`
+      are at 64 % and fall back to English; six locales are not started.
       `npm --prefix web run check:locales` prints the gap.
 - [x] Desktop surface: map, registry browser, rules search – the surfaces are
       real, the registry behind them is fixtures until phase 4
@@ -204,7 +262,7 @@ Built in the same pass, beyond what this phase originally listed:
       is falling back
 - [x] Performance work: a metric vocabulary, web vitals, a transfer budget that
       exits non-zero
-- [x] 236 tests, no browser – the gates, the protocol, the awkward loop
+- [x] 274 tests, no browser – the gates, the protocol, the awkward loop
       sequences, the router, the theme, and a source-discipline test that
       enforces the conventions
 - [x] A real application shell, replacing the imported prototype viewer: real
@@ -221,13 +279,14 @@ is worth being exact about which, because they have different owners:
 
 | Blocker | Owner | Note |
 |---|---|---|
-| **Nothing is deployed** | this phase | no Cloud Run config; client not on Vercel |
-| **No identifier** | the maintainer | the 403-crop human pass in `data/legacy/pool/crops/`. Until then the service answers *where* a bin is, `form_factor` is `null`, the resolver says `unknown`, and `/health` says so — a designed state, but not a correct answer |
-| **The Ukrainian bundle** | this phase | `en` is complete at 419 keys; `de`/`ar` are at 271 (65 %); six locales including `uk` are not started |
-| **The Deggendorf pack is `draft`** | this phase | one source carries `"retrieved": null`, so `RegionPack.is_publishable` is false and correctly so |
+| **No model at all** | the maintainer, then this phase | Was "no identifier". It is now both: the identifier still needs the 403-crop human pass in `data/legacy/pool/crops/`, and the validator run failed on 2026-08-17 with no log. Until one artefact passes its gates the service will not start, so nothing can be deployed that serves. |
+| **Nothing is deployed** | this phase, *behind the above* | The Cloud Run path is built, budgeted and documented; it has nothing to serve. One command once a model exists. |
+| **The Ukrainian bundle** | this phase | `en` is complete at 422 keys; `de`/`ar` are at 271 (64 %); six locales including `uk` are not started |
+| **The Deggendorf pack is `draft`** | this phase | Every source now carries a deep link and a retrieval date, so `is_publishable` is true — that is the *sourcing* bar and nothing more. The 2026-08-17 pass found the operator routes packaging to a **Wertstoffinsel**, contradicting both packaging rules, and that no source states any container colour. It stays draft until a human resolves that. |
 
-The second is the one that decides whether the exit criterion is reachable on
-any particular date, and it is the only one no amount of engineering shortens.
+The first is the one that decides whether the exit criterion is reachable on
+any particular date, and half of it is the only one no amount of engineering
+shortens.
 
 ---
 
@@ -292,6 +351,12 @@ Stated in advance, so they are not rationalised away later:
 - **Phase 2 gate fails and cannot be recovered** → the free-tier serving thesis
   is wrong. Stop and cost a paid tier honestly rather than shipping something
   that falls over at launch.
+  **FIRED, 2026-08-17, on the first half.** Measured 4 concurrent scanners at
+  one bin per frame against a gate of 10, and 1 at six bins. *Cannot be
+  recovered* is not yet established: the three cheap recoveries docs/05 § 7
+  named in advance — validator at 384 px, the unexplained 15–40 ms, capping
+  crops at 3 — are all untried. Run them, re-measure, and if it is still short
+  of ten, cost the paid tier. Do not quietly restate the gate as four.
 - **Novelty precision stays below 0.5** → the validator/identifier disagreement
   is not a usable signal and the improvement loop does not close. That is the
   load-bearing assumption of the whole design.

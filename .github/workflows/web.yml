@@ -1,0 +1,63 @@
+name: web
+
+# `npm run verify` is the whole gate: typecheck, 274 tests, the locale report,
+# a production build, and the transfer budget. It is what AGENTS.md already
+# asks for before a commit; running it here is what makes that true rather
+# than aspirational.
+#
+# data/taxonomy is in the filter because the client reads it through the
+# @taxonomy alias - there is exactly one copy of the taxonomy and web/ is one
+# of its two readers, so a change there can break the build from outside web/.
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "data/taxonomy/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "data/taxonomy/**"
+      - ".github/workflows/web.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        # `ci` rather than `install`: the lockfile is the point, and npm's
+        # optional-dependency handling for platform binaries is the reason this
+        # repository has already lost an afternoon to a stale node_modules.
+        run: npm ci
+
+      - name: Verify
+        # typecheck -> tests -> locales -> build -> transfer budget.
+        # check-bundle.mjs is inside this and fails the build if any dev-only
+        # module reaches dist, which is a guardrail rather than a lint.
+        run: npm run verify
+
+      - name: The wire fixtures match what the encoder produces
+        # The TypeScript half of the cross-language contract. If protocol.ts
+        # changed without re-emitting, the bytes on disk are stale and the
+        # service is being checked against a wire nothing sends.
+        run: |
+          npm run emit:fixtures
+          if [ -n "$(git status --porcelain src/transport/__fixtures__/requests)" ]; then
+            echo "::error::protocol.ts and the committed request fixtures disagree."
+            echo "Run: npm --prefix web run emit:fixtures, review the diff, and commit it."
+            git --no-pager diff -- src/transport/__fixtures__/requests
+            exit 1
+          fi

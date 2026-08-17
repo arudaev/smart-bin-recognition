@@ -15,7 +15,37 @@ on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 |---|---|---|---|
 | validator @ 448 | **26.6 – 33.0 ms** | ≤ 50 ms | **within budget**, ~40 % headroom |
 | identifier @ 320, per crop | **17.4 – 21.7 ms** | ≤ 25 ms | **within budget** |
-| concurrent scanners, 1 bin | **4.3 – 5.1** (predicted) | ≥ 10 | **not met** |
+| concurrent scanners, 1 bin | **4** (measured) | ≥ 10 | **not met** |
+| concurrent scanners, 6 bins | **1** (measured) | – | the PRD's normal input |
+
+**The concurrency figure is no longer a prediction.** The load test ran on
+2026-08-17 against `docker run --cpus 2`, ramping virtual scanners at 3 fps in
+strict request-response until p95 crossed 250 ms:
+
+| scanners | p50 | p95 | throughput | ladder |
+|---:|---:|---:|---:|---|
+| 1 | 96 ms | 111 ms | 2.3 fps | – |
+| 2 | 90 ms | 143 ms | 4.6 fps | – |
+| 3 | 100 ms | 170 ms | 6.9 fps | – |
+| **4** | **106 ms** | **219 ms** | **9.2 fps** | – |
+| 5 | 99 ms | 257 ms | 11.5 fps | rung 1 |
+| 6 | 126 ms | 317 ms | 13.7 fps | rung 1 |
+| 8 | 437 ms | 470 ms | 14.2 fps | rung 1 |
+| 10 | 551 ms | 595 ms | 15.8 fps | rung 2 |
+| 12 | 660 ms | 710 ms | 16.0 fps | rung 2 |
+
+Load-test hardware: **`docker run --cpus 2` (cgroup quota 2.0), `linux/arm64`
+native, Snapdragon X1E80100 @ 3.40 GHz, onnxruntime 1.28.0, Python 3.11.15.**
+`representative: false` — **Cloud Run is x86_64**, so this is a second proxy,
+not the serving tier. It is a *pinned* proxy, which the Kaggle kernel was not,
+and its measured throughput of 15.8–16.0 frames/second sits inside the corrected
+13–15 prediction. The Snapdragon core is fast for its class, so a shared Cloud
+Run vCPU is more likely to give fewer scanners than more.
+
+Artefacts: stock COCO YOLO11n @ 448 and YOLO11s-cls @ 320, int8, **untrained on
+this project's data** and served with `SBR_ALLOW_UNGATED=1`. Sound for cost,
+which depends on architecture and input shape; meaningless for accuracy, which
+is not measured here.
 
 Latency hardware: **Kaggle CPU kernel, Intel Xeon @ 2.20 GHz, onnxruntime
 pinned to 2 of 4 vCPU, onnxruntime 1.28.0.** `representative: false` – a
@@ -41,8 +71,15 @@ both in P4:
   alternating between two onnxruntime sessions. At one bin that is a third
   of the frame and nothing had budgeted for it.
 
-The concurrency number above is still a **prediction from single-stream
-latency**. The load test against a pinned 2-vCPU container measures it.
+A third finding, and the load test is the only thing that could have produced
+it: **the degradation ladder had never been reachable.** Inference blocked the
+event loop, so requests queued in the ASGI layer instead of arriving at the load
+shedder — twelve concurrent scanners gave `peak_depth: 1` and not one rung
+fired. Every rung test passed throughout, because each forces its threshold to
+zero and fires on the first request; they checked the shedder's arithmetic and
+none checked that it is ever handed a queue. The service degraded by getting
+slower and saying nothing, which is the one behaviour docs/05 § 3 rules out by
+name. Fixed, and the fix is why the table above shows rungs firing at all.
 
 Two notes on how this page should be read:
 
@@ -51,9 +88,9 @@ Two notes on how this page should be read:
   shape rather than on weights, so P4 and P5 filled it from stock
   exports while the identifier is still blocked on the human pass.
 - **The concurrency figure is a range over scene complexity.** One bin per
-  frame is the easy end; a bank of six — which the PRD calls a normal
-  input — costs about two and a half times as much and drops the ceiling
-  to roughly two scanners.
+  frame is the easy end and measures 4; a bank of six — which the PRD calls
+  a normal input — measures **1**. Quoting the single number 4 without the
+  scene it assumes is the same mistake as quoting 10 was.
 
 ## Architecture
 
@@ -86,6 +123,38 @@ carries both, in three categories — met, missed, and **unmeasurable**:
 *Unmeasurable* is not *missed*. It means the evidence does not exist,
 and it is reported rather than omitted so that the generalisation
 question this phase exists to answer cannot be quietly dropped.
+
+## The validator run, 2026-08-16: dispatched, and it died
+
+Recorded because a run that failed is a result, and because the next person to
+try this needs to know how far it got rather than starting from nothing.
+
+`dispatch.py push validator --version 1` pushed cleanly to
+`hlexnc/sbr-train-validator`. The kernel then:
+
+- pulled the pinned pool — 77 890 files — and built the dataset;
+- wrote `dataset/composition.json`: **18 954 images**, split 13 265 train /
+  2 823 val / 2 866 test, from 370 legacy + 17 474 negatives + 1 110 Open Images;
+- wrote `runs/validator/args.yaml`, so Ultralytics started: `yolo11n.pt`,
+  80 epochs, batch 32, imgsz 448, AdamW, cosine LR, seed 42, `device: '0'`;
+- produced **no weights** — `runs/validator/weights/` is empty;
+- ended with status `ERROR`, an **empty log**, and an empty `failureMessage`.
+
+GPU was enabled in the kernel metadata, so that is not it. Kaggle returned no
+diagnostic at all through the API, and a re-push of the much cheaper CPU bench
+kernel failed the same way — errored, no log — which points at something about
+the account or the platform rather than at either script. **Unresolved.**
+
+Two things follow. The ship gate's latency half still has no
+service-hardware measurement, because `gate.py` needs the bench kernel. And
+`docs/07`'s phase-2 checklist item "first training run on a Kaggle kernel"
+remains open, now with a known failure mode rather than as untried work.
+
+One thing in the output deserves its own look: `composition.json` reports
+`background_images: 0` and `negative_ratio: 0.0` while `per_pool.negatives` is
+17 474, and `positives: 18 954` is the sum of *all three* pools. If that is real
+rather than a reporting bug, the validator would train with no negatives at all
+— and `min_precision_on_negatives ≥ 0.97` is one of its targets.
 
 ## What the models were trained on
 

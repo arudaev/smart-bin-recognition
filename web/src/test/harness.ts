@@ -8,7 +8,7 @@
    argument, and this file supplies deterministic versions of all four. */
 
 import { BaseClient, TransportError } from "@/transport/client";
-import type { DetectRequest, DetectResponse, WireDetection } from "@/transport/protocol";
+import type { DetectRequest, DetectResponse, LoadAdvice, WireDetection } from "@/transport/protocol";
 import type { EncodedFrame } from "@/capture/encode";
 import type { FrameEncoder, PixelSource } from "@/capture/loop";
 
@@ -121,11 +121,21 @@ export interface FakeClientOptions {
   ms?: number;
 }
 
+/** Advice to attach to answers, as docs/05 § 3's rungs 1 and 2 do. */
+export type AdviceFor = (seq: number) => LoadAdvice | undefined;
+
 export class FakeClient extends BaseClient {
   readonly requests: DetectRequest[] = [];
   /** Set to make the next N calls fail, the way a shedding service would. */
   failures = 0;
   failureRetryMs: number | undefined = undefined;
+  /** Advice to attach to the refusals `failures` produces – the ladder's rung 3,
+   *  which arrives as an error and would otherwise be the only rung a test
+   *  cannot reach. */
+  failureAdvice: LoadAdvice | undefined = undefined;
+  /** Advice to ride along with successful answers: rungs 1 and 2, where the
+   *  frame is served AND the client is asked to ease off. */
+  advice: AdviceFor = () => undefined;
   /** Make the next detect hang until `release()` is called. */
   holdNext = false;
   /** Highest concurrency ever observed. The protocol says this must stay 1. */
@@ -159,13 +169,16 @@ export class FakeClient extends BaseClient {
 
     if (this.failures > 0) {
       this.failures -= 1;
-      return done(Promise.reject(new TransportError("the service is busy", this.failureRetryMs)));
+      return done(
+        Promise.reject(new TransportError("the service is busy", this.failureRetryMs, this.failureAdvice)),
+      );
     }
 
     const response: DetectResponse = {
       seq: request.seq,
       ms: this.options.ms ?? 20,
       detections: this.options.detections?.(request.seq) ?? [],
+      advice: this.advice(request.seq),
     };
 
     if (this.holdNext) {

@@ -1,0 +1,30 @@
+{
+  "why": "outside every known jurisdiction. pack_status and region_id are explicitly null - the client must say `unknown` rather than borrow a neighbour's rules",
+  "payload": {
+    "seq": 2,
+    "ms": 66,
+    "detections": [
+      {
+        "box": {
+          "x": 12.5,
+          "y": 30.0,
+          "w": 25.25,
+          "h": 44.5
+        },
+        "validator_conf": 0.9312,
+        "form_factor": null,
+        "identifier_conf": 0.0,
+        "body_color": null,
+        "lid_color": null,
+        "aperture_color": null,
+        "text_hint": null,
+        "stream": null,
+        "stream_conf": 0.0,
+        "local_name": null,
+        "novelty": "none"
+      }
+    ],
+    "region_id": null,
+    "pack_status": null
+  }
+}

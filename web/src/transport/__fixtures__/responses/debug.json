@@ -1,0 +1,45 @@
+{
+  "why": "debug builds only. Present here so the optional block's shape is pinned",
+  "payload": {
+    "seq": 7,
+    "ms": 77,
+    "detections": [
+      {
+        "box": {
+          "x": 12.5,
+          "y": 30.0,
+          "w": 25.25,
+          "h": 44.5
+        },
+        "validator_conf": 0.9312,
+        "form_factor": null,
+        "identifier_conf": 0.0,
+        "body_color": null,
+        "lid_color": null,
+        "aperture_color": null,
+        "text_hint": null,
+        "stream": null,
+        "stream_conf": 0.0,
+        "local_name": null,
+        "novelty": "none"
+      }
+    ],
+    "region_id": "de-by-deggendorf",
+    "pack_status": "draft",
+    "debug": {
+      "validator_boxes": [
+        {
+          "box": {
+            "x": 12.5,
+            "y": 30.0,
+            "w": 25.25,
+            "h": 44.5
+          },
+          "conf": 0.9312
+        }
+      ],
+      "validator_ms": 31,
+      "identifier_ms": 21
+    }
+  }
+}

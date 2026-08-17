@@ -1,10 +1,12 @@
 /* The service, in-process.
 
-   service/ is empty and will be a FastAPI app on a Hugging Face Space. Until it
-   answers, this stands in – and it is not throwaway scaffolding. It is what
-   makes the scan loop testable without a network, what makes the director panel
-   able to put the interface into `busy` or `offline` on demand, and what lets
-   the app be demonstrated on a laptop with no camera and no backend.
+   service/ exists now – FastAPI, deployed to Cloud Run – and this still is not
+   throwaway scaffolding. It is what makes the scan loop testable without a
+   network, what makes the director panel able to put the interface into `busy`
+   or `slow` or `shed` on demand, and what lets the app be demonstrated on a
+   laptop with no camera and no backend. It is also what the client falls back
+   to when neither VITE_DETECT_URL nor VITE_DETECT_WS is set, which the settings
+   screen says out loud rather than pretending to be connected.
 
    It answers from the same fixtures the prototype drew: `data/frames.ts` holds
    observations measured off real archive photographs, and turning them into
@@ -17,9 +19,14 @@
 import { FRAMES } from "@/data/frames";
 import type { FrameBin } from "@/data/frames";
 import { BaseClient, InFlightError, TransportError } from "./client";
-import type { DetectRequest, DetectResponse, Novelty, WireDetection } from "./protocol";
+import type { DetectRequest, DetectResponse, LoadAdvice, Novelty, WireDetection } from "./protocol";
 
-export type MockMode = "live" | "busy" | "offline";
+/* `slow` and `shed` are the ladder's first two rungs (docs/05 § 3), which the
+   service reaches under load and which nothing else here can produce on demand.
+   `busy` is the third: a refusal carrying a stated wait. All three answer, or
+   refuse, exactly as service/shed.py does - the point of the mock is that the
+   loop cannot tell the difference. */
+export type MockMode = "live" | "slow" | "shed" | "busy" | "offline";
 
 export interface MockConfig {
   /** Which fixture frame the camera is pointed at. */
@@ -45,6 +52,18 @@ export const MOCK_DEFAULTS: MockConfig = {
    quantisation still agrees frame to frame – a hand-held phone drifts, and a
    lock that broke on drift would never close. */
 const DRIFT = 0.4;
+
+/* What each mode puts on the wire. `undefined` is deliberate for the modes that
+   are not shedding: wire.py omits the key rather than sending null, and a mock
+   that sent null would let the client's types drift away from the service's. */
+const ADVICE: Record<MockMode, LoadAdvice | undefined> = {
+  live: undefined,
+  slow: { max_fps: 2 },
+  shed: { max_fps: 0 },
+  // Never reached on a successful answer - `busy` refuses before it gets here.
+  busy: { max_fps: 0, queue_wait_ms: 4000 },
+  offline: undefined,
+};
 
 function noveltyFor(bin: FrameBin): Novelty {
   // An orange container matches no rule in any pack that exists. The six-bin
@@ -109,8 +128,10 @@ export class MockClient extends BaseClient {
         throw new TransportError("no connection");
       }
       if (this.config.mode === "busy") {
+        // Rung 3, as shed.py builds it: a refusal that always quotes a positive
+        // wait, because "retry after 0 ms" is how a queue becomes a stampede.
         this.setState("busy");
-        throw new TransportError("the service is busy", 4000);
+        throw new TransportError("the service is busy", 4000, { max_fps: 0, queue_wait_ms: 4000 });
       }
 
       const ms = this.config.latencyMs + Math.random() * this.config.jitterMs;
@@ -127,6 +148,11 @@ export class MockClient extends BaseClient {
         // metrics panel even when nothing left the device.
         detections: frame.bins.slice(0, frame.count).map((bin) => toDetection(bin, drift)),
         region_id: null,
+        pack_status: null,
+        /* Rungs 1 and 2 ride along with a perfectly good answer: the frame is
+           served AND the client is asked to ease off. Absent on `live`, and
+           absent rather than null, because that is what wire.py emits. */
+        advice: ADVICE[this.config.mode],
         debug: request.debug
           ? {
               validator_boxes: frame.bins

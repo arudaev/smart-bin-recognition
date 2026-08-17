@@ -7,7 +7,7 @@
    need no network at all. */
 
 import type { ConnectionState } from "@/components";
-import type { DetectRequest, DetectResponse } from "./protocol";
+import type { DetectRequest, DetectResponse, LoadAdvice } from "./protocol";
 
 export type { ConnectionState };
 
@@ -38,6 +38,10 @@ export class TransportError extends Error {
   constructor(
     message: string,
     readonly retryAfterMs?: number,
+    /** Rung 3 of the ladder arrives as a refusal, so the advice has to survive
+     *  being thrown. Without this the deepest rung is the only one the client
+     *  cannot hear. */
+    readonly advice?: LoadAdvice,
   ) {
     super(message);
     this.name = "TransportError";

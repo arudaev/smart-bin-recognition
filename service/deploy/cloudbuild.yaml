@@ -1,0 +1,44 @@
+# Build the inference image on Cloud Build.
+#
+#     gcloud builds submit --config service/deploy/cloudbuild.yaml \
+#       --project smart-bin-recognition --region europe-west3 \
+#       --substitutions _TAG=v1 .
+#
+# WHY NOT `gcloud builds submit --tag`. That form requires a Dockerfile at the
+# root of the context, and this one lives in service/ while its context is the
+# repository - the image needs sbr.taxonomy, ml/configs and data/taxonomy, and
+# copying them into service/ would put a second copy of the resolver in the tree.
+#
+# WHY NOT PUSH THE LOCAL IMAGE. Cloud Run is amd64. The machine this was
+# developed on is a Snapdragon X1E80100, so `docker build` there produces an
+# arm64 image that Cloud Run refuses with a manifest error - and the error names
+# the platform, not the cause. Building here means the artefact is always the
+# right architecture no matter what the laptop is.
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=service/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:${_TAG}
+      # Also tag `latest`, so a rollback has something stable to compare against
+      # and `gcloud run deploy` without a tag does something predictable.
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest
+
+substitutions:
+  _REGION: europe-west3
+  _REPO: sbr
+  _IMAGE: detect
+  _TAG: v1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  # The smallest machine that builds this in a sensible time. The image is a
+  # slim Python base plus onnxruntime; nothing here needs a big builder, and a
+  # big builder is billed per build-minute.
+  machineType: E2_HIGHCPU_8

@@ -71,12 +71,66 @@ def test_all_shipped_packs_validate():
         assert pack.validate(taxonomy) == [], region_id
 
 
-def test_deggendorf_pack_is_draft_and_not_publishable():
-    # It was transcribed from the predecessor's hard-coded classes, not verified
-    # against ZAW Donau-Wald. It must not be servable until that is done.
+def test_deggendorf_pack_is_still_draft():
+    """The rules were transcribed from the predecessor's four hard-coded classes,
+    not verified against ZAW Donau-Wald, so this must not be served.
+
+    ``status`` is what enforces that, and it is the only thing that does.
+
+    This test used to assert ``not pack.is_publishable`` as well, and passed for
+    the wrong reason: one source carried ``"retrieved": null``, so the SOURCING
+    bar happened to be unmet. Those are two different properties. The 2026-08-16
+    verification pass attached a real URL and retrieval date to every source -
+    which is strictly an improvement, and which flipped ``is_publishable`` to
+    true - while the rules themselves got *less* trustworthy, because the
+    operator's own page contradicts both packaging rules.
+
+    So the assertion is on the property that actually protects a user. A pack can
+    be perfectly sourced and still wrong, and this one currently is.
+    """
     pack = load_region_pack("de-by-deggendorf")
     assert pack.status == "draft"
-    assert not pack.is_publishable
+
+
+def test_deggendorf_sources_are_all_traceable():
+    # Every source carries a URL and a retrieval date, which is what
+    # is_publishable means and all it means.
+    pack = load_region_pack("de-by-deggendorf")
+    assert pack.is_publishable
+    assert len(pack.sources) >= 4
+    for source in pack.sources:
+        assert source["url"].startswith("https://"), source
+        assert source["retrieved"] == "2026-08-16", source
+        # Nobody has signed off on the rules themselves yet, and until somebody
+        # has, this pack has no business leaving draft.
+        assert source["verified_by"] is None, source
+
+
+def test_the_contradicted_packaging_rules_are_recorded_as_such():
+    """The 2026-08-16 pass found the operator routes packaging to a
+    Wertstoffinsel, not to the Gelber Sack these two rules assert.
+
+    They are left in the pack because deleting a disposal rule is the
+    maintainer's call. What must not happen is the finding being lost: a
+    contradicted rule sitting quietly at confidence 0.95 is precisely the
+    product's worst failure mode with a citation stapled to it.
+    """
+    # Read the document rather than the loaded pack: `notes` is provenance for a
+    # human and is deliberately not a RegionPack field, because nothing about
+    # resolution may depend on it.
+    import json
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "data" / "taxonomy" / "regions" / "de-by-deggendorf.json"
+    )
+    notes = " ".join(json.loads(path.read_text(encoding="utf-8"))["notes"])
+
+    assert "CONTRADICTED" in notes
+    for rule_id in ("deg-packaging-sack", "deg-packaging-wheelie"):
+        assert rule_id in notes, f"{rule_id} is disputed but the pack does not say so"
+    assert "Wertstoffinsel" in notes
 
 
 # --------------------------------------------------------------------------- #

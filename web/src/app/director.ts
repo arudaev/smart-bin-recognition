@@ -1,9 +1,10 @@
 import type { Coverage } from "@/data/regions";
 import type { ConnSetting } from "@/features/scan/Scanner";
+import type { MockMode } from "@/transport";
 
 import type { LevelOverride } from "./answers";
 
-/* The seven knobs the state director turns, and what they are when nobody is
+/* The eight knobs the state director turns, and what they are when nobody is
  * turning them.
  *
  * They live here rather than in dev/ because the shell holds them either way:
@@ -33,6 +34,10 @@ export interface DirectorState {
   level: LevelOverride;
   forceStale: boolean;
   conn: ConnSetting;
+  /** Which rung of docs/05 § 3's degradation ladder the stand-in service is on.
+   *  Live frames only – it drives the transport, not the fixture timeline.
+   *  `live` means the service is coping and sends no advice at all. */
+  ladder: MockMode;
 }
 
 /** Deggendorf is the one pack that exists, and it is a draft. Say so. */
@@ -44,4 +49,5 @@ export const PRODUCTION_DIRECTOR: DirectorState = {
   level: "auto",
   forceStale: false,
   conn: "auto",
+  ladder: "live",
 };

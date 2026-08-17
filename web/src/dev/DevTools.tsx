@@ -7,6 +7,7 @@ import type { Tier } from "@/capture/capability";
 import type { Coverage } from "@/data/regions";
 import type { ConnSetting } from "@/features/scan/Scanner";
 import type { Locale } from "@/i18n";
+import type { MockMode } from "@/transport";
 
 import { Action, DirectorPanel, Section, Segmented, Select, Toggle } from "./DirectorPanel";
 import { MetricsPanel } from "./MetricsPanel";
@@ -58,6 +59,18 @@ const CONN_LABELS: Record<ConnSetting, string> = {
   waking: "Waking",
   busy: "Busy",
   offline: "Offline",
+};
+
+/* The degradation ladder, docs/05 § 3. These drive the MOCK rather than the
+   fixture timeline, because a rung is a thing the transport does: the service
+   answers the frame and asks the client to ease off, and the loop reacts. They
+   are only reachable with `Frames from: live`. */
+const LADDER_LABELS: Record<MockMode, string> = {
+  live: "Coping",
+  slow: "Rung 1 – 2 fps",
+  shed: "Rung 2 – tap only",
+  busy: "Rung 3 – stated wait",
+  offline: "No connection",
 };
 
 export interface DevToolsProps {
@@ -158,6 +171,14 @@ export default function DevTools(p: DevToolsProps) {
           value={d.conn}
           options={(Object.keys(CONN_LABELS) as ConnSetting[]).map((k) => ({ value: k, label: CONN_LABELS[k] }))}
           onChange={(conn) => p.patch({ conn })}
+        />
+        {/* Reachable only with live frames: a rung is something the transport
+            does to the loop, and the fixture timeline has no transport. */}
+        <Select
+          label={d.source === "live" ? "Service load" : "Service load (needs live frames)"}
+          value={d.ladder}
+          options={(Object.keys(LADDER_LABELS) as MockMode[]).map((k) => ({ value: k, label: LADDER_LABELS[k] }))}
+          onChange={(ladder) => p.patch({ ladder })}
         />
 
         <Section label="Jump to" />

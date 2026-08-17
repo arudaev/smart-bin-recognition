@@ -1,0 +1,20 @@
+# The wire fixtures are BYTES, and the whole point of them is that they stay
+# byte-exact across every machine that checks this repository out. Git's own
+# heuristic already treats them as binary - the 4-byte big-endian header length
+# starts with NULs - but relying on a heuristic to protect the thing that exists
+# to stop silent drift is the wrong shape. Say it outright.
+#
+# Written on a repository whose maintainer works on Windows, where a checkout
+# with core.autocrlf=true is the default path to a corrupted fixture.
+web/src/transport/__fixtures__/requests/*.bin binary
+
+# ONNX graphs and model weights, for the same reason. artifacts/ is gitignored
+# today, but a rule that only works because the file is absent is not a rule.
+*.onnx binary
+*.pt binary
+
+# Shell scripts run on Linux - in a container, or on Cloud Build. A CRLF
+# shebang line is reported as "bad interpreter: /bin/bash^M", which is a
+# genuinely baffling error the first time somebody meets it.
+*.sh text eol=lf
+service/Dockerfile text eol=lf

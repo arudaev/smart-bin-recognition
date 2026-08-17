@@ -1,0 +1,12 @@
+{
+  "why": "ladder rung 3. A refusal quoting a STATED wait. retry_after_ms of 0 is how every client that was just refused comes back at once",
+  "payload": {
+    "seq": 8,
+    "error": "the service is busy",
+    "retry_after_ms": 1040,
+    "advice": {
+      "max_fps": 0,
+      "queue_wait_ms": 1040
+    }
+  }
+}
