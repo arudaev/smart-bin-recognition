@@ -116,7 +116,13 @@ def build(role: str, imgsz: int, out_dir: Path, version: int, keep_intermediates
     report = ExportReport(
         role=role,
         version=version,
-        onnx_path=str(int8),
+        # THE BARE FILENAME, not the path it was written at. `artefacts.py`
+        # falls back to "beside the sidecar" by taking `Path(onnx_path).name`,
+        # and a Windows path recorded here has no separators on Linux - so the
+        # whole string becomes the "filename", the graph is not found, and the
+        # container exits at startup with ArtefactMissingError. That cost one
+        # configuration of a P8 ramp. The training kernels already do this.
+        onnx_path=int8.name,
         size_bytes=int8.stat().st_size,
         imgsz=imgsz,
         classes=classes,

@@ -88,8 +88,23 @@ def test_a_frame_decomposes_into_four_buckets():
     entry.identifier_ms = [20.0] * 20
 
     block = entry.decomposition()
-    assert block["transport_ms"] == pytest.approx(20.0)      # wall - server
-    assert block["other_server_ms"] == pytest.approx(50.0)   # server - both graphs
+    assert block["outside_pipeline_ms"] == pytest.approx(20.0)   # wall - server
+    assert block["other_server_ms"] == pytest.approx(50.0)       # server - both graphs
+    assert block["outside_pipeline_is"] == "network only"
+
+
+def test_above_one_scanner_the_outside_bucket_says_what_it_really_holds():
+    """It is not the network, and calling it transport_ms invited exactly that.
+
+    The server's `ms` starts inside `Pipeline.run`, after the shedder has
+    admitted the request and after it has taken the single inference slot. At
+    twelve scanners this bucket was four seconds while the service reported 391
+    ms, which reads as a catastrophic network problem and is a queue.
+    """
+    entry = level(12, 4600.0)
+    entry.server_ms = [391.0] * 20
+    block = entry.decomposition()
+    assert "queueing for the inference slot" in block["outside_pipeline_is"]
 
 
 def test_without_debug_only_the_free_half_is_reported():
@@ -98,7 +113,7 @@ def test_without_debug_only_the_free_half_is_reported():
     entry = level(1, 120.0)
     entry.server_ms = [100.0] * 20
     block = entry.decomposition()
-    assert "transport_ms" in block
+    assert "outside_pipeline_ms" in block
     assert "other_server_ms" not in block
 
 

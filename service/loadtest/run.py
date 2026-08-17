@@ -117,6 +117,15 @@ class Level:
         session run: JPEG decode, crop preprocessing, colour, the resolver.
         ``_validate`` already includes letterbox and NMS and ``_identify`` times
         only ``session.run``, so the split is stated rather than assumed.
+
+        ``outside_pipeline_ms`` is wall clock minus what the service reported,
+        and **it is not the network**. The server's ``ms`` starts inside
+        ``Pipeline.run``, which is after the load shedder has admitted the
+        request and after it has taken the inference semaphore - so above one
+        scanner this bucket is mostly **queueing for the one inference slot**,
+        which is the service working as designed rather than a transport
+        problem. It is only the network at a concurrency of one, which is the
+        only level docs/12 P8b's decomposition is read at.
         """
         if not self.server_ms:
             return None
@@ -125,7 +134,10 @@ class Level:
         block: dict = {
             "server_ms": round(server, 1),
             "wall_ms": round(wall, 1),
-            "transport_ms": round(wall - server, 1),
+            "outside_pipeline_ms": round(wall - server, 1),
+            "outside_pipeline_is": (
+                "network only" if self.scanners == 1 else "queueing for the inference slot, plus network"
+            ),
         }
         if self.validator_ms and self.identifier_ms:
             validator = _percentile(self.validator_ms, 50)

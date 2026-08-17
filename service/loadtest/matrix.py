@@ -366,7 +366,7 @@ def run_matrix(args: argparse.Namespace, out: Path) -> dict:
         )
 
     results: dict[str, list[dict]] = {}
-    for bins in SCENES:
+    for bins in args.scenes:
         applicable = [c for c in candidates if bins in c.scenes]
         order = list(applicable)
         rng.shuffle(order)
@@ -389,7 +389,7 @@ def run_matrix(args: argparse.Namespace, out: Path) -> dict:
         "seed": args.seed,
         "repeats": args.repeats,
         "hold_seconds": args.hold,
-        "scenes": list(SCENES),
+        "scenes": list(args.scenes),
         "note": (
             "Each scene is bracketed by a baseline. A candidate delta smaller than "
             "the baseline-to-baseline difference is drift, not a recovery."
@@ -429,8 +429,14 @@ def main(argv: list[str] | None = None) -> int:
         help="run P8b's decomposition instead of the matrix",
     )
     parser.add_argument(
-        "--candidates", nargs="+", default=["val448local", "val384", "nospin", "maxcrops3"],
+        "--candidates", nargs="+",
+        default=["val448local", "val384", "nospin", "sharedpool", "maxcrops3"],
         choices=sorted(CANDIDATES),
+    )
+    parser.add_argument(
+        "--scenes", type=int, nargs="+", default=list(SCENES),
+        help="bins per frame. 1 is where the gate is stated; 6 is what the PRD "
+             "calls a normal input",
     )
     parser.add_argument(
         "--combined", nargs="+", default=None, choices=sorted(CANDIDATES),

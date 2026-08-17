@@ -20,7 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from settings import Settings
@@ -28,6 +28,14 @@ from settings import Settings
 logger = logging.getLogger("sbr.service")
 
 ROLES = ("validator", "identifier")
+
+#: Whether this process has already created onnxruntime's global thread pools,
+#: and at what size. They are **process-wide and immutable**: a second call
+#: raises ``FAIL: Global thread pools have already been created, cannot replace
+#: them``, which - since the service opens the validator and then the identifier
+#: - means an unguarded implementation crashes at startup on the second session
+#: and never on the first. Found by running it, not by reading it.
+_GLOBAL_POOL: tuple[int, int] | None = None
 
 
 class UngatedArtefactError(RuntimeError):
@@ -149,23 +157,48 @@ def open_session(
         # so this is logged at the call site where the setting is known.
         options.add_session_config_entry("session.intra_op.allow_spinning", "0")
 
-    if shared_pool:
-        setter = getattr(ort, "set_global_thread_pool_sizes", None)
-        if setter is None or not hasattr(options, "use_per_session_threads"):
-            logger.warning(
-                "SBR_ORT_SHARED_POOL is set but onnxruntime %s exposes no global "
-                "thread pool API - falling back to per-session pools. Any P8b number "
-                "from this process is a measurement of the DEFAULT configuration.",
-                ort.__version__,
-            )
-        else:
-            # Idempotent, and it has to happen before the first session that opts
-            # out of per-session threads. Sizing it exactly as a per-session pool
-            # is what keeps this a one-variable change.
-            setter(threads, 1)
-            options.use_per_session_threads = False
+    if shared_pool and _use_global_pool(ort, threads):
+        options.use_per_session_threads = False
 
     return ort.InferenceSession(str(onnx_path), options, providers=["CPUExecutionProvider"])
+
+
+def _use_global_pool(ort: Any, threads: int) -> bool:
+    """Create the process-wide thread pools once. Returns whether to opt in.
+
+    Once, because onnxruntime's global pools cannot be replaced: the second call
+    raises. The service opens two sessions, so the naive version works for the
+    validator and takes the process down on the identifier - a failure that is
+    invisible to any test that opens one session, which is every test that used
+    to exist here.
+    """
+    global _GLOBAL_POOL
+
+    setter = getattr(ort, "set_global_thread_pool_sizes", None)
+    if setter is None:
+        logger.warning(
+            "SBR_ORT_SHARED_POOL is set but onnxruntime %s exposes no global thread "
+            "pool API - falling back to per-session pools. Any P8b number from this "
+            "process describes the DEFAULT configuration, not the one asked for.",
+            ort.__version__,
+        )
+        return False
+
+    if _GLOBAL_POOL is None:
+        setter(threads, 1)
+        _GLOBAL_POOL = (threads, 1)
+        logger.info("created the global onnxruntime thread pool: %d intra, 1 inter", threads)
+    elif _GLOBAL_POOL != (threads, 1):
+        # Both sessions share one pool, so the first sizing is the only sizing.
+        # Saying so is the difference between a measurement and a guess about a
+        # measurement - Settings refuses the combination that would cause this,
+        # so reaching here means something else set it.
+        logger.warning(
+            "the global thread pool already exists at %s; this session asked for "
+            "%d intra and gets the existing pool. A shared pool has ONE size.",
+            _GLOBAL_POOL, threads,
+        )
+    return True
 
 
 def _from_directory(directory: Path, role: str, version: int) -> tuple[Path, dict[str, Any]]:
@@ -174,11 +207,19 @@ def _from_directory(directory: Path, role: str, version: int) -> tuple[Path, dic
         raise ArtefactMissingError(f"no sidecar at {sidecar_path}")
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
 
-    onnx_path = Path(str(sidecar["onnx_path"]))
+    recorded = str(sidecar["onnx_path"])
+    onnx_path = Path(recorded)
     if not onnx_path.exists():
         # Sidecars record the path they were written at, which is a Kaggle
         # working directory. Beside the sidecar is where it actually is.
-        onnx_path = directory / onnx_path.name
+        #
+        # Backslashes are normalised first: a sidecar written on Windows records
+        # `artifacts\p8\...\validator-probe.onnx`, which on Linux is a single
+        # filename containing backslashes rather than a path - so `.name` returns
+        # the whole string and the fallback looks for a file whose name is a
+        # path. The container then exits at startup with ArtefactMissingError,
+        # which reads exactly like a missing artefact and is not one.
+        onnx_path = directory / PurePosixPath(recorded.replace("\\", "/")).name
     if not onnx_path.exists():
         raise ArtefactMissingError(f"sidecar at {sidecar_path} but no graph at {onnx_path}")
     return onnx_path, sidecar

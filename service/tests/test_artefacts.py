@@ -91,6 +91,47 @@ def test_a_missing_artefact_is_not_an_ungated_one(artefact_dir):
         load_artefact("identifier", _settings(directory))
 
 
+def test_a_second_session_does_not_die_on_the_global_thread_pool(monkeypatch):
+    """onnxruntime's global pools cannot be replaced, and this service opens two.
+
+    The first implementation called ``set_global_thread_pool_sizes`` per session,
+    so ``SBR_ORT_SHARED_POOL=1`` opened the validator and then took the process
+    down on the identifier with ``FAIL: Global thread pools have already been
+    created``. Invisible to every test that opens one session - which was all of
+    them - and found by running it in the container.
+    """
+    import artefacts
+
+    calls: list[tuple[int, int]] = []
+
+    class FakeOrt:
+        __version__ = "1.28.0"
+
+        @staticmethod
+        def set_global_thread_pool_sizes(intra: int, inter: int) -> None:
+            if calls:
+                raise RuntimeError("Global thread pools have already been created")
+            calls.append((intra, inter))
+
+    monkeypatch.setattr(artefacts, "_GLOBAL_POOL", None)
+    assert artefacts._use_global_pool(FakeOrt, 2) is True
+    assert artefacts._use_global_pool(FakeOrt, 2) is True   # the identifier
+    assert calls == [(2, 1)], "the pool must be created exactly once per process"
+
+
+def test_an_old_runtime_falls_back_and_says_so(monkeypatch, caplog):
+    # Silently measuring the default configuration while the report says
+    # "shared_pool" is the one outcome worse than not measuring at all.
+    import artefacts
+
+    class Ancient:
+        __version__ = "1.18.0"
+
+    monkeypatch.setattr(artefacts, "_GLOBAL_POOL", None)
+    assert artefacts._use_global_pool(Ancient, 2) is False
+    assert "falling back to per-session pools" in caplog.text
+
+
 def test_an_unknown_role_is_rejected_before_any_io(artefact_dir):
     with pytest.raises(ValueError, match="unknown model role"):
         load_artefact("detector", _settings(artefact_dir("validator")))
