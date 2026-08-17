@@ -55,15 +55,29 @@ def unpack_bundle() -> None:
 
 
 def install_dependencies() -> None:
-    packages = [
-        "ultralytics>=8.3.0",
-        "onnx>=1.16.0",
-        "onnxruntime>=1.18.0",
-        "huggingface_hub>=1.2.0",
-        "pyyaml",
-    ]
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *packages])
-    log("dependencies installed")
+    """Install what the kernel needs and **do not touch torch**.
+
+    ``pip install ultralytics`` resolves its own torch and replaces the image's.
+    On 2026-08-16 that swapped Kaggle's CUDA-matched build for torch 2.10+cu128,
+    which has no kernels for the **P100 (sm_60)** Kaggle also hands out - and
+    ``torch.cuda.is_available()`` still returned True, so the run started, wrote
+    ``args.yaml``, and died at the first tensor move with no weights and no log.
+
+    ``--no-deps`` keeps the image's torch. Everything else ultralytics needs -
+    numpy, opencv, pillow, pyyaml, requests, scipy, matplotlib, pandas, psutil,
+    tqdm, py-cpuinfo - is already in the Kaggle image; ``ultralytics-thop`` is
+    the one that is not, so it is named.
+    """
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+         "ultralytics>=8.3.0", "ultralytics-thop"]
+    )
+    # These carry no torch dependency, so they may resolve normally.
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q",
+         "onnx>=1.16.0", "onnxruntime>=1.18.0", "huggingface_hub>=1.2.0", "pyyaml"]
+    )
+    log("dependencies installed (torch left exactly as the image shipped it)")
 
 
 def seed_everything(seed: int) -> None:
@@ -234,8 +248,15 @@ def main() -> None:
         )
 
     # --- train ------------------------------------------------------------- #
-    import torch
     from ultralytics import YOLO
+
+    from sbr.utils.gpu import require_usable_gpu
+
+    # BEFORE Ultralytics, not inside it. `torch.cuda.is_available()` answers
+    # "is there a device", not "was this torch compiled for it", and the gap
+    # between those two questions is what produced a run with no weights and no
+    # log on 2026-08-16.
+    accelerator = require_usable_gpu("train the validator")
 
     classes = composition["classes"]
     if classes != ["bin"]:
@@ -262,7 +283,7 @@ def main() -> None:
         project=str(WORKING / "runs"),
         name=config["run_name"],
         exist_ok=True,
-        device=0 if torch.cuda.is_available() else "cpu",
+        device=accelerator.device,
         **config["augment"],
     )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"

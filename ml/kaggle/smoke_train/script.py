@@ -95,7 +95,13 @@ def main() -> None:
     started = time.time()
     unpack_bundle()
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "-q", "ultralytics>=8.3.0", "huggingface_hub>=1.2.0", "pyyaml"]
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+         "ultralytics>=8.3.0", "ultralytics-thop"]
+    )
+    # --no-deps above keeps the image's CUDA-matched torch. Letting pip resolve
+    # ultralytics' own torch is what broke the 2026-08-16 run - see sbr.utils.gpu.
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "huggingface_hub>=1.2.0", "pyyaml"]
     )
 
     from sbr.config import load_config
@@ -105,12 +111,12 @@ def main() -> None:
     configure_hf_runtime()
     config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
 
-    import torch
+    from sbr.utils.gpu import inspect_accelerator
 
-    cuda = torch.cuda.is_available()
-    log(f"torch {torch.__version__}, cuda available: {cuda}")
-    if cuda:
-        log(f"device: {torch.cuda.get_device_name(0)}")
+    # Reported, not required: this rung's whole job is to say what the GPU is
+    # and whether torch can use it, so refusing here would withhold the answer.
+    accelerator = inspect_accelerator()
+    log(f"accelerator: {accelerator.describe()}")
 
     pool = download_dataset(
         config["data"]["repo_id"], revision=config["data"]["revision"],
@@ -133,7 +139,7 @@ def main() -> None:
         project=str(WORKING / "runs"),
         name=NAME,
         exist_ok=True,
-        device=0 if cuda else "cpu",
+        device=accelerator.device,
     )
 
     save_dir = pathlib.Path(model.trainer.save_dir)
@@ -141,8 +147,7 @@ def main() -> None:
     payload = {
         "kernel": NAME,
         "isolates": "one epoch of GPU training, and whether a checkpoint appears",
-        "cuda": cuda,
-        "device": torch.cuda.get_device_name(0) if cuda else "cpu",
+        "accelerator": accelerator.as_dict(),
         "epochs": 1,
         "subset": SUBSET,
         "save_dir": str(save_dir),

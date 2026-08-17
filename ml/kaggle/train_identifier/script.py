@@ -56,15 +56,23 @@ def unpack_bundle() -> None:
 
 
 def install_dependencies() -> None:
-    packages = [
-        "ultralytics>=8.3.0",
-        "onnx>=1.16.0",
-        "onnxruntime>=1.18.0",
-        "huggingface_hub>=1.2.0",
-        "pyyaml",
-    ]
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *packages])
-    log("dependencies installed")
+    """Install what the kernel needs and **do not touch torch**.
+
+    ``pip install ultralytics`` resolves its own torch and replaces the image's.
+    That is what killed the 2026-08-16 validator run: the replacement was torch
+    2.10+cu128, which has no kernels for the **P100 (sm_60)** Kaggle also hands
+    out, and ``torch.cuda.is_available()`` still said True. See
+    ``sbr.utils.gpu`` for the whole account.
+    """
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+         "ultralytics>=8.3.0", "ultralytics-thop"]
+    )
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q",
+         "onnx>=1.16.0", "onnxruntime>=1.18.0", "huggingface_hub>=1.2.0", "pyyaml"]
+    )
+    log("dependencies installed (torch left exactly as the image shipped it)")
 
 
 def seed_everything(seed: int) -> None:
@@ -166,8 +174,12 @@ def main() -> None:
         )
 
     # --- train ------------------------------------------------------------- #
-    import torch
     from ultralytics import YOLO
+
+    from sbr.utils.gpu import require_usable_gpu
+
+    # Before Ultralytics, not inside it - see sbr.utils.gpu.
+    accelerator = require_usable_gpu("train the identifier")
 
     model = YOLO(f"{config['model']['arch']}.pt")
     results = model.train(
@@ -188,7 +200,7 @@ def main() -> None:
         project=str(WORKING / "runs"),
         name=config["run_name"],
         exist_ok=True,
-        device=0 if torch.cuda.is_available() else "cpu",
+        device=accelerator.device,
         **config["augment"],
     )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"

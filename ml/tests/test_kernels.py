@@ -341,6 +341,66 @@ def test_the_secrets_dataset_is_attached(kernel):
 
 
 # --------------------------------------------------------------------------- #
+# torch, and the thing that must never install a different one
+# --------------------------------------------------------------------------- #
+
+TORCH_KERNELS = (*KERNELS, "smoke_train")
+
+
+@pytest.mark.parametrize("kernel", TORCH_KERNELS)
+def test_installing_ultralytics_does_not_replace_torch(kernel):
+    """The 2026-08-16 failure, in one line of pip.
+
+    `pip install ultralytics` resolves its own torch and replaces the image's.
+    On Kaggle that swapped a CUDA-matched build for torch 2.10+cu128, which
+    carries no kernels for the **P100 (sm_60)** Kaggle also allocates. The run
+    pulled the pool, built the dataset, wrote `args.yaml`, and died at the first
+    tensor move with no weights and no log:
+
+        Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with
+        the current PyTorch installation. The current PyTorch install supports
+        CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
+
+    Reproduced 2026-08-17 by `smoke_train`, which is why this assertion exists.
+    """
+    text = source(kernel)
+    assert "--no-deps" in text, f"{kernel} lets pip resolve ultralytics' own torch"
+    assert "ultralytics-thop" in text, (
+        f"{kernel} uses --no-deps but does not install ultralytics-thop, which is "
+        "the one ultralytics dependency the Kaggle image does not already carry"
+    )
+    # Nothing in the same pip invocation may name torch either.
+    for line in text.splitlines():
+        if "pip" in line and "install" in line:
+            assert '"torch' not in line, f"{kernel} installs torch explicitly: {line.strip()}"
+
+
+@pytest.mark.parametrize("kernel", TORCH_KERNELS)
+def test_the_device_is_decided_by_capability_not_availability(kernel):
+    # `torch.cuda.is_available()` reports that a device exists, not that this
+    # torch was compiled for it. The gap between those is the whole failure.
+    text = source(kernel)
+    assert "sbr.utils.gpu" in text, f"{kernel} does not consult sbr.utils.gpu"
+    assert "accelerator.device" in text
+    assert 'device=0 if torch.cuda.is_available()' not in text
+
+
+def test_the_training_kernels_refuse_an_unusable_gpu():
+    # A silent CPU fallback would burn the wall clock and deliver hours late;
+    # a crash inside Ultralytics reproduces 2026-08-16. Neither is acceptable.
+    for kernel in KERNELS:
+        assert "require_usable_gpu" in source(kernel), kernel
+
+
+def test_the_smoke_rung_reports_the_gpu_rather_than_refusing_it():
+    # Its whole job is to say what the GPU is and whether torch can use it.
+    # Refusing would withhold the answer the rung exists to produce.
+    text = source("smoke_train")
+    assert "inspect_accelerator" in text
+    assert "require_usable_gpu" not in text
+
+
+# --------------------------------------------------------------------------- #
 # The smoke ladder
 # --------------------------------------------------------------------------- #
 
