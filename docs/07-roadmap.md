@@ -90,9 +90,16 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       shared symptom. It also found a real latent bug: **the bundle unpacked
       `data/taxonomy` one directory too high**, so every kernel calling
       `load_taxonomy` failed — which `train_identifier` would have hit on its
-      first line of work. Fixed and pinned by a test. The validator's own cause
-      remains open; `smoke_train` (one epoch, cut-down subset, GPU) is the rung
-      that asks whether a checkpoint appears at all.
+      first line of work. Fixed and pinned by a test.
+      **The validator's own cause was then found, and it is the platform's:**
+      the Kaggle image ships **torch 2.10.0+cu128**, which dropped `sm_60`,
+      while Kaggle allocates **P100 (sm_60)** as well as T4. `is_available()`
+      returns True and the first tensor move raises — pool pulled, dataset
+      built, `args.yaml` written, no weights, which is the 2026-08-16 signature
+      exactly. Established by a rung that installs **nothing**. The remedy is a
+      run that lands on a **T4**, which no metadata field can request, so it is
+      re-dispatch; the kernels now refuse in seconds with the reason
+      (`sbr.utils.gpu`) instead of dying silently an hour in.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU

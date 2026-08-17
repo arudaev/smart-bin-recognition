@@ -1,0 +1,15 @@
+{
+  "id": "hlexnc/sbr-smoke-gpu",
+  "title": "SBR Smoke Gpu",
+  "code_file": "script.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

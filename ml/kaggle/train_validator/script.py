@@ -55,18 +55,19 @@ def unpack_bundle() -> None:
 
 
 def install_dependencies() -> None:
-    """Install what the kernel needs and **do not touch torch**.
+    """Install what the kernel needs without letting pip decide about torch.
 
-    ``pip install ultralytics`` resolves its own torch and replaces the image's.
-    On 2026-08-16 that swapped Kaggle's CUDA-matched build for torch 2.10+cu128,
-    which has no kernels for the **P100 (sm_60)** Kaggle also hands out - and
-    ``torch.cuda.is_available()`` still returned True, so the run started, wrote
-    ``args.yaml``, and died at the first tensor move with no weights and no log.
+    ``--no-deps`` is hygiene rather than a fix, and it is worth being exact
+    about which: ``pip install ultralytics`` *does* resolve its own torch, and
+    that was the first suspect for the 2026-08-16 failure. It was wrong. A rung
+    that installs nothing at all (``smoke_gpu``) found the image already ships
+    torch 2.10.0+cu128 against a P100 at sm_60, so **the mismatch arrives with
+    the image**. See ``sbr.utils.gpu``.
 
-    ``--no-deps`` keeps the image's torch. Everything else ultralytics needs -
-    numpy, opencv, pillow, pyyaml, requests, scipy, matplotlib, pandas, psutil,
-    tqdm, py-cpuinfo - is already in the Kaggle image; ``ultralytics-thop`` is
-    the one that is not, so it is named.
+    Keeping pip away from torch is still right - a resolver that swapped it
+    would add a second, harder-to-see cause on top of the first - and it is
+    faster. Everything else ultralytics needs is already in the Kaggle image;
+    ``ultralytics-thop`` is the one that is not, so it is named.
     """
     subprocess.check_call(
         [sys.executable, "-m", "pip", "install", "-q", "--no-deps",

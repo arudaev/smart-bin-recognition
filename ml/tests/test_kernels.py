@@ -349,19 +349,21 @@ TORCH_KERNELS = (*KERNELS, "smoke_train")
 
 @pytest.mark.parametrize("kernel", TORCH_KERNELS)
 def test_installing_ultralytics_does_not_replace_torch(kernel):
-    """The 2026-08-16 failure, in one line of pip.
+    """Keep pip away from torch - as hygiene, not as the fix.
 
-    `pip install ultralytics` resolves its own torch and replaces the image's.
-    On Kaggle that swapped a CUDA-matched build for torch 2.10+cu128, which
-    carries no kernels for the **P100 (sm_60)** Kaggle also allocates. The run
-    pulled the pool, built the dataset, wrote `args.yaml`, and died at the first
-    tensor move with no weights and no log:
+    `pip install ultralytics` does resolve its own torch, and that was the first
+    suspect for the 2026-08-16 failure. **It was the wrong suspect.** A rung that
+    installs nothing at all (`smoke_gpu`) reported `installed_anything: false`
+    beside `torch==2.10.0+cu128` and a P100 at sm_60, so the mismatch arrives
+    with the Kaggle image:
 
         Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with
         the current PyTorch installation. The current PyTorch install supports
         CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
 
-    Reproduced 2026-08-17 by `smoke_train`, which is why this assertion exists.
+    This assertion still earns its place: a resolver quietly swapping torch would
+    stack a second cause on top of a platform one, and the next person would have
+    to separate them again.
     """
     text = source(kernel)
     assert "--no-deps" in text, f"{kernel} lets pip resolve ultralytics' own torch"

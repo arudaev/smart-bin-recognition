@@ -98,8 +98,8 @@ def main() -> None:
         [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
          "ultralytics>=8.3.0", "ultralytics-thop"]
     )
-    # --no-deps above keeps the image's CUDA-matched torch. Letting pip resolve
-    # ultralytics' own torch is what broke the 2026-08-16 run - see sbr.utils.gpu.
+    # --no-deps keeps pip away from torch. That is hygiene, not the fix: the
+    # image itself ships a torch that cannot use the P100 - see sbr.utils.gpu.
     subprocess.check_call(
         [sys.executable, "-m", "pip", "install", "-q", "huggingface_hub>=1.2.0", "pyyaml"]
     )

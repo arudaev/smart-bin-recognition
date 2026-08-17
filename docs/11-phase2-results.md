@@ -213,12 +213,48 @@ returned full tracebacks minutes earlier. So *"errored with no log"* is how a
 deliberate `SystemExit` surfaces through the Kaggle API; it is not evidence of
 anything being wrong.
 
-**The validator run's own cause is still open.** It reached
-`args.yaml` with `device: '0'` and produced no weights, and none of the four
-findings above explains that: the validator's config sets
-`classes_from_taxonomy: false`, so it never touched the broken path. The next
-rung is `smoke_train` — one epoch, a cut-down subset, a GPU — which asks the one
-question the failed run left: **does a checkpoint appear at all.**
+### And then the validator's own cause, 2026-08-18
+
+None of the four findings above explained it — the validator's config sets
+`classes_from_taxonomy: false`, so it never touched the broken bundle path. The
+GPU rung found it:
+
+```
+torch 2.10.0+cu128, cuda available: True
+Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the
+current PyTorch installation. The current PyTorch install supports CUDA
+capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
+```
+
+**The Kaggle image ships a torch that cannot use the GPU Kaggle allocated.**
+`torch.cuda.is_available()` returns `True`, so every availability check passes;
+the failure arrives at the **first tensor move**, inside Ultralytics, after the
+pool has been pulled, the dataset built and `args.yaml` written. That is the
+2026-08-16 signature exactly — as far as `args.yaml`, then no weights.
+
+**The first explanation was wrong and is worth recording as such.** It looked
+like `pip install ultralytics` had replaced the image's torch, and the installs
+were changed to `--no-deps` on that basis. The next run reported the same torch.
+A rung that installs **nothing at all** settled it:
+
+| `smoke_gpu` | |
+|---|---|
+| `installed_anything` | `false` |
+| shipped | `torch==2.10.0+cu128`, `torchvision==0.25.0+cu128` |
+| allocated | `Tesla P100-PCIE-16GB`, `sm_60` |
+| verdict | the image ships a torch that cannot use this GPU |
+
+**Nothing in this repository caused it and nothing in this repository fixes
+it.** Kaggle allocates P100 or T4 and the kernel metadata schema has no field to
+ask for one, so the remedy is to re-dispatch until a **T4 (sm_75)** is
+allocated. What the repo does now is refuse in seconds with the reason
+(`sbr.utils.gpu.require_usable_gpu`) rather than dying an hour in with no log —
+and the smoke rung reports and continues on CPU, which is how a one-epoch run
+completed and produced a checkpoint on 2026-08-18.
+
+So the validator run is **unblocked in the sense that matters** — the failure is
+understood, detected and survivable — and **still not done**, because it needs a
+GPU allocation this project does not control.
 
 Two things follow. The ship gate's latency half still has no
 service-hardware measurement, because `gate.py` needs the bench kernel. And

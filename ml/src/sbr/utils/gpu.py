@@ -21,10 +21,31 @@ kernel, which said what the original could not:
     sm_86 sm_90 sm_100 sm_120.
 
 Kaggle hands out **P100 (sm_60)** as well as T4 (sm_75), and torch 2.10 dropped
-sm_60. The kernels were pulling that torch in themselves: ``pip install
-ultralytics`` resolves a torch wheel and replaces the image's CUDA-matched one.
-The install side is fixed where it happens; this module is the check that turns
-whatever remains into a sentence rather than a crash.
+sm_60.
+
+**The first explanation for that was wrong, and the correction is the reason
+this module exists rather than a one-line pip change.** It looked like the
+kernels were pulling the bad torch in themselves - ``pip install ultralytics``
+does resolve a torch wheel - so the installs were changed to ``--no-deps``. The
+next run reported *the same torch*. A rung that installs **nothing at all**
+(``ml/kaggle/smoke_gpu``) then settled it:
+
+    "installed_anything": false,
+    "torch_packages_as_shipped": ["torch==2.10.0+cu128", ...]
+    "accelerator": {"capability": "sm_60", "usable": false}
+
+**The image ships a torch that cannot use the GPU the platform allocates.**
+Nothing in this repository caused it and nothing in this repository fixes it.
+What is fixable is the *symptom*: a run that discovers this at the first tensor
+move, deep inside somebody else's library, produces no weights and - as on
+2026-08-16 - no log either.
+
+So this module turns it into a sentence, in seconds, before any data is pulled:
+a training kernel refuses (:func:`require_usable_gpu`) and a diagnostic one
+reports and continues on the CPU (:func:`inspect_accelerator`). The remedy
+itself is a **T4 rather than a P100**, which is Kaggle's allocation to make and
+has no field in the kernel metadata schema - so it is retry-until, and the check
+below is what makes "retry" a decision rather than an hour.
 """
 
 from __future__ import annotations
@@ -134,10 +155,11 @@ def require_usable_gpu(what_for: str = "train") -> Accelerator:
 
     raise SystemExit(
         f"refusing to {what_for}: {accelerator.describe()}.\n"
-        "If the capability is missing from the list, something replaced the image's "
-        "CUDA-matched torch - `pip install ultralytics` will do it unless it is given "
-        "--no-deps. Install ultralytics without its dependencies and keep the torch "
-        "that came with the image.\n"
-        "This is the failure that produced a run with no weights and no log on "
-        "2026-08-16; it fails here now so that it says so."
+        "Measured on Kaggle 2026-08-18: the image ships torch 2.10.0+cu128, which "
+        "dropped sm_60, and the platform allocates P100 (sm_60) as well as T4 "
+        "(sm_75). Nothing in this repository caused that and nothing in it fixes "
+        "it - the remedy is a run that lands on a T4, and the kernel metadata "
+        "schema has no field to ask for one.\n"
+        "Re-dispatch. This is the failure that produced a run with no weights and "
+        "no log on 2026-08-16; refusing here costs seconds instead of an hour."
     )

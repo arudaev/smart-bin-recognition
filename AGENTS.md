@@ -35,13 +35,18 @@ against a gate of 10, so the kill criterion has fired. See
   starved. **Do not quote 4, or 7, or 8, as a measured ceiling** — quote the gate
   and say it is unmet. A controlled 2-vCPU x86 host is what unblocks this, and
   it is now the critical path rather than a contingency.
-- **The training run's failure is understood and fixed.** `pip install
-  ultralytics` was replacing Kaggle's CUDA-matched torch with a build that has
-  no kernels for the **P100 (sm_60)** Kaggle also allocates, while
-  `torch.cuda.is_available()` still returned True. That is why the 2026-08-16 run
-  pulled the pool, built the dataset, wrote `args.yaml` and died with no weights
-  and no log. The kernels now install with `--no-deps` and check compute
-  capability rather than availability (`sbr.utils.gpu`).
+- **The training run's failure is understood, and it is not ours.** The Kaggle
+  image ships **torch 2.10.0+cu128**, which dropped `sm_60`, and the platform
+  allocates **P100 (sm_60)** as well as T4 (sm_75). `torch.cuda.is_available()`
+  returns `True` and the first tensor move then raises — which is why the
+  2026-08-16 run pulled the pool, built the dataset, wrote `args.yaml` and died
+  with no weights and no log. Established by a rung that installs **nothing**
+  (`smoke_gpu`: `installed_anything: false`), after the first explanation —
+  that `pip install ultralytics` had replaced torch — turned out to be wrong.
+  **The remedy is a run that lands on a T4**, and the kernel metadata schema has
+  no field to ask for one, so it is re-dispatch. What this repo now does is
+  refuse in seconds with the reason (`sbr.utils.gpu`) instead of dying silently
+  an hour in.
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier

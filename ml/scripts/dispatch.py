@@ -52,6 +52,7 @@ KERNELS = {
     "smoke-secrets": "smoke_secrets",        # 2:  + the attached secrets dataset
     "smoke-usersecret": "smoke_usersecret",  # 2b: a Kaggle Secret instead – does it bind?
     "smoke-data": "smoke_data",              # 3:  the pinned pool and the composition contract
+    "smoke-gpu": "smoke_gpu",                # 1c: what GPU, and can the IMAGE'S torch use it?
     "smoke-train": "smoke_train",            # 4:  one epoch on the GPU, and a checkpoint
 }
 
@@ -65,6 +66,7 @@ CONFIGS = {
     "smoke-secrets": "validator",
     "smoke-usersecret": "validator",
     "smoke-data": "validator",
+    "smoke-gpu": "validator",
     "smoke-train": "validator",
 }
 
