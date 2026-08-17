@@ -1,6 +1,6 @@
 # 12 – Validation protocol
 
-> How a claim gets tested before it gets hard-coded. Six probes, each with its
+> How a claim gets tested before it gets hard-coded. Eight probes, each with its
 > question, its cost, and a **decision rule written before the result**.
 
 The design docs contain claims of three kinds: things measured (docs/08 § 7),
@@ -251,11 +251,181 @@ empty-form-factor gaps · whether the human pass is affordable at scale.
 
 ---
 
+## P8 – The three recoveries, and whether the gate can be recovered
+
+**Question.** docs/07's phase-2 kill criterion has two halves. The first fired on
+2026-08-17: **4 concurrent scanners at one bin per frame against a gate of 10**,
+and 1 at the six-container bank. The second half — *"and cannot be recovered"* —
+is unestablished, because the three cheap recoveries
+[docs/05 § 7](05-cost-model.md#7-when-it-stops-being-free-and-what-to-do) named
+in advance have never been measured. This probe measures them.
+
+**Why it is a probe and not a fix.** Each recovery is a change to what the
+service costs, and the whole point of this document is that a change of that
+kind gets a decision rule before it gets a number. Two of the three also carry a
+cost that is not latency — 384 px trades recall for speed, a crop cap trades
+coverage for speed — so "it got faster" is not on its own an argument for
+adopting it.
+
+**Method.** One 2-vCPU container, one variable at a time, three repeats per
+configuration, measured by `service/loadtest/run.py` through
+`service/loadtest/matrix.py`. Four properties make the comparisons admissible
+and each exists because its absence would have produced a plausible wrong answer:
+
+- **contiguous concurrency levels 1…12**, because a +1 improvement from 6 to 7
+  is invisible on a ladder that steps 6, 8, 10, 12;
+- **the verdict is the largest monotonic passing prefix**, not the highest
+  passing level — one level scraping under budget above a failed one is noise
+  wearing capacity's clothes;
+- **a baseline bracket**: each scene runs `baseline → candidates in randomised
+  order → baseline`, so thermal drift on the measuring host appears as the
+  baseline-to-baseline difference. **A candidate delta smaller than that drift is
+  rejected, whatever its sign.** The earlier proxy host varied ~25 % between runs
+  six minutes apart;
+- **one repetition owner.** `run.py --repeats` repeats; nothing else does, so
+  three means three.
+
+---
+
+### P8a – The validator at 384 px
+
+**Question.** docs/05 § 7 calls dropping the validator to 384 the first response
+to saturation, and the validator is about a third of a one-bin frame. What does
+it buy?
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| ≥ +1 concurrent scanner at 1 bin, in all three repeats, **and** larger than the bracket's own drift | adopt as a candidate; carry into the combined run |
+| within the drift, or not reproduced | record as measured and rejected; docs/05 § 7 stops calling it the first response |
+| a regression | say so; a recovery that costs capacity is a finding |
+
+**What the number does not say.** Latency on an untrained graph is sound —
+cost follows architecture and input shape. **Recall is not measured and is not
+claimed.** Adopting 384 means retraining at 384 (`validator.yaml` `data.imgsz`
+and `export.imgsz`), and what it costs on small distant bins is **unmeasured**
+until a model exists. That caveat ships with the number or the number does not
+ship.
+
+---
+
+### P8b – The 15–40 ms that belongs to neither graph
+
+**Question.** [P4](research/probes/P4-multi-bin-cost-curve.md) found a frame
+costing 15–40 ms more than its two graphs. At one bin that is a third of the
+frame and nothing had budgeted for it. Where does it go, and does one shared
+thread pool recover it?
+
+**Two different quantities, and they must not be conflated.** P4's gap was
+measured inside `bench_frame`, whose inner loop is exactly `validator.run()`
+then `identifier.run()` — no JPEG decode, no letterbox, no NMS. The *service's*
+gap includes all three. Both get decomposed and they answer different questions.
+
+**Method, cheapest first.**
+
+1. **Decomposition, before any profiler.** The load test measures wall clock,
+   the response carries server-side `ms`, and `debug` carries `validator_ms` and
+   `identifier_ms` separately. Subtracting gives four buckets:
+   `validator_ms`, `identifier_ms`,
+   `other_server_ms = ms − validator_ms − identifier_ms`, and
+   `transport_ms = wall − ms`. What each holds is stated rather than assumed:
+   `_validate` includes letterbox and NMS, `_identify` times only `session.run`,
+   so crop preprocessing, JPEG decode, colour and resolve land in
+   `other_server_ms`.
+2. **Isolate switching from two-graphs.** Three timings on the same host: one
+   session called twice back-to-back; **two sessions of the same graph**
+   alternating; the validator and identifier alternating. If the second carries
+   the penalty, session switching itself is the cause and the second model is
+   not the story.
+3. **Config, one variable at a time.** Separate onnxruntime sessions get
+   separate intra-op thread pools and spin by default, which on two cores means
+   four spinning threads competing for two. `SBR_ORT_SPINNING=0`,
+   `SBR_ORT_SHARED_POOL=1`, `SBR_IDENTIFIER_THREADS=1`.
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| `other_server_ms` < 10 ms at one bin | the gap was the **bench's** artefact, not the service's. Close the item and correct P4's "what would move it" list |
+| one config change recovers ≥ 8 ms at p50, reproduced ×3 | adopt it; carry into the combined run |
+| the gap is real and no config change moves it | record the single-graph merge as **scoped and not done**, with an estimated cost. Do not attempt it in the same pass as a measurement |
+
+---
+
+### P8c – Capping crops at three
+
+**Question.** docs/05 § 7 names capping crops below the default six. What does
+it buy at the six-container bank, which is the only place it can help?
+
+**It cannot move the one-bin number, and the gate is stated at one bin.**
+Reporting `SBR_MAX_CROPS=3` as progress against the headline figure is the same
+error as quoting 10 was.
+
+**What has to be fixed before it can be measured at all.** The test hook
+replaced the crop list *after* the cap was applied, so a forced six-bin scene ran
+six crops however the cap was set — the probe would have measured nothing and
+reported a number. In forced mode the forced boxes are now the scene and the cap
+applies to them. **The run is refused unless a debug frame at
+`SBR_FORCE_CROPS=6, SBR_MAX_CROPS=3` reports exactly six detections and three
+identifier crops.**
+
+**What the cap actually costs.** docs/05 § 7 and `settings.py` both said the
+remainder is *"deferred to the next frame"*. **It is not, and never was.**
+`pipeline.py` truncates and never revisits; boxes past the cap are drawn but
+carry `form_factor: null` and no colour. So at six bins a cap of three means
+three containers in a bank are permanently unidentified, not identified a frame
+later. Deferral is buildable — the client's result lock at three stable frames is
+the natural place for it — and it is product work, not this probe's.
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| ≥ +1 concurrent scanner **at 6 bins**, ×3, outside the drift | adopt as a **saturation response**, not a default, and record the coverage it costs |
+| no change | record as measured and rejected |
+| reported against the one-bin figure | not an outcome. The gate is at one bin |
+
+---
+
+### The verdict, and what this host may not conclude
+
+Read off the **combined** configuration — every adopted recovery at once.
+Attribution comes from the singles; the verdict comes from the combination.
+
+The measuring host is `docker run --cpus 2`, `linux/arm64` on a Snapdragon
+X1E80100. **Cloud Run is x86_64.** A pinned proxy can screen candidates and
+establish within-host deltas honestly; it cannot pronounce on the serving tier.
+
+| Combined result at 1 bin | Conclusion |
+|---|---|
+| ≥ 10 | **"capacity recovery demonstrated on the ARM proxy; production gate pending x86 confirmation."** Not "the thesis survives" — that needs a controlled 2-vCPU x86 host, and until that run exists the gate stays open |
+| 5–9 | the gate is **not met**. The free-tier serving thesis as written is dead |
+| ≤ 4 | the same, more starkly; the recoveries are recorded as measured and insufficient |
+
+In every branch the gate stays stated as **10**. It is never restated as its
+measured value.
+
+**And if it is not met, the alternative is named and costed, not gestured at.**
+docs/05 § 7's *sustained saturation* row — more vCPU — is the relevant one.
+**HF PRO's USD 9 `cpu-basic` is not**: it is still 2 vCPU, it answers *"streaming
+becomes necessary"*, and it buys a persistent socket rather than compute. It
+cannot close a compute gate.
+
+**Cost.** No GPU, no model, no training. About three hours of unattended
+container time.
+
+**Resolves.** docs/07's kill criterion, second half · docs/05 § 3's ceiling and
+§ 7's response ladder · docs/11's concurrency table.
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
 |---|---|---|
 | 1 | **P4, P5** | nothing — no model needed, run immediately |
+| 1 | **P8** | docs/07's kill criterion. No model needed either, and it is the only thing standing between "the gate failed" and a decision |
 | 2 | **P1** | the 403-crop adjudication pass, and therefore model B |
 | 3 | **P3** | whether `autolabel/` needs SAM |
 | 4 | **P6** | whether docs/05 § 5 keeps a paid path |
@@ -268,6 +438,34 @@ cheapest evidence available in this project right now, and it is available today
 P7 is the highest-*ceiling* probe: it is the only one that can unblock the
 generalisation question, which is the thing phase 2 exists to answer and
 currently cannot.
+
+## Dataset contracts – what a pinned revision is asserted to contain
+
+A pin says *which* data. It does not say *what is in it*, and the difference
+cost a GPU hour once already: the 2026-08-16 validator run built its dataset,
+reported `background_images: 0` over a pool that is 92 % background, and started
+training anyway. The counting bug is fixed; what was missing is anything that
+would have **refused**.
+
+So the composition is asserted against the pinned revision, before the expensive
+work rather than after it:
+
+| Role | Repo | Pinned | Contract |
+|---|---|---|---|
+| **validator** | `arudaev/smart-bin-detect` | `8666aa23ff1a…` | 18 954 frames = 17 474 background + 1 480 positive (370 legacy + 1 110 Open Images); 403 legacy boxes, 1 936 Open Images boxes |
+| **identifier** | `arudaev/smart-bin-identify` | **unpinned** | **none yet, deliberately** |
+
+The two roles do not share a dataset, a builder or a shape — the validator gets
+a YOLO detection tree from `build_yolo_tree`, the identifier a classification
+tree from `build_classification_tree` over **adjudicated crops**, of which there
+are currently none. Writing the identifier a contract today would be asserting a
+composition nobody has produced. It gets one when its dataset exists, pinned in
+the same commit as the pin.
+
+**On the two negative ratios.** Both are correct and they answer different
+questions: **15.7:1** within the Open Images subset (17 474 backgrounds against
+that subset's 1 110 bin frames) and **11.8:1** against all positives (against
+1 480). Neither may be quoted without saying which it is.
 
 ## What this document is not
 
