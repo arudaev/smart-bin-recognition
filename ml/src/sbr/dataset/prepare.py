@@ -262,6 +262,15 @@ def _qualified(pool: Path, file: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _count_boxes(label: Path) -> int:
+    """Boxes in a YOLO label file. Blank lines are not boxes.
+
+    An empty file here is a background image, not a missing label – the
+    distinction the negative corpus is entirely made of.
+    """
+    return sum(1 for line in label.read_text(encoding="utf-8").splitlines() if line.strip())
+
+
 def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> Path:
     """Materialise a YOLO detection tree and its ``data.yaml`` for the validator.
 
@@ -296,7 +305,9 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
 
     per_split: Counter[str] = Counter()
     per_pool: Counter[str] = Counter()
+    background_per_split: Counter[str] = Counter()
     negatives = 0
+    disagreeing: list[str] = []
     for record in records:
         split = assignment[record.file]
         pool = origin[record.file]
@@ -311,10 +322,35 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
         target_label = out_dir / "labels" / split / f"{Path(record.file).stem}.txt"
         if source_label.exists():
             shutil.copy2(source_label, target_label)
+            boxes_on_disk = _count_boxes(source_label)
         else:
             # A background image. YOLO wants the file to exist and be empty.
             target_label.write_text("", encoding="utf-8")
+            boxes_on_disk = 0
+
+        # A background image is a frame with NO BOXES, and the harvested negative
+        # corpus ships them as EMPTY label files, on purpose (open_images.harvest:
+        # a missing file is an unlabelled image, which YOLO drops). Counting a
+        # missing file instead reported `background_images: 0` over a pool that is
+        # 92 % background, and the number that justifies the whole corpus read as
+        # if the corpus were not there.
+        if boxes_on_disk == 0:
             negatives += 1
+            background_per_split[split] += 1
+
+        # The manifest and the disk are two independent statements about the same
+        # frame. When they disagree, one of the two numbers in this report is a
+        # fiction, and which one is not knowable from here.
+        if boxes_on_disk != record.boxes:
+            disagreeing.append(record.file)
+
+    if disagreeing:
+        logger.warning(
+            "%d frames whose manifest box count disagrees with their label file "
+            "on disk, e.g. %s. The pool is inconsistent; composition.json reports "
+            "what is on disk, which is what training reads.",
+            len(disagreeing), disagreeing[:5],
+        )
 
     classes = resolve_classes(config)
     data_yaml = {
@@ -337,6 +373,11 @@ def build_yolo_tree(pool_root: Path, out_dir: Path, config: dict[str, Any]) -> P
             {
                 "per_split": dict(sorted(per_split.items())),
                 "per_pool": dict(sorted(per_pool.items())),
+                # Per split, because `precision_on_negatives` can only be
+                # measured on the background images that landed in test, and a
+                # zero there is the difference between a missing number and a
+                # bad one.
+                "background_per_split": dict(sorted(background_per_split.items())),
                 "positives": positives,
                 "background_images": negatives,
                 "negative_ratio": round(negatives / positives, 1) if positives else None,
