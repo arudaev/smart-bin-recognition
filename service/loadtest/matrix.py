@@ -69,6 +69,13 @@ ARTEFACTS_MOUNT = "/artefacts"
 DEFAULT_ARTEFACTS = f"{ARTEFACTS_MOUNT}/loadtest-artefacts"
 VAL384_ARTEFACTS = f"{ARTEFACTS_MOUNT}/p8/artefacts-val384"
 
+#: The same validator at 448, exported by the same local toolchain as the 384
+#: one. It exists because ``val384`` would otherwise differ from the baseline in
+#: TWO ways - input size and which machine exported the graph - and the whole
+#: claim of P8a is that one variable moved. baseline vs val448local measures the
+#: toolchain; val448local vs val384 measures the input size.
+VAL448_LOCAL_ARTEFACTS = f"{ARTEFACTS_MOUNT}/p8/artefacts-val448local"
+
 #: The scenes docs/12 P8 reports against. One bin is where the gate is stated;
 #: six is what the PRD calls a normal input.
 SCENES = (1, 6)
@@ -93,6 +100,11 @@ class Configuration:
 
 
 CANDIDATES: dict[str, Configuration] = {
+    "val448local": Configuration(
+        label="val448local",
+        env={"SBR_ARTEFACT_DIR": VAL448_LOCAL_ARTEFACTS},
+        note="the CONTROL for val384: same size as the baseline, different exporter",
+    ),
     "val384": Configuration(
         label="val384",
         env={"SBR_ARTEFACT_DIR": VAL384_ARTEFACTS},
@@ -417,7 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         help="run P8b's decomposition instead of the matrix",
     )
     parser.add_argument(
-        "--candidates", nargs="+", default=["val384", "nospin", "maxcrops3"],
+        "--candidates", nargs="+", default=["val448local", "val384", "nospin", "maxcrops3"],
         choices=sorted(CANDIDATES),
     )
     parser.add_argument(
