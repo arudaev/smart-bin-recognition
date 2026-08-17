@@ -285,6 +285,20 @@ and each exists because its absence would have produced a plausible wrong answer
 - **one repetition owner.** `run.py --repeats` repeats; nothing else does, so
   three means three.
 
+**Amended 2026-08-18, after the bracket failed.** The bracket did its job and
+the block did not survive it: the identical baseline measured **7 concurrent
+scanners at 22:30 and 4 at 23:48**, a drift of three against candidate effects
+of one. More repeats cannot fix that — they all sit on the same side of the
+drift. The fix is to shrink the *gap between the things being compared*, so
+`matrix.py --paired` alternates two configurations **ABBA**, four minutes apart
+instead of eighty, and reports the **paired within-cycle difference** rather
+than two absolute numbers. `run.py` still owns repetition; a cycle is a
+separate, individually reported measurement.
+
+The bracket stays, because it is what detects the condition that makes pairing
+necessary. **A serial block whose two baselines disagree is not a result**, and
+should be reported as one only in the sense that it says the host cannot answer.
+
 ---
 
 ### P8a – The validator at 384 px
@@ -417,6 +431,16 @@ container time.
 
 **Resolves.** docs/07's kill criterion, second half · docs/05 § 3's ceiling and
 § 7's response ladder · docs/11's concurrency table.
+
+**Ran 2026-08-17/18. [Result](research/probes/P8-recovery-measurements.md).**
+P8b fired and is adopted — a shared onnxruntime thread pool, worth −105 ms at
+p95. P8a and P8c are **not established**. The verdict rule above **did not
+fire in either direction**, because it reads an absolute number and the host
+could not supply one: the same baseline gave 7 and then 4 in a single evening,
+on a laptop that was also running the development tooling, where
+`docker run --cpus 2` is a ceiling and not a floor. The gate remains **not met**
+— nothing was ever observed at ten — and what it now waits on is **a controlled
+2-vCPU x86 host**, not another idea.
 
 ---
 

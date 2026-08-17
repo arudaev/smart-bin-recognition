@@ -21,9 +21,27 @@ Bin Recognition."* Full analysis of what carried over and what did not:
 2026-08-17, actually joined: the wire is pinned to shared byte fixtures across
 both languages, the degradation ladder runs end to end, and CI covers `ml/`,
 `service/` and `web/`. **Phase 2's gate is answered and its concurrency half
-failed** — 4 concurrent scanners at one bin per frame against a gate of 10,
-measured on a pinned 2-vCPU container, so the kill criterion has fired. See
+failed** — nothing was ever observed above 8 concurrent scanners at one bin
+against a gate of 10, so the kill criterion has fired. See
 [`docs/07-roadmap.md`](docs/07-roadmap.md).
+
+**Two things changed on 2026-08-18, and both are about believing numbers**
+([probe P8](docs/research/probes/P8-recovery-measurements.md)):
+
+- **The concurrency figure has no trustworthy absolute value yet.** Bracketing a
+  measurement block with the same baseline at both ends gave **7 at 22:30 and 4
+  at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor, and
+  the laptop was also running the development tooling, so the container was
+  starved. **Do not quote 4, or 7, or 8, as a measured ceiling** — quote the gate
+  and say it is unmet. A controlled 2-vCPU x86 host is what unblocks this, and
+  it is now the critical path rather than a contingency.
+- **The training run's failure is understood and fixed.** `pip install
+  ultralytics` was replacing Kaggle's CUDA-matched torch with a build that has
+  no kernels for the **P100 (sm_60)** Kaggle also allocates, while
+  `torch.cuda.is_available()` still returned True. That is why the 2026-08-16 run
+  pulled the pool, built the dataset, wrote `args.yaml` and died with no weights
+  and no log. The kernels now install with `--no-deps` and check compute
+  capability rather than availability (`sbr.utils.gpu`).
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
