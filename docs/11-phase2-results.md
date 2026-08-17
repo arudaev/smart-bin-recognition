@@ -15,8 +15,18 @@ on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 |---|---|---|---|
 | validator @ 448 | **26.6 – 33.0 ms** | ≤ 50 ms | **within budget**, ~40 % headroom |
 | identifier @ 320, per crop | **17.4 – 21.7 ms** | ≤ 25 ms | **within budget** |
-| concurrent scanners, 1 bin | **4** (measured) | ≥ 10 | **not met** |
+| concurrent scanners, 1 bin | **4 ± 3** (see below) | ≥ 10 | **not met** |
 | concurrent scanners, 6 bins | **1** (measured) | – | the PRD's normal input |
+
+> **The concurrency row carries ±3 as of 2026-08-18, and the uncertainty is the
+> host.** [Probe P8](research/probes/P8-recovery-measurements.md) bracketed a
+> measurement block with the same baseline at both ends and got **7 at 22:30 and
+> 4 at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor,
+> and the laptop was also running the development tooling at ~50 % CPU, so the
+> container was being starved — the service's own `ms` moved from a flat 33 ms
+> to 46–55 ms. **No absolute concurrency figure from this project is better than
+> ±3 until a controlled 2-vCPU x86 host produces one.** The highest figure ever
+> observed under any configuration is 8, so the gate is not met either way.
 
 **The concurrency figure is no longer a prediction.** The load test ran on
 2026-08-17 against `docker run --cpus 2`, ramping virtual scanners at 3 fps in
@@ -151,8 +161,64 @@ try this needs to know how far it got rather than starting from nothing.
 
 GPU was enabled in the kernel metadata, so that is not it. Kaggle returned no
 diagnostic at all through the API, and a re-push of the much cheaper CPU bench
-kernel failed the same way — errored, no log — which points at something about
-the account or the platform rather than at either script. **Unresolved.**
+kernel failed the same way — errored, no log.
+
+### What the ladder found, 2026-08-17
+
+That last inference — *"which points at something about the account or the
+platform"* — **was wrong, and the way it was wrong is worth keeping.** Two
+kernels failed with the same status, and a shared status was read as a shared
+cause. A six-rung ladder, each rung changing exactly one thing
+(`ml/kaggle/smoke_*`, dispatched by `dispatch.py`), separated them:
+
+| Rung | Changes | Result |
+|---|---|---|
+| `smoke_bare` | nothing: no bundle, no dataset, no GPU | **COMPLETE** — the account and the platform are fine |
+| `smoke_plain` | + the injected project bundle | **ERROR**, and *with a full traceback* |
+| `smoke_secrets` | + the attached secrets dataset | **COMPLETE** — token found, 37 chars, `hf_` prefix |
+| `smoke_usersecret` | a Kaggle Secret instead of the dataset | **COMPLETE**, and the secret is **not reachable** |
+
+Four things follow, and only one of them was suspected before.
+
+**1. The bundle layout was broken, and had been all along.**
+`smoke_plain` died on `FileNotFoundError:
+/kaggle/working/data/taxonomy/waste-streams.json`. `sbr.taxonomy` resolves the
+repo root as `parents[3]` of its own file, and the bundle unpacked `src/` and
+`data/taxonomy` as *siblings*, which put that one directory too high. It stayed
+invisible because `load_config` resolved correctly from the same tree and the
+only kernel that ever completed — `probe_latency` — never calls
+`load_taxonomy`. **Every kernel that does was failing**, which includes
+`train_identifier`, whose `classes_from_taxonomy: true` makes it the first thing
+that run would have touched. Fixed: the bundle now mirrors the repository, the
+same way `service/Dockerfile` does and for the same reason, and
+`test_kernels.py` builds the real bundle and checks the invariant on the
+unpacked tree.
+
+**2. The attached secrets dataset was never the cause.** It was the one factor
+the two failing kernels shared and the passing one did not, which made it the
+leading hypothesis. It mounts, it carries the token, and the kernel that uses it
+completes.
+
+**3. A Kaggle Secret is not an alternative, and now that is measured rather than
+believed.** `kaggle_secrets` imports inside a batch kernel and then
+`get_secret` fails with `ConnectionError: Connection error trying to communicate
+with service.` The attached dataset stays the way the token reaches an
+API-pushed kernel.
+
+**4. `bench_latency`'s failure was correct behaviour misread as a symptom.** It
+ends with `raise SystemExit("no artefacts at v1 to measure - train something
+first")`, and no model exists, so it refuses — exactly as designed. Re-pushed on
+2026-08-17 it errored again, **with an empty log**, on an account that had
+returned full tracebacks minutes earlier. So *"errored with no log"* is how a
+deliberate `SystemExit` surfaces through the Kaggle API; it is not evidence of
+anything being wrong.
+
+**The validator run's own cause is still open.** It reached
+`args.yaml` with `device: '0'` and produced no weights, and none of the four
+findings above explains that: the validator's config sets
+`classes_from_taxonomy: false`, so it never touched the broken path. The next
+rung is `smoke_train` — one epoch, a cut-down subset, a GPU — which asks the one
+question the failed run left: **does a checkpoint appear at all.**
 
 Two things follow. The ship gate's latency half still has no
 service-hardware measurement, because `gate.py` needs the bench kernel. And

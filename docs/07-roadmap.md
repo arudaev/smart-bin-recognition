@@ -79,11 +79,20 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 - [ ] **First training run on a Kaggle kernel — attempted 2026-08-16, failed.**
       The kernel pulled the pinned pool, built the dataset (18 954 images, split
       13 265/2 823/2 866) and started Ultralytics, then ended with status
-      `ERROR`, **no weights, an empty log and an empty failure message**. GPU was
-      enabled, so that is not the cause; a re-push of the cheap CPU bench kernel
-      failed identically, which points at the account or the platform rather
-      than at either script. Recorded in
-      [11 § the validator run](11-phase2-results.md); unresolved.
+      `ERROR`, **no weights, an empty log and an empty failure message**.
+      **The 2026-08-17 diagnosis narrowed this a long way and did not close it**
+      ([11 § what the ladder found](11-phase2-results.md)). A six-rung ladder of
+      smoke kernels, each changing one thing, showed that the account and the
+      platform are fine, that the attached secrets dataset — the leading
+      hypothesis — is not the cause, that a Kaggle Secret is *not* an
+      alternative to it, and that `bench_latency`'s matching failure was its own
+      `SystemExit("no artefacts to measure")` working correctly rather than a
+      shared symptom. It also found a real latent bug: **the bundle unpacked
+      `data/taxonomy` one directory too high**, so every kernel calling
+      `load_taxonomy` failed — which `train_identifier` would have hit on its
+      first line of work. Fixed and pinned by a test. The validator's own cause
+      remains open; `smoke_train` (one epoch, cut-down subset, GPU) is the rung
+      that asks whether a checkpoint appears at all.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
@@ -147,11 +156,56 @@ worth being exact rather than reaching for either conclusion:
 dead. A pilot in one town at four concurrent scanners is intact, and the
 client-side gates are what make that liveable.** Before rationalising or
 abandoning, run the three cheap recoveries and re-measure; if they land the
-figure short of ten, cost the paid tier honestly, which docs/05 § 7 already
-prices at USD 9/month for the first step.
+figure short of ten, cost the paid tier honestly.
 
 Nothing about this is blocked on a trained model. It was measurable without one,
 and it was.
+
+### The recoveries, measured 2026-08-18 — [probe P8](research/probes/P8-recovery-measurements.md)
+
+**One of the three is real, and the measuring host turned out to be the bigger
+finding.**
+
+| | |
+|---|---|
+| gate | **≥ 10 concurrent scanners at one bin** |
+| highest figure observed, any configuration | **8** |
+| the host's own uncertainty | **±3** |
+| verdict | **not met**, and no configuration was ever observed at 10 |
+
+**P8b found the 15–40 ms and it is one line of configuration.** A frame carries
+15.3 ms that belongs to neither graph, and the cause is exact: the service holds
+**two onnxruntime sessions, each with its own intra-op thread pool, and both
+spin while idle** — four threads contending for two cores, so the idle model
+burns the running model's cycles. Holding the session count as the only variable
+(one session called twice, versus two sessions of the *same* graph) measures
+switching at **+36.9 ms**; one shared pool removes it and takes the two-graph
+call from **57.1 ms to 26.3 ms**. Under load it is worth a median **−105 ms at
+p95**, in 41 of 48 paired comparisons, in both orderings.
+
+**P8a (384 px) and P8c (capping crops) are not established.** 384 sat inside the
+drift; the crop cap was never reached. The cap's *cost* is established without a
+measurement, though: the remainder is **not deferred to the next frame** — that
+was never built — so at a six-container bank a cap of three leaves three
+containers permanently unidentified.
+
+**And the absolute number is not measurable on this laptop.** The identical
+baseline configuration measured **7 at 22:30 and 4 at 23:48** on one evening,
+with the whole curve stepping ~50 % worse partway through. The cause was the
+machine itself: host CPU at ~50 % with the agent tooling on it, and
+`docker run --cpus 2` is a cgroup **ceiling, not a floor**. The service's own
+reported `ms` rose from a flat 33 ms to 46–55 ms — the container being starved,
+not the service getting slower.
+
+**That applies backwards.** The **4** recorded on 2026-08-17 came from the same
+protocol on the same laptop and carries the same ±3. The gate table above still
+says *not met* — nothing ever reached ten — but the margin is unknown, and
+quoting 4 as a measured ceiling is no longer defensible.
+
+**So the next step is a host, not another recovery.** A controlled 2-vCPU x86
+box that is not also running the tooling is now the only way to get any absolute
+figure at all. It was planned as a contingency if ARM reached ten; it is the
+critical path.
 
 Two things found on the way that change what this phase can conclude:
 
@@ -352,11 +406,16 @@ Stated in advance, so they are not rationalised away later:
   is wrong. Stop and cost a paid tier honestly rather than shipping something
   that falls over at launch.
   **FIRED, 2026-08-17, on the first half.** Measured 4 concurrent scanners at
-  one bin per frame against a gate of 10, and 1 at six bins. *Cannot be
-  recovered* is not yet established: the three cheap recoveries docs/05 § 7
-  named in advance — validator at 384 px, the unexplained 15–40 ms, capping
-  crops at 3 — are all untried. Run them, re-measure, and if it is still short
-  of ten, cost the paid tier. Do not quietly restate the gate as four.
+  one bin per frame against a gate of 10, and 1 at six bins.
+  **Still fired after the recoveries were measured, 2026-08-18
+  ([P8](research/probes/P8-recovery-measurements.md)), and the reason has
+  changed.** One recovery is real — a shared onnxruntime thread pool, worth
+  −105 ms at p95 — and the highest figure ever observed under any configuration
+  is **8**. *Cannot be recovered* is still not established, because the
+  measuring host cannot supply an absolute number: the identical baseline gave 7
+  and then 4 within one evening. **What the criterion now waits on is a
+  controlled 2-vCPU x86 host**, not another idea. Do not quietly restate the
+  gate as four, or as eight.
 - **Novelty precision stays below 0.5** → the validator/identifier disagreement
   is not a usable signal and the improvement loop does not close. That is the
   load-bearing assumption of the whole design.

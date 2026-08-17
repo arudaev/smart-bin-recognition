@@ -145,6 +145,31 @@ query, at any traffic level.
 > bounds how many are inside onnxruntime. Rung 1 now fires at 5 concurrent
 > scanners and rung 2 at 10.
 
+> **AND THE HOST WAS NEVER GOOD ENOUGH TO SAY, 2026-08-18.**
+> [Probe P8](research/probes/P8-recovery-measurements.md) re-ran the same
+> protocol with a baseline at both ends of the block. **The identical baseline
+> configuration measured 7 concurrent scanners at 22:30 and 4 at 23:48**, with
+> the p95 curve stepping ~50 % worse partway through and staying there.
+>
+> The cause is the measuring machine, not the service: host CPU sat at ~50 %
+> with the development tooling on it, and **`docker run --cpus 2` is a cgroup
+> ceiling, not a floor** — under contention the container gets less than its
+> quota. The service's own reported `ms` rose from a flat 33 ms to 46–55 ms,
+> which is starvation rather than slowness.
+>
+> **So the 4 above carries ±3 and is not a measured ceiling.** It is the best
+> figure a laptop could give. Every *relative* result in P8 stands — they were
+> taken as paired ABBA comparisons minutes apart, which is why they survive a
+> host that destroys the absolute level — and no absolute concurrency figure
+> should be quoted from this project until a controlled 2-vCPU x86 host produces
+> one.
+>
+> **One recovery is real and it is free**: the service holds two onnxruntime
+> sessions with two spinning intra-op thread pools on two cores, and switching
+> between them costs **+36.9 ms**. A single shared pool removes it — the
+> two-graph call falls from 57.1 ms to 26.3 ms, and p95 under load by a median
+> of 105 ms across 41 of 48 paired comparisons.
+
 Measured cost per frame, and the ceiling re-derived on it:
 
 | bins in frame | CPU per frame | frames/s on 2 vCPU | concurrent scanners at 3 fps |
@@ -309,15 +334,41 @@ Ordered by cost, cheapest first. None needed for a pilot.
 
 | Trigger | Response | Cost |
 |---|---|---|
-| Occasional saturation at peak | Tune gates; batch crops; drop model A to 384 px | €0 |
-| Streaming becomes necessary | **HF PRO `cpu-basic`**, or Cloud Run instance-based | USD 9/mo |
-| Sustained saturation | More vCPU on whichever host § 3 settled on (2→8) | ~€0.03/h, ~€20/mo |
+| Occasional saturation at peak | Tune gates; **one shared onnxruntime thread pool**; drop model A to 384 px; cap crops | €0 |
+| Streaming becomes necessary | **HF PRO `cpu-basic`**, or Cloud Run instance-based | USD 9/mo **and it buys no compute** – see below |
+| Sustained saturation | **More vCPU** – HF Spaces *CPU Upgrade*, 8 vCPU | **USD 0.03/h ⇒ USD 21.90/mo** uninterrupted, **plus a paid plan** |
+| Sustained saturation, Cloud Run | Raise `--cpu` and `--max-instances` | **usage-based; there is no monthly figure** – see below |
 | Sustained, predictable load | Move service to Fly.io / Hetzner CPU box | ~€5–15/mo |
 | Real scale | GPU inference, batch frames across users | ~€50+/mo |
 | Any of the above | **Municipal sponsorship** – geolocated bin data with staleness tracking is genuinely useful to a waste operator | the intended answer |
 
-The upgrade path is deliberately gradual and the first two steps are cheap. There
-is no cliff.
+Three corrections to that table, made 2026-08-17, because the previous version
+was wrong in ways that would have made an upgrade decision on bad numbers.
+
+**"~€20/month for 2→8 vCPU" named no host and understated the bill.** The
+8-vCPU tier is Hugging Face Spaces' *CPU Upgrade* at **USD 0.03/hour**. Run
+uninterrupted that is **USD 21.90/month of compute**, and compute Spaces are
+**not available without a paid plan**, so the real figure is that plus the plan.
+Both charges get named or neither should be.
+
+**Cloud Run cannot honestly be written as a flat monthly figure.** It bills
+vCPU-seconds and GiB-seconds while a request is in flight, so its cost is
+`frames × seconds-per-frame × vCPU`, against a free allowance of 180 000
+vCPU-seconds and 360 000 GiB-seconds a month. At the measured ~55 ms of
+server time per one-bin frame on 2 vCPU, the free allowance is roughly 1.6
+million frames a month — about 100 000 scans at ~15 frames each — and the
+marginal cost past it scales with use rather than arriving as a subscription.
+That shape is the reason Cloud Run was chosen; flattening it to "€20/month"
+throws away the property being paid for.
+
+**HF PRO's USD 9 `cpu-basic` is not an answer to saturation.** It is still
+**2 vCPU**. It answers *"streaming becomes necessary"* — it buys a persistent
+socket, which Cloud Run's request-based billing will not give — and it buys no
+compute at all. A concurrency gate cannot be closed with it, and the row above
+says so where it used to imply otherwise.
+
+The upgrade path is still gradual. The first row is genuinely free and, as of
+docs/12 P8, it is also the one with something measured in it.
 
 ## 8. What we give up, stated plainly
 

@@ -1,0 +1,79 @@
+{
+  "probe": "P8b",
+  "question": "is the unaccounted time session switching, or the second model?",
+  "generated": "2026-08-17T09:36:47Z",
+  "machine": "aarch64 / Linux",
+  "onnxruntime": "1.28.0",
+  "intra_op_threads": 2,
+  "iterations": 40,
+  "warmup": 10,
+  "representative": false,
+  "configurations": {
+    "default": {
+      "A_one_session_twice": {
+        "p50_ms": 29.6,
+        "p95_ms": 37.29,
+        "mean_ms": 30.4,
+        "min_ms": 28.07
+      },
+      "B_two_sessions_same_graph": {
+        "p50_ms": 66.52,
+        "p95_ms": 85.12,
+        "mean_ms": 58.88,
+        "min_ms": 31.11
+      },
+      "C_validator_then_identifier": {
+        "p50_ms": 57.08,
+        "p95_ms": 94.72,
+        "mean_ms": 53.14,
+        "min_ms": 24.19
+      },
+      "switch_cost_ms": 36.92,
+      "second_model_cost_ms": -9.44
+    },
+    "no_spinning": {
+      "A_one_session_twice": {
+        "p50_ms": 44.17,
+        "p95_ms": 52.39,
+        "mean_ms": 44.43,
+        "min_ms": 36.19
+      },
+      "B_two_sessions_same_graph": {
+        "p50_ms": 44.04,
+        "p95_ms": 50.73,
+        "mean_ms": 43.82,
+        "min_ms": 35.35
+      },
+      "C_validator_then_identifier": {
+        "p50_ms": 34.54,
+        "p95_ms": 40.96,
+        "mean_ms": 34.27,
+        "min_ms": 28.07
+      },
+      "switch_cost_ms": -0.13,
+      "second_model_cost_ms": -9.5
+    },
+    "shared_pool": {
+      "A_one_session_twice": {
+        "p50_ms": 33.03,
+        "p95_ms": 37.96,
+        "mean_ms": 33.03,
+        "min_ms": 28.19
+      },
+      "B_two_sessions_same_graph": {
+        "p50_ms": 33.0,
+        "p95_ms": 39.03,
+        "mean_ms": 33.4,
+        "min_ms": 28.96
+      },
+      "C_validator_then_identifier": {
+        "p50_ms": 26.28,
+        "p95_ms": 30.99,
+        "mean_ms": 26.52,
+        "min_ms": 23.7
+      },
+      "switch_cost_ms": -0.03,
+      "second_model_cost_ms": -6.72
+    }
+  }
+}
