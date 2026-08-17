@@ -56,7 +56,7 @@ def unpack_bundle() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
         archive.extractall(PROJECT)
-    sys.path.insert(0, str(PROJECT / "src"))
+    sys.path.insert(0, str(PROJECT / "ml" / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
@@ -92,7 +92,7 @@ def main() -> None:
     )
 
     configure_hf_runtime()
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     repo_id = config.get("hub", {}).get("dataset_repo", "arudaev/smart-bin-detect")
 
     # EVERY Hub call this run can make up front, before 16 minutes of

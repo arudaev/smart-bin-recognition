@@ -51,7 +51,7 @@ def unpack_bundle() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
         archive.extractall(PROJECT)
-    sys.path.insert(0, str(PROJECT / "src"))
+    sys.path.insert(0, str(PROJECT / "ml" / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
@@ -140,7 +140,7 @@ def main() -> None:
     # Before a GPU hour, not after.
     if os.environ.get("SBR_SKIP_UPLOAD") != "1":
         require_hf_token("upload the trained artefacts")
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])
 

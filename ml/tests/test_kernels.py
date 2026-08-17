@@ -28,7 +28,23 @@ ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
 CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency")
-ALL_KERNELS = (*KERNELS, *CPU_KERNELS)
+
+#: The diagnostic ladder from docs/07 phase 2. Each rung changes exactly one
+#: thing from the one before it, which is the only way to find a boundary when
+#: the platform returns an empty log.
+SMOKE_KERNELS = (
+    "smoke_bare",         # no bundle, no dataset, no GPU
+    "smoke_plain",        # + the injected bundle
+    "smoke_secrets",      # + the attached secrets dataset
+    "smoke_usersecret",   # a Kaggle Secret instead - does it bind to an API push?
+    "smoke_data",         # the pinned pool and the composition contract
+    "smoke_train",        # one epoch on the GPU
+)
+
+#: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
+BUNDLED_KERNELS = (*KERNELS, *CPU_KERNELS, *[k for k in SMOKE_KERNELS if k != "smoke_bare"])
+
+ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
 
 #: Kernels that read from or write to the Hub, and therefore need the token the
 #: secrets dataset carries. ``probe_latency`` is deliberately not one: it builds
@@ -206,6 +222,60 @@ def test_the_training_kernels_ask_for_a_gpu(kernel):
     assert meta["enable_internet"] is True
 
 
+# --------------------------------------------------------------------------- #
+# The bundle layout - it mirrors the repository, and that is load-bearing
+# --------------------------------------------------------------------------- #
+
+
+def test_the_bundle_puts_the_taxonomy_where_sbr_looks_for_it(tmp_path):
+    """`sbr` finds its data by walking up from its own file. The bundle must agree.
+
+    ``taxonomy.py`` resolves the repo root as ``parents[3]`` and ``config.py``
+    resolves configs as ``parents[2]/configs``. The bundle used to unpack ``src/``
+    and ``data/taxonomy`` as siblings, which put ``parents[3]`` one level ABOVE
+    the unpack directory: every ``load_taxonomy()`` inside a kernel died with
+    ``FileNotFoundError: .../data/taxonomy/waste-streams.json``.
+
+    It stayed hidden because ``load_config`` resolved correctly from the same
+    tree and the one kernel that completed - ``probe_latency`` - never calls
+    ``load_taxonomy``. This test builds the real bundle and checks the invariant
+    on the unpacked tree, rather than asserting a string that could be right for
+    the wrong reason.
+    """
+    import base64
+    import io
+    import sys
+    import zipfile
+
+    sys.path.insert(0, str(ML_ROOT / "scripts"))
+    import dispatch
+
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(dispatch.build_bundle()))) as archive:
+        archive.extractall(tmp_path)
+
+    taxonomy = tmp_path / "ml" / "src" / "sbr" / "taxonomy.py"
+    assert taxonomy.exists(), "the bundle does not carry sbr/taxonomy.py where sys.path expects it"
+
+    # The two invariants, computed exactly as the modules compute them.
+    repo_root = taxonomy.resolve().parents[3]
+    assert (repo_root / "data" / "taxonomy" / "waste-streams.json").exists(), (
+        f"taxonomy.py resolves the repo root to {repo_root}, which holds no "
+        "data/taxonomy - every load_taxonomy() in a kernel would raise"
+    )
+
+    config_py = tmp_path / "ml" / "src" / "sbr" / "config.py"
+    assert (config_py.resolve().parents[2] / "configs" / "validator.yaml").exists()
+
+
+@pytest.mark.parametrize("kernel", BUNDLED_KERNELS)
+def test_every_bundled_kernel_uses_the_mirrored_layout(kernel):
+    # One sys.path spelling. A kernel still inserting `project/src` would import
+    # nothing, or worse, import a stale copy.
+    text = source(kernel)
+    assert 'PROJECT / "ml" / "src"' in text, f"{kernel} does not use the mirrored bundle layout"
+    assert 'str(PROJECT / "src")' not in text
+
+
 @pytest.mark.parametrize("kernel", CPU_KERNELS)
 def test_the_cpu_kernels_do_not_burn_gpu_quota(kernel):
     # Downloading JPEGs and timing an int8 graph on two threads are both
@@ -263,9 +333,69 @@ def test_the_harvest_kernel_does_not_burn_gpu_quota():
 
 @pytest.mark.parametrize("kernel", HUB_KERNELS)
 def test_the_secrets_dataset_is_attached(kernel):
-    # How the HF token reaches an API-pushed kernel; UserSecretsClient only
-    # works in an interactive session.
+    # How the HF token reaches an API-pushed kernel today. Whether a Kaggle
+    # Secret could do it instead is not assumed either way - `smoke_usersecret`
+    # asks, because the documented kernel metadata has fields for attaching a
+    # dataset and none for binding a secret.
     assert metadata(kernel)["dataset_sources"]
+
+
+# --------------------------------------------------------------------------- #
+# The smoke ladder
+# --------------------------------------------------------------------------- #
+
+
+def test_each_rung_of_the_ladder_changes_exactly_one_thing():
+    """The ladder's whole value is that the rungs differ by one variable each.
+
+    1a -> 1b adds the bundle. 1b -> 2 adds the attached dataset. If two rungs
+    ever differ by two things, a failure stops localising anything and the
+    ladder becomes six kernels that all do roughly the same.
+    """
+    bare, plain = metadata("smoke_bare"), metadata("smoke_plain")
+    assert bare["dataset_sources"] == [] and plain["dataset_sources"] == []
+    assert bare["enable_gpu"] is False and plain["enable_gpu"] is False
+    # The one difference: only smoke_plain carries the injection sentinel.
+    assert "__SBR_PROJECT_BUNDLE_B64__" not in source("smoke_bare")
+    assert "__SBR_PROJECT_BUNDLE_B64__" in source("smoke_plain")
+
+    secrets = metadata("smoke_secrets")
+    assert secrets["dataset_sources"] == ["hlexnc/chexvision-secrets"]
+    assert secrets["enable_gpu"] is False
+
+    # 2b must NOT attach the dataset, or a token reaching it proves nothing
+    # about whether a Kaggle Secret is visible to an API-pushed kernel.
+    assert metadata("smoke_usersecret")["dataset_sources"] == []
+    assert "UserSecretsClient" in source("smoke_usersecret")
+
+
+@pytest.mark.parametrize("kernel", SMOKE_KERNELS)
+def test_every_rung_writes_a_file_as_well_as_printing(kernel):
+    # "No artefact and an empty log" is the failure being diagnosed. A rung that
+    # only printed could not distinguish "ran and failed" from "never ran".
+    assert 'WORKING / f"{NAME}.json"' in source(kernel)
+
+
+def test_only_the_last_rung_asks_for_a_gpu():
+    # The quota is 30 h/week and finding a boundary must not cost any of it.
+    for kernel in SMOKE_KERNELS:
+        expected = kernel == "smoke_train"
+        assert metadata(kernel)["enable_gpu"] is expected, kernel
+
+
+def test_the_ladder_does_not_upload_anything():
+    # These are diagnostics. A smoke kernel that pushed to the Hub could publish
+    # a one-epoch checkpoint as if it were a model.
+    for kernel in SMOKE_KERNELS:
+        assert "upload_artifacts" not in source(kernel), kernel
+
+
+def test_the_data_rung_asserts_the_composition_contract():
+    # The point of running it on CPU: a drifted pool fails there, for free,
+    # rather than inside the GPU run that follows.
+    text = source("smoke_data")
+    assert "check_composition" in text
+    assert "expectation_for" in text
 
 
 @pytest.mark.parametrize("kernel", ALL_KERNELS)
