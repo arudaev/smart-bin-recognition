@@ -111,12 +111,31 @@ class Artefact:
         }
 
 
-def open_session(onnx_path: Path, threads: int) -> Any:
+def open_session(
+    onnx_path: Path, threads: int, *, spinning: bool = True, shared_pool: bool = False
+) -> Any:
     """An onnxruntime session pinned to the service's core count.
 
     The same pinning as ``sbr.bench.open_session``, and for the same reason: a
     latency number is only comparable to the budget if it was taken on the same
     number of threads the budget was stated for.
+
+    ``spinning`` and ``shared_pool`` are the two variables docs/12 probe P8b
+    tests, and both default to onnxruntime's own behaviour so that the probe's
+    baseline is the runtime as it ships. What they change:
+
+    - **spinning.** Intra-op threads spin while waiting for work. With one model
+      that is free; with two sessions on two cores it means the idle model's
+      threads burn the running model's cycles.
+    - **shared_pool.** By default each session builds its own intra-op pool, so
+      this service runs four threads on two cores. One global pool is what makes
+      the two sessions share rather than compete - and it makes per-session
+      thread counts meaningless, which is why ``Settings`` refuses to combine it
+      with ``SBR_IDENTIFIER_THREADS``.
+
+    A runtime too old for the global-pool API falls back to per-session pools and
+    **says so**, rather than silently measuring the configuration it was asked to
+    move away from.
     """
     import onnxruntime as ort
 
@@ -124,6 +143,28 @@ def open_session(onnx_path: Path, threads: int) -> Any:
     options.intra_op_num_threads = threads
     options.inter_op_num_threads = 1
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+    if not spinning:
+        # The documented spelling; an unknown key is ignored rather than raising,
+        # so this is logged at the call site where the setting is known.
+        options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+
+    if shared_pool:
+        setter = getattr(ort, "set_global_thread_pool_sizes", None)
+        if setter is None or not hasattr(options, "use_per_session_threads"):
+            logger.warning(
+                "SBR_ORT_SHARED_POOL is set but onnxruntime %s exposes no global "
+                "thread pool API - falling back to per-session pools. Any P8b number "
+                "from this process is a measurement of the DEFAULT configuration.",
+                ort.__version__,
+            )
+        else:
+            # Idempotent, and it has to happen before the first session that opts
+            # out of per-session threads. Sizing it exactly as a per-session pool
+            # is what keeps this a one-variable change.
+            setter(threads, 1)
+            options.use_per_session_threads = False
+
     return ort.InferenceSession(str(onnx_path), options, providers=["CPUExecutionProvider"])
 
 
@@ -206,15 +247,29 @@ def load_artefact(role: str, settings: Settings) -> Artefact:
         logger.warning("SERVING AN UNGATED ARTEFACT: %s", message)
         source += " [UNGATED]"
 
+    # The identifier may be given fewer threads than the validator: it is the
+    # smaller graph and it is the one that runs n times per frame, so it is where
+    # a per-session count is worth testing at all (docs/12 P8b).
+    threads = settings.intra_op_threads
+    if role == "identifier" and settings.identifier_threads is not None:
+        threads = settings.identifier_threads
+
     artefact = Artefact(
         role=role,
-        session=open_session(onnx_path, settings.intra_op_threads),
+        session=open_session(
+            onnx_path,
+            threads,
+            spinning=settings.ort_spinning,
+            shared_pool=settings.ort_shared_pool,
+        ),
         sidecar=sidecar,
         source=source,
     )
     logger.info(
-        "loaded %s v%s from %s: imgsz %d, %d classes, dynamic_batch=%s",
+        "loaded %s v%s from %s: imgsz %d, %d classes, dynamic_batch=%s, "
+        "threads=%d, spinning=%s, shared_pool=%s",
         role, sidecar.get("version"), source, artefact.imgsz,
         len(artefact.classes), artefact.dynamic_batch,
+        threads, settings.ort_spinning, settings.ort_shared_pool,
     )
     return artefact

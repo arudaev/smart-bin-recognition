@@ -50,13 +50,35 @@ DEFAULT_MAX_CROPS = 6
 DEFAULT_INFERENCE_SLOTS = 1
 
 
-def _flag(name: str) -> bool:
-    return os.environ.get(name, "").strip() in {"1", "true", "yes", "on"}
+#: onnxruntime's own defaults for the two threading knobs docs/12 probe P8b
+#: tests. They are *its* defaults rather than ours on purpose: the probe's
+#: baseline has to be the runtime as it ships, or the recovery it measures is
+#: against a configuration nobody was running.
+#:
+#: Both matter here for the same reason. This service holds TWO sessions on TWO
+#: cores, and by default each session gets its own intra-op pool and each pool
+#: spins while idle - so four threads contend for two cores and the idle model's
+#: threads burn the running model's cycles. That is the standing hypothesis for
+#: the 15-40 ms per frame that P4 could attribute to neither graph.
+DEFAULT_ORT_SPINNING = True
+DEFAULT_ORT_SHARED_POOL = False
+
+
+def _flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _int(name: str, default: int) -> int:
     raw = os.environ.get(name, "").strip()
     return int(raw) if raw else default
+
+
+def _optional_int(name: str) -> int | None:
+    raw = os.environ.get(name, "").strip()
+    return int(raw) if raw else None
 
 
 @dataclass(frozen=True)
@@ -96,6 +118,21 @@ class Settings:
     intra_op_threads: int = DEFAULT_INTRA_OP_THREADS
     max_crops: int = DEFAULT_MAX_CROPS
 
+    #: Whether onnxruntime's intra-op threads spin while idle. See
+    #: DEFAULT_ORT_SPINNING - this is a docs/12 P8b variable, not a tuning knob
+    #: somebody should set by feel.
+    ort_spinning: bool = DEFAULT_ORT_SPINNING
+
+    #: Whether both sessions share ONE global thread pool instead of getting one
+    #: each. Mutually exclusive with `identifier_threads`, because a shared pool
+    #: has a single size and a per-session count would then be ignored - two
+    #: variables moving while one is being measured.
+    ort_shared_pool: bool = DEFAULT_ORT_SHARED_POOL
+
+    #: Intra-op threads for the identifier alone. ``None`` means the same as the
+    #: validator, which is what the service has always done.
+    identifier_threads: int | None = None
+
     #: How many frames may be *inside* onnxruntime at once. Distinct from queue
     #: depth, which is how many are waiting - see DEFAULT_INFERENCE_SLOTS.
     inference_slots: int = DEFAULT_INFERENCE_SLOTS
@@ -128,6 +165,16 @@ class Settings:
                 "it can never be mistaken for one answering real questions."
             )
 
+        shared_pool = _flag("SBR_ORT_SHARED_POOL", DEFAULT_ORT_SHARED_POOL)
+        identifier_threads = _optional_int("SBR_IDENTIFIER_THREADS")
+        if shared_pool and identifier_threads is not None:
+            raise ValueError(
+                "SBR_ORT_SHARED_POOL and SBR_IDENTIFIER_THREADS cannot both be set. A "
+                "shared pool has one size for both sessions, so the per-session count "
+                "would be silently ignored - and a probe that moves two variables while "
+                "measuring one is not a probe (docs/12 P8b)."
+            )
+
         return cls(
             model_repo=os.environ.get("SBR_MODEL_REPO", cls.model_repo),
             revision=os.environ.get("SBR_MODEL_REVISION", cls.revision),
@@ -136,6 +183,9 @@ class Settings:
             artefact_dir=Path(directory) if directory else None,
             intra_op_threads=_int("SBR_INTRA_OP_THREADS", DEFAULT_INTRA_OP_THREADS),
             max_crops=_int("SBR_MAX_CROPS", DEFAULT_MAX_CROPS),
+            ort_spinning=_flag("SBR_ORT_SPINNING", DEFAULT_ORT_SPINNING),
+            ort_shared_pool=shared_pool,
+            identifier_threads=identifier_threads,
             inference_slots=max(1, _int("SBR_INFERENCE_SLOTS", DEFAULT_INFERENCE_SLOTS)),
             allow_ungated=allow_ungated,
             force_crops=forced if forced >= 0 else None,
@@ -150,6 +200,9 @@ class Settings:
             "revision": self.revision,
             "artefact_dir": str(self.artefact_dir) if self.artefact_dir else None,
             "intra_op_threads": self.intra_op_threads,
+            "identifier_threads": self.identifier_threads,
+            "ort_spinning": self.ort_spinning,
+            "ort_shared_pool": self.ort_shared_pool,
             "inference_slots": self.inference_slots,
             "max_crops": self.max_crops,
             "allow_ungated": self.allow_ungated,
