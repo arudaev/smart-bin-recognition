@@ -22,9 +22,21 @@ gate saves). A load test that fired frames without waiting would measure a
 client nobody ships and would report a ceiling that cannot be reached.
 
 WHAT IT REPORTS. p50/p95/p99 per level, throughput, and which rung of the
-degradation ladder the service reached. The verdict is the largest N whose p95
-stayed inside the budget - the point of the whole exercise, and the number
-docs/05 § 3 and docs/11 quote.
+degradation ladder the service reached. The verdict is the point of the whole
+exercise, and the number docs/05 § 3 and docs/11 quote.
+
+THREE THINGS ABOUT THE VERDICT, all added for docs/12 probe P8 and all there
+because their absence would have produced a plausible wrong answer:
+
+- **It is the largest MONOTONIC PASSING PREFIX**, not the highest passing level.
+  One level scraping under budget above a failed one is noise wearing capacity's
+  clothes, and reporting it as a ceiling would overstate the service.
+- **A level counts as passing only if it passed in EVERY repeat.** The proxy
+  host the earlier numbers came from varied ~25 % between runs six minutes
+  apart, and a single ramp cannot distinguish an 8 % win from that.
+- **This file is the only thing that repeats.** ``--repeats`` is the sole
+  repetition owner; a caller that also loops produces nine ramps while claiming
+  three.
 """
 
 from __future__ import annotations
@@ -64,9 +76,10 @@ DEFAULT_BUDGET_MS = 250.0
 
 @dataclass
 class Level:
-    """One concurrency level: N scanners, held for a while."""
+    """One concurrency level: N scanners, held for a while, in one repeat."""
 
     scanners: int
+    repeat: int = 0
     frames: int = 0
     errors: int = 0
     shed_slow: int = 0
@@ -78,16 +91,56 @@ class Level:
     #: recording one is how a whole ramp gets thrown away.
     first_error: str | None = None
 
+    #: Where the frame's milliseconds went. ``server_ms`` is free - every reply
+    #: carries it - and the other two need ``--debug``. Together with the wall
+    #: clock they partition a frame four ways, which is what docs/12 P8b needs to
+    #: locate the 15-40 ms that belongs to neither graph.
+    server_ms: list[float] = field(default_factory=list)
+    validator_ms: list[float] = field(default_factory=list)
+    identifier_ms: list[float] = field(default_factory=list)
+
     def percentile(self, p: float) -> float:
-        if not self.latencies_ms:
-            return float("nan")
-        ordered = sorted(self.latencies_ms)
-        index = min(len(ordered) - 1, int(round((p / 100.0) * (len(ordered) - 1))))
-        return ordered[index]
+        return _percentile(self.latencies_ms, p)
+
+    @property
+    def passed(self) -> bool:
+        """Judged in one place, so the ramp print and the verdict cannot disagree."""
+        return bool(self.latencies_ms) and self.errors == 0
+
+    def within(self, budget_ms: float) -> bool:
+        return self.passed and self.percentile(95) <= budget_ms
+
+    def decomposition(self) -> dict | None:
+        """p50 of each bucket, and the two derived ones.
+
+        ``other_server_ms`` holds everything inside the service that is not a
+        session run: JPEG decode, crop preprocessing, colour, the resolver.
+        ``_validate`` already includes letterbox and NMS and ``_identify`` times
+        only ``session.run``, so the split is stated rather than assumed.
+        """
+        if not self.server_ms:
+            return None
+        server = _percentile(self.server_ms, 50)
+        wall = _percentile(self.latencies_ms, 50)
+        block: dict = {
+            "server_ms": round(server, 1),
+            "wall_ms": round(wall, 1),
+            "transport_ms": round(wall - server, 1),
+        }
+        if self.validator_ms and self.identifier_ms:
+            validator = _percentile(self.validator_ms, 50)
+            identifier = _percentile(self.identifier_ms, 50)
+            block |= {
+                "validator_ms": round(validator, 1),
+                "identifier_ms": round(identifier, 1),
+                "other_server_ms": round(server - validator - identifier, 1),
+            }
+        return block
 
     def summary(self) -> dict:
         return {
             "scanners": self.scanners,
+            "repeat": self.repeat,
             "frames": self.frames,
             "errors": self.errors,
             "refused_503": self.refused,
@@ -98,8 +151,39 @@ class Level:
             "p95_ms": round(self.percentile(95), 1),
             "p99_ms": round(self.percentile(99), 1),
             "mean_ms": round(statistics.fmean(self.latencies_ms), 1) if self.latencies_ms else None,
+            "decomposition": self.decomposition(),
             "first_error": self.first_error,
         }
+
+
+def _percentile(samples: list[float], p: float) -> float:
+    if not samples:
+        return float("nan")
+    ordered = sorted(samples)
+    index = min(len(ordered) - 1, int(round((p / 100.0) * (len(ordered) - 1))))
+    return ordered[index]
+
+
+def monotonic_prefix(ramps: list[list[Level]], levels: list[int], budget_ms: float) -> int | None:
+    """The largest N such that EVERY level up to N passed in EVERY repeat.
+
+    Two rules in one function, because they are one judgement. Requiring every
+    repeat is what stops a lucky ramp being quoted; requiring the whole prefix is
+    what stops a level that scraped under budget above a failed one being read as
+    capacity. A service that fails at 4 and passes at 5 has not got room for 5
+    scanners, it has got noise.
+    """
+    best: int | None = None
+    for level in sorted(levels):
+        measured = [
+            next((entry for entry in ramp if entry.scanners == level), None) for ramp in ramps
+        ]
+        # A level a repeat never reached - `--stop-when-over` cut the ramp short -
+        # has not passed. Absence is not a pass.
+        if not all(entry is not None and entry.within(budget_ms) for entry in measured):
+            break
+        best = level
+    return best
 
 
 def synthetic_jpeg(size: int = 448) -> bytes:
@@ -176,7 +260,21 @@ async def scanner(
             level.frames += 1
             level.latencies_ms.append(elapsed)
 
-            advice = response.json().get("advice")
+            body = response.json()
+            # Free, and it is half of P8b's decomposition: the difference between
+            # this and the wall clock above is everything outside the service.
+            if isinstance(body.get("ms"), (int, float)):
+                level.server_ms.append(float(body["ms"]))
+            debug = body.get("debug")
+            if isinstance(debug, dict):
+                for key, target in (
+                    ("validator_ms", level.validator_ms),
+                    ("identifier_ms", level.identifier_ms),
+                ):
+                    if isinstance(debug.get(key), (int, float)):
+                        target.append(float(debug[key]))
+
+            advice = body.get("advice")
             if advice:
                 if advice.get("max_fps") == 0:
                     level.shed_tap += 1
@@ -202,8 +300,8 @@ async def scanner(
     # Deliberately no final sleep - the level's clock stops with the event.
 
 
-async def run_level(url: str, payload: bytes, scanners: int, hold_s: float) -> Level:
-    level = Level(scanners=scanners)
+async def run_level(url: str, payload: bytes, scanners: int, hold_s: float, repeat: int = 0) -> Level:
+    level = Level(scanners=scanners, repeat=repeat)
     stop = asyncio.Event()
 
     limits = httpx.Limits(max_connections=scanners + 4, max_keepalive_connections=scanners + 4)
@@ -262,9 +360,10 @@ async def main_async(args: argparse.Namespace) -> int:
         )
 
     payload = encode_frame(
-        DetectRequest(seq=1, geohash6=args.geohash, locale="en", debug=False), synthetic_jpeg(args.imgsz)
+        DetectRequest(seq=1, geohash6=args.geohash, locale="en", debug=args.debug),
+        synthetic_jpeg(args.imgsz),
     )
-    print(f"frame: {len(payload) / 1024:.1f} KB  ->  {detect}")
+    print(f"frame: {len(payload) / 1024:.1f} KB  ->  {detect}   [{args.label}]")
 
     info = await health(base)
     artefacts = info.get("artefacts") or {}
@@ -280,28 +379,33 @@ async def main_async(args: argparse.Namespace) -> int:
     print("warming up (the first frame pays for the model load) ...")
     await warm_up(detect, payload)
 
-    levels: list[Level] = []
-    verdict: int | None = None
+    ramps: list[list[Level]] = []
+    for repeat in range(args.repeats):
+        print(f"repeat {repeat + 1} of {args.repeats}")
+        ramp: list[Level] = []
+        for scanners in args.levels:
+            level = await run_level(detect, payload, scanners, args.hold, repeat=repeat)
+            ramp.append(level)
+            s = level.summary()
+            flag = "" if level.within(args.budget_ms) else "  <- OVER BUDGET"
+            print(
+                f"  {scanners:>3} scanners   p50 {s['p50_ms']:>7.1f}   p95 {s['p95_ms']:>7.1f}   "
+                f"{s['throughput_fps']:>5.1f} fps   shed {s['advice_slow']}/{s['advice_tap']}/"
+                f"{s['refused_503']}   err {s['errors']}{flag}"
+            )
+            if s["first_error"]:
+                print(f"        first error: {s['first_error']}")
+            if s["decomposition"]:
+                print(f"        {json.dumps(s['decomposition'])}")
+            if not level.within(args.budget_ms) and args.stop_when_over:
+                break
+        ramps.append(ramp)
 
-    for scanners in args.levels:
-        level = await run_level(detect, payload, scanners, args.hold)
-        levels.append(level)
-        s = level.summary()
-        flag = "" if s["p95_ms"] <= args.budget_ms else "  <- OVER BUDGET"
-        print(
-            f"  {scanners:>3} scanners   p50 {s['p50_ms']:>7.1f}   p95 {s['p95_ms']:>7.1f}   "
-            f"{s['throughput_fps']:>5.1f} fps   shed {s['advice_slow']}/{s['advice_tap']}/"
-            f"{s['refused_503']}   err {s['errors']}{flag}"
-        )
-        if s["first_error"]:
-            print(f"        first error: {s['first_error']}")
-        if s["p95_ms"] <= args.budget_ms and s["errors"] == 0:
-            verdict = scanners
-        elif args.stop_when_over:
-            break
+    verdict = monotonic_prefix(ramps, args.levels, args.budget_ms)
 
     report = {
         "measured": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "label": args.label,
         "url": detect,
         "hardware": args.host,
         # Cloud Run is x86_64. Anything else measuring for it is a proxy and has
@@ -312,18 +416,33 @@ async def main_async(args: argparse.Namespace) -> int:
         "budget_p95_ms": args.budget_ms,
         "scanner_fps": SCANNER_FPS,
         "hold_seconds": args.hold,
+        # In the report because a one-shot must not be able to masquerade as
+        # three once it is a JSON file somebody quotes a year later.
+        "repeats": args.repeats,
+        "levels_requested": list(args.levels),
+        "debug_requested": bool(args.debug),
         "frame_bytes": len(payload),
+        "verdict_rule": (
+            "largest N such that every level up to N stayed within the p95 budget "
+            "with no errors, in every repeat"
+        ),
         "concurrent_scanners_within_budget": verdict,
         "health": info,
-        "levels": [level.summary() for level in levels],
-        "raw": [asdict(level) for level in levels] if args.raw else None,
+        "repeats_detail": [[level.summary() for level in ramp] for ramp in ramps],
+        "raw": [[asdict(level) for level in ramp] for ramp in ramps] if args.raw else None,
     }
 
     print()
     if verdict is None:
-        print(f"VERDICT: not even {args.levels[0]} scanner(s) stayed inside {args.budget_ms:.0f} ms at p95.")
+        print(
+            f"VERDICT: not even {min(args.levels)} scanner(s) stayed inside "
+            f"{args.budget_ms:.0f} ms at p95 in all {args.repeats} repeat(s)."
+        )
     else:
-        print(f"VERDICT: {verdict} concurrent scanners within {args.budget_ms:.0f} ms at p95.")
+        print(
+            f"VERDICT: {verdict} concurrent scanners within {args.budget_ms:.0f} ms at p95, "
+            f"in all {args.repeats} repeat(s), as an unbroken prefix from {min(args.levels)}."
+        )
     print("This is a measurement of THIS host. Quote it with the host beside it.")
 
     if args.out:
@@ -338,10 +457,30 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url", default="http://localhost:8080")
     parser.add_argument(
-        "--levels", type=int, nargs="+", default=[1, 2, 3, 4, 5, 6, 8, 10, 12],
-        help="concurrency levels to ramp through",
+        "--levels", type=int, nargs="+", default=list(range(1, 13)),
+        help="concurrency levels to ramp through. CONTIGUOUS by default: the old "
+             "1 2 3 4 5 6 8 10 12 ladder cannot see a recovery that moves the "
+             "ceiling from 6 to 7, which is exactly the size of win docs/12 P8 "
+             "is looking for",
     )
     parser.add_argument("--hold", type=float, default=20.0, help="seconds to hold each level")
+    parser.add_argument(
+        "--repeats", type=int, default=1,
+        help="how many times to run the whole ramp. THIS IS THE ONLY REPETITION "
+             "IN THE SYSTEM - a caller that loops as well produces N x M ramps "
+             "while reporting M",
+    )
+    parser.add_argument(
+        "--label", default="unlabelled",
+        help="what configuration this run is of, e.g. baseline or val384. Lands "
+             "in the report, which is how four files become comparable",
+    )
+    parser.add_argument(
+        "--debug", action="store_true",
+        help="ask for per-graph timings, so a frame can be decomposed (docs/12 P8b). "
+             "Only meaningful at low concurrency - under contention the numbers "
+             "describe contention",
+    )
     parser.add_argument("--budget-ms", type=float, default=DEFAULT_BUDGET_MS, dest="budget_ms")
     parser.add_argument("--imgsz", type=int, default=448, help="frame size the client would send")
     parser.add_argument("--geohash", default="u2853k", help="geohash-6; u2853k is Deggendorf")
@@ -371,6 +510,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "hardware beside it, and a JSON file outlives the terminal it was printed "
             'in. Example: --host "docker --cpus 2 on a Snapdragon X1E80100, linux/arm64"'
         )
+    if args.repeats < 1:
+        parser.error("--repeats must be at least 1")
+    args.levels = sorted(set(args.levels))
     args.force_crops_note = args.bins
     return args
 
