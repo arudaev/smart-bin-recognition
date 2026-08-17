@@ -350,6 +350,71 @@ def decompose(args: argparse.Namespace, out: Path) -> list[dict]:
 # --------------------------------------------------------------------------- #
 
 
+def run_paired(args: argparse.Namespace, out: Path) -> dict:
+    """Two configurations, alternating ABBA, so drift hits both arms equally.
+
+    **Why this exists, and why the bracketed matrix is not enough.** The matrix
+    runs one configuration at a time and brackets each scene with a baseline at
+    both ends. On 2026-08-17 that bracket did its job and failed the block: the
+    identical baseline measured 7 concurrent scanners at 22:30 and 4 at 23:48,
+    with the p95 curve stepping ~50 % worse between 23:21 and 23:35 and staying
+    there. Every candidate effect on offer was ±1 scanner. **A design whose drift
+    is three times its effect size cannot answer the question**, however many
+    repeats it takes, because the repeats are all on the same side of the drift.
+
+    Pairing fixes that by shrinking the gap between the things being compared
+    from eighty minutes to about four. Each cycle runs A then B - and the next
+    cycle runs B then A, so any within-cycle ordering effect cancels too. The
+    comparison that matters is then the **paired** difference within a cycle,
+    which is what this reports, rather than two absolute numbers taken an hour
+    apart.
+
+    ``run.py`` is still the only thing that repeats a ramp; a cycle here is a
+    separate, individually reported measurement, not a hidden multiplier.
+    """
+    def arm(name: str) -> Configuration:
+        return BASELINE if name == "baseline" else CANDIDATES[name]
+
+    first, second = arm(args.paired[0]), arm(args.paired[1])
+
+    bins = args.scenes[0]
+    cycles: list[dict] = []
+    for cycle in range(args.cycles):
+        # ABBA: the second cycle reverses, so "A always ran while the machine was
+        # colder" cannot masquerade as an effect.
+        order = [first, second] if cycle % 2 == 0 else [second, first]
+        print(f"\n########## cycle {cycle + 1}/{args.cycles}: {[c.label for c in order]} ##########")
+        measured = {}
+        for configuration in order:
+            report = measure(configuration, bins, args, out, label_suffix=f"-c{cycle + 1}")
+            measured[configuration.label] = {
+                "verdict": report["concurrent_scanners_within_budget"],
+                "p95_by_level": {
+                    str(level["scanners"]): level["p95_ms"]
+                    for level in report["repeats_detail"][0]
+                },
+                "measured": report["measured"],
+            }
+        cycles.append({"cycle": cycle + 1, "order": [c.label for c in order], "results": measured})
+
+    return {
+        "probe": "P8",
+        "mode": "paired ABBA",
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "hardware": args.host,
+        "representative": False,
+        "bins_per_frame": bins,
+        "repeats_per_ramp": args.repeats,
+        "arms": [first.label, second.label],
+        "why": (
+            "The serial matrix drifted by three concurrent scanners across one "
+            "block while every candidate effect was one. Pairing puts the two arms "
+            "four minutes apart instead of eighty."
+        ),
+        "cycles": cycles,
+    }
+
+
 def run_matrix(args: argparse.Namespace, out: Path) -> dict:
     rng = random.Random(args.seed)
     candidates = [CANDIDATES[name] for name in args.candidates]
@@ -442,6 +507,13 @@ def main(argv: list[str] | None = None) -> int:
         "--combined", nargs="+", default=None, choices=sorted(CANDIDATES),
         help="also measure these together, as the run the verdict is read off",
     )
+    parser.add_argument(
+        "--paired", nargs=2, default=None, metavar=("A", "B"),
+        help="compare exactly two configurations, alternating ABBA. Use this when "
+             "the effect is smaller than the host's drift, which on a laptop it is. "
+             "'baseline' is a valid name here",
+    )
+    parser.add_argument("--cycles", type=int, default=4, help="ABBA cycles for --paired")
     args = parser.parse_args(argv)
 
     out: Path = args.out
@@ -462,6 +534,25 @@ def main(argv: list[str] | None = None) -> int:
             }
             (out / "decomposition.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
             print(f"\nwrote {out / 'decomposition.json'}")
+            return 0
+
+        if args.paired:
+            summary = run_paired(args, out)
+            name = f"paired-{'-vs-'.join(summary['arms'])}-{summary['bins_per_frame']}bin.json"
+            (out / name).write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            print(f"\nwrote {out / name}")
+            a, b = summary["arms"]
+            print(f"\ncycle   {a:>14}   {b:>14}   paired delta")
+            for entry in summary["cycles"]:
+                first = entry["results"][a]["verdict"]
+                second = entry["results"][b]["verdict"]
+                delta = (second - first) if (first is not None and second is not None) else None
+                print(f"  {entry['cycle']:>3}   {str(first):>14}   {str(second):>14}   {delta:+}" if delta is not None
+                      else f"  {entry['cycle']:>3}   {str(first):>14}   {str(second):>14}   -")
+            print(
+                "\nRead the PAIRED deltas, not the absolute numbers. This host moved "
+                "three scanners in eighty minutes with nothing changed."
+            )
             return 0
 
         summary = run_matrix(args, out)
