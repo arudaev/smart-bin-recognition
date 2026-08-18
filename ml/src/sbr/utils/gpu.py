@@ -40,16 +40,17 @@ What is fixable is the *symptom*: a run that discovers this at the first tensor
 move, deep inside somebody else's library, produces no weights and - as on
 2026-08-16 - no log either.
 
-So this module turns it into a sentence, in seconds and **before any data is
-pulled**: a training kernel refuses (:func:`require_usable_gpu`) and a
-diagnostic one reports and continues on the CPU
-(:func:`inspect_accelerator`).
+So this module turns it into a sentence, **before any data is pulled**: a
+training kernel refuses (:func:`require_usable_gpu`) and a diagnostic one
+reports and continues on the CPU (:func:`inspect_accelerator`). It still runs
+after dependency installation, so what it saves is the expensive part - the
+37 913-file pull and the tree build - rather than every second.
 
 The remedy itself is a **T4 rather than a P100**, and that is *requested*, not
 waited for: ``machine_shape: "NvidiaTeslaT4"`` in ``kernel-metadata.json``,
-which every GPU kernel here sets. This check is the belt to that braces - the
+which every GPU kernel here sets. This check is the belt to those braces - the
 field could be dropped, or Kaggle could change what it ships - and it is why a
-wrong allocation costs seconds rather than an hour.
+wrong allocation is refused rather than discovered an hour in.
 """
 
 from __future__ import annotations
@@ -171,5 +172,5 @@ does, so reaching this message means the field was dropped or the allocation
 ignored it - re-dispatch.
 
 This is the failure that produced a run with no weights and no log on 2026-08-16;
-refusing here costs seconds instead of an hour."""
+refusing here happens before the pool is pulled."""
     )
