@@ -35,20 +35,32 @@ def _clean_env(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_the_shared_thread_pool_is_on_by_default():
-    """The one recovery of P8's three that survived measurement.
+def test_the_shared_thread_pool_defaults_to_deciding_at_load_time():
+    """The one recovery of P8's three that survived measurement - conditionally.
 
     Two sessions on two cores get two intra-op pools and both spin, so the idle
-    model burns the running model's cycles: switching measured +36.9 ms, and one
-    shared pool removed it. It is a default rather than a flag because a flag
-    nobody sets buys nothing, and because the cost model prices a two-model
-    pipeline - which is the shape this helps.
+    model burns the running model's cycles: switching measured +36.9 ms and one
+    shared pool removed it. But the same experiment measured the other side, and
+    with ONE hot session sharing cost 29.6 -> 33.0 ms. The service is
+    single-session today, so an unconditional default would take a measured 11 %
+    regression now for a benefit that arrives with the identifier.
+
+    ``None`` means "decide from how many graphs actually load", and `app._load`
+    is where that is decided - it has to be, because onnxruntime's global pools
+    cannot be created after the first session that opts out of per-session
+    threads.
     """
     settings = Settings.from_env()
-    assert settings.ort_shared_pool is True
+    assert settings.ort_shared_pool is None
     assert settings.ort_spinning is True
     assert settings.identifier_threads is None
     assert settings.intra_op_threads == DEFAULT_INTRA_OP_THREADS
+
+
+def test_the_shared_pool_can_be_forced_on(monkeypatch):
+    # The x86 confirmation run needs to measure both settings deliberately.
+    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "1")
+    assert Settings.from_env().ort_shared_pool is True
 
 
 def test_the_shared_pool_can_be_turned_off_again(monkeypatch):
@@ -64,9 +76,6 @@ def test_spinning_can_be_turned_off(monkeypatch):
 
 
 def test_the_identifier_can_be_given_its_own_thread_count(monkeypatch):
-    # Only with the shared pool off - one pool has one size. The refusal below
-    # is what says so rather than letting the setting be ignored.
-    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "0")
     monkeypatch.setenv("SBR_IDENTIFIER_THREADS", "1")
     assert Settings.from_env().identifier_threads == 1
 
@@ -76,15 +85,25 @@ def test_the_identifier_can_be_given_its_own_thread_count(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_a_per_session_count_under_the_shared_pool_is_refused(monkeypatch):
-    """It would be ignored, not applied, and the refusal says which knob to move.
+def test_forcing_the_shared_pool_and_a_per_session_count_is_refused(monkeypatch):
+    """It would be ignored, not applied, and the refusal names the way out.
 
-    This fires against the *default* now that the shared pool is on, so the
-    message has to name the way out rather than only the problem.
+    Only when the pool is forced ON. Left to decide for itself, a per-session
+    thread count is a perfectly coherent request and simply implies per-session
+    pools - which is what `app._load` does with it.
     """
+    monkeypatch.setenv("SBR_ORT_SHARED_POOL", "1")
     monkeypatch.setenv("SBR_IDENTIFIER_THREADS", "1")
     with pytest.raises(ValueError, match="SBR_ORT_SHARED_POOL=0"):
         Settings.from_env()
+
+
+def test_a_per_session_count_alone_is_allowed(monkeypatch):
+    # No conflict: it just means the pools stay per-session.
+    monkeypatch.setenv("SBR_IDENTIFIER_THREADS", "1")
+    settings = Settings.from_env()
+    assert settings.identifier_threads == 1
+    assert settings.ort_shared_pool is None
 
 
 def test_forcing_crops_without_the_ungated_flag_is_refused(monkeypatch):

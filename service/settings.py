@@ -53,29 +53,26 @@ DEFAULT_INFERENCE_SLOTS = 1
 #: The two onnxruntime threading knobs docs/12 probe P8b tested, and the one it
 #: changed.
 #:
-#: **The shared pool is ON, and it is the only recovery of the three that
-#: survived measurement.** This service holds TWO sessions on TWO cores. By
-#: default onnxruntime gives each session its own intra-op pool and each pool
-#: spins while idle, so four threads contend for two cores and the idle model
-#: burns the running model's cycles. That was P4's unexplained 15-40 ms per
-#: frame, and P8b measured it directly by varying the SESSION count while
-#: holding the graph fixed: **switching cost +36.9 ms**, one shared pool removed
-#: it, and the two-graph call fell from 57.1 ms to 26.3 ms. Under load it is
-#: worth a median 105 ms at p95, in 41 of 48 paired comparisons.
+#: **The shared pool is AUTOMATIC: on when two graphs are loaded, off when one
+#: is.** This service holds two sessions on two cores, and onnxruntime gives each
+#: its own intra-op pool which spins while idle - four threads contending for
+#: two, so the idle model burns the running model's cycles. That was P4's
+#: unexplained 15-40 ms per frame. P8b measured it by varying the SESSION count
+#: while holding the graph fixed: **switching cost +36.9 ms**, one shared pool
+#: removed it, and the two-graph call fell from 57.1 ms to 26.3 ms.
 #:
-#: Two honest caveats travel with the default:
+#: It is conditional rather than unconditional because the same experiment
+#: measured the other side: with ONE hot session, spinning genuinely helps, and
+#: sharing cost 29.6 ms -> 33.0 ms, about 11 %. The service runs single-session
+#: today, because the identifier does not exist yet. An unconditional default
+#: would take a measured 11 % regression now in exchange for a benefit that
+#: arrives later, which is the wrong way round.
 #:
-#: - **It is a small loss for a service holding ONE session** - one hot session
-#:   benefits from spinning, and the measurement showed 29.6 ms becoming 33.0 ms.
-#:   The service runs single-session today only because the identifier does not
-#:   exist yet; the cost model prices two models and this is sized for that.
-#: - **It was measured on arm64.** The mechanism is an onnxruntime threading
-#:   property rather than an architecture one, but the number is not x86 and the
-#:   x86 confirmation run should measure both settings.
-#:
-#: `SBR_ORT_SHARED_POOL=0` restores per-session pools.
+#: ``None`` means decide at load time; ``SBR_ORT_SHARED_POOL=1`` or ``=0`` forces
+#: it either way, which is what the x86 confirmation run needs to measure both.
+DEFAULT_ORT_SHARED_POOL: bool | None = None
+
 DEFAULT_ORT_SPINNING = True
-DEFAULT_ORT_SHARED_POOL = True
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -88,6 +85,14 @@ def _flag(name: str, default: bool = False) -> bool:
 def _int(name: str, default: int) -> int:
     raw = os.environ.get(name, "").strip()
     return int(raw) if raw else default
+
+
+def _flag_or_none(name: str) -> bool | None:
+    """Unset means "decide later", which is different from "off"."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return None
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _optional_int(name: str) -> int | None:
@@ -138,10 +143,11 @@ class Settings:
     ort_spinning: bool = DEFAULT_ORT_SPINNING
 
     #: Whether both sessions share ONE global thread pool instead of getting one
-    #: each. Mutually exclusive with `identifier_threads`, because a shared pool
-    #: has a single size and a per-session count would then be ignored - two
-    #: variables moving while one is being measured.
-    ort_shared_pool: bool = DEFAULT_ORT_SHARED_POOL
+    #: each. ``None`` means decide from how many graphs actually load - see
+    #: DEFAULT_ORT_SHARED_POOL. Setting it to ``True`` alongside
+    #: `identifier_threads` is refused: a shared pool has a single size, so the
+    #: per-session count would be silently ignored rather than applied.
+    ort_shared_pool: bool | None = DEFAULT_ORT_SHARED_POOL
 
     #: Intra-op threads for the identifier alone. ``None`` means the same as the
     #: validator, which is what the service has always done.
@@ -179,9 +185,9 @@ class Settings:
                 "it can never be mistaken for one answering real questions."
             )
 
-        shared_pool = _flag("SBR_ORT_SHARED_POOL", DEFAULT_ORT_SHARED_POOL)
+        shared_pool = _flag_or_none("SBR_ORT_SHARED_POOL")
         identifier_threads = _optional_int("SBR_IDENTIFIER_THREADS")
-        if shared_pool and identifier_threads is not None:
+        if shared_pool is True and identifier_threads is not None:
             raise ValueError(
                 "SBR_IDENTIFIER_THREADS has no effect while the shared thread pool is "
                 "on, and the shared pool is now the DEFAULT (docs/12 P8b). One pool has "

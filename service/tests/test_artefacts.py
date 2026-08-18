@@ -135,3 +135,33 @@ def test_an_old_runtime_falls_back_and_says_so(monkeypatch, caplog):
 def test_an_unknown_role_is_rejected_before_any_io(artefact_dir):
     with pytest.raises(ValueError, match="unknown model role"):
         load_artefact("detector", _settings(artefact_dir("validator")))
+
+
+# --------------------------------------------------------------------------- #
+# One thread pool or two - decided before anything is opened
+# --------------------------------------------------------------------------- #
+
+
+def test_the_existence_probe_does_not_open_a_session(artefact_dir):
+    """It has to answer before the first session, so it cannot use one.
+
+    onnxruntime's global thread pools cannot be created after the first session
+    that opts out of per-session threads, so "will there be two graphs" must be
+    answered from the sidecars alone. The .onnx files this fixture writes are
+    empty, so anything that opened one would raise rather than return.
+    """
+    from artefacts import artefact_exists
+
+    directory = artefact_dir("validator")
+    assert artefact_exists("validator", _settings(directory)) is True
+    assert artefact_exists("identifier", _settings(directory)) is False
+
+
+def test_an_ungated_artefact_still_counts_as_existing(artefact_dir):
+    # The pool decision is about how many graphs get opened, not about whether
+    # they are allowed to serve. Conflating the two would silently change the
+    # threading of every ungated measurement run.
+    from artefacts import artefact_exists
+
+    directory = artefact_dir("validator", may_ship=False)
+    assert artefact_exists("validator", _settings(directory)) is True

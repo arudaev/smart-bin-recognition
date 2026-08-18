@@ -252,7 +252,32 @@ def _from_hub(settings: Settings, role: str, version: int) -> tuple[Path, dict[s
     return Path(onnx_local), sidecar
 
 
-def load_artefact(role: str, settings: Settings) -> Artefact:
+def artefact_exists(role: str, settings: Settings) -> bool:
+    """Is there a sidecar for this role? Answered WITHOUT opening a session.
+
+    The service needs this before it opens anything, because whether two
+    graphs will be loaded decides whether they should share a thread pool -
+    and onnxruntime's global pools cannot be created after the first session
+    that opts out of per-session threads. On the Hub path this warms the same
+    cache ``load_artefact`` then reads, so it costs one request and no more.
+    """
+    version = settings.validator_version if role == "validator" else settings.identifier_version
+    try:
+        if settings.artefact_dir:
+            _from_directory(settings.artefact_dir, role, version)
+        else:
+            _from_hub(settings, role, version)
+    except ArtefactMissingError:
+        return False
+    except Exception as error:  # noqa: BLE001 - unreachable Hub is not 'absent'
+        logger.warning("could not tell whether a %s exists (%s); assuming it does not", role, error)
+        return False
+    return True
+
+
+def load_artefact(
+    role: str, settings: Settings, *, shared_pool: bool | None = None
+) -> Artefact:
     """Fetch, verify and open one artefact.
 
     Raises :class:`ArtefactMissingError` when there is nothing to load and
@@ -301,7 +326,9 @@ def load_artefact(role: str, settings: Settings) -> Artefact:
             onnx_path,
             threads,
             spinning=settings.ort_spinning,
-            shared_pool=settings.ort_shared_pool,
+            # Decided by the caller, which is the only place that knows how many
+            # graphs there will be. See settings.DEFAULT_ORT_SHARED_POOL.
+            shared_pool=bool(settings.ort_shared_pool if shared_pool is None else shared_pool),
         ),
         sidecar=sidecar,
         source=source,
@@ -311,6 +338,7 @@ def load_artefact(role: str, settings: Settings) -> Artefact:
         "threads=%d, spinning=%s, shared_pool=%s",
         role, sidecar.get("version"), source, artefact.imgsz,
         len(artefact.classes), artefact.dynamic_batch,
-        threads, settings.ort_spinning, settings.ort_shared_pool,
+        threads, settings.ort_spinning,
+        bool(settings.ort_shared_pool if shared_pool is None else shared_pool),
     )
     return artefact
