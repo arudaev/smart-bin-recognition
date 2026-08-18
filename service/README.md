@@ -57,7 +57,7 @@ artefact's sidecar.
 | `SBR_ARTEFACT_DIR` | – | load from a directory instead of the Hub |
 | `SBR_INTRA_OP_THREADS` | `2` | onnxruntime threads; the service has 2 vCPU |
 | `SBR_MAX_CROPS` | `6` | crops per frame; the rest are reported unidentified, NOT deferred |
-| `SBR_ORT_SHARED_POOL` | `1` | one onnxruntime thread pool for both graphs. **On by default** since docs/12 P8b; `0` restores one pool per session |
+| `SBR_ORT_SHARED_POOL` | *auto* | one onnxruntime thread pool for both graphs. Unset means **decide from how many graphs load** — shared when the identifier is present, per-session when it is not (docs/12 P8b). `1` / `0` force it; `/health` reports `ort_shared_pool_effective` |
 | `SBR_ORT_SPINNING` | `1` | whether idle intra-op threads spin |
 | `SBR_IDENTIFIER_THREADS` | – | threads for the identifier alone; needs `SBR_ORT_SHARED_POOL=0` |
 | `SBR_SHED_SLOW` / `_TAP` / `_QUEUE` | `4` / `8` / `16` | the three rungs of the ladder |
