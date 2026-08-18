@@ -71,8 +71,8 @@ def test_requiring_a_gpu_fails_loudly_and_says_what_to_do(monkeypatch):
     """The message has to carry the remedy, and the remedy is not in this repo.
 
     Somebody reading this a year from now will not have the log. They need to be
-    told that the image ships the incompatible torch, that re-dispatching to land
-    on a T4 is the way through, and that changing this repository will not help.
+    told that the image ships the incompatible torch, and that a T4 is something to
+    ASK for rather than wait for - the mistake an earlier draft of this work made.
     """
     import sbr.utils.gpu as gpu
 
@@ -83,7 +83,7 @@ def test_requiring_a_gpu_fails_loudly_and_says_what_to_do(monkeypatch):
     message = str(raised.value)
     assert "train the validator" in message
     assert "T4" in message and "P100" in message
-    assert "Re-dispatch" in message
+    assert "machine_shape" in message and "NvidiaTeslaT4" in message
     assert "2026-08-16" in message
 
 

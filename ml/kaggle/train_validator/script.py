@@ -194,6 +194,7 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
+    from sbr.utils.gpu import require_usable_gpu
     from sbr.utils.hub import (
         configure_hf_runtime,
         download_dataset,
@@ -209,6 +210,15 @@ def main() -> None:
     config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])
+
+    # --- the GPU, BEFORE the 2.2 GB pull ------------------------------------ #
+    # `torch.cuda.is_available()` answers "is there a device", not "was this
+    # torch compiled for it", and the gap between those two questions is what
+    # produced a run with no weights and no log on 2026-08-16. Checked here
+    # rather than beside `model.train()`: a refusal that arrives after the pool
+    # has been downloaded and the tree built has already spent most of what the
+    # failed run spent, which is the cost this check exists to avoid.
+    accelerator = require_usable_gpu("train the validator")
 
     # --- data -------------------------------------------------------------- #
     # strict=True: an unpinned revision stops the run. A number measured against
@@ -250,14 +260,6 @@ def main() -> None:
 
     # --- train ------------------------------------------------------------- #
     from ultralytics import YOLO
-
-    from sbr.utils.gpu import require_usable_gpu
-
-    # BEFORE Ultralytics, not inside it. `torch.cuda.is_available()` answers
-    # "is there a device", not "was this torch compiled for it", and the gap
-    # between those two questions is what produced a run with no weights and no
-    # log on 2026-08-16.
-    accelerator = require_usable_gpu("train the validator")
 
     classes = composition["classes"]
     if classes != ["bin"]:

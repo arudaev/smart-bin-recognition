@@ -143,6 +143,7 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
+    from sbr.utils.gpu import require_usable_gpu
     from sbr.utils.hub import (
         configure_hf_runtime,
         download_dataset,
@@ -157,6 +158,12 @@ def main() -> None:
     config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])
+
+    # --- the GPU, BEFORE the pull ------------------------------------------- #
+    # See sbr.utils.gpu, and train_validator for why this is here rather than
+    # beside model.train(): refusing after the data is downloaded costs most of
+    # what the failed run cost.
+    accelerator = require_usable_gpu("train the identifier")
 
     # --- data -------------------------------------------------------------- #
     pool = download_dataset(
@@ -181,11 +188,6 @@ def main() -> None:
 
     # --- train ------------------------------------------------------------- #
     from ultralytics import YOLO
-
-    from sbr.utils.gpu import require_usable_gpu
-
-    # Before Ultralytics, not inside it - see sbr.utils.gpu.
-    accelerator = require_usable_gpu("train the identifier")
 
     model = YOLO(f"{config['model']['arch']}.pt")
     results = model.train(

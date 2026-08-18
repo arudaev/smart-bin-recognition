@@ -39,6 +39,7 @@ SMOKE_KERNELS = (
     "smoke_usersecret",   # a Kaggle Secret instead - does it bind to an API push?
     "smoke_data",         # the pinned pool and the composition contract
     "smoke_train",        # one epoch on the GPU
+    "smoke_gpu",          # what GPU, and can the IMAGE'S own torch use it?
 )
 
 #: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
@@ -387,6 +388,46 @@ def test_the_device_is_decided_by_capability_not_availability(kernel):
     assert 'device=0 if torch.cuda.is_available()' not in text
 
 
+GPU_KERNELS = (*KERNELS, "smoke_train", "smoke_gpu")
+
+
+@pytest.mark.parametrize("kernel", GPU_KERNELS)
+def test_every_gpu_kernel_asks_for_the_t4_by_name(kernel):
+    """Kaggle allocates P100 (sm_60) or T4 (sm_75), and the image's torch only
+    runs on the T4. The accelerator IS requestable - `machine_shape` is read by
+    `kernels_push` and `kaggle kernels push --accelerator` sets the same field -
+    so leaving it to chance is a choice, and the wrong one.
+
+    An earlier version of this work claimed no metadata field could request a
+    GPU type. That was wrong, and this assertion is what stops the claim, and
+    the retry-until-lucky workflow it implied, coming back.
+    """
+    meta = metadata(kernel)
+    assert meta["enable_gpu"] is True
+    assert meta.get("machine_shape") == "NvidiaTeslaT4", (
+        f"{kernel} does not request a T4; on a P100 the image's torch has no "
+        "sm_60 kernels and the run dies at the first tensor move"
+    )
+
+
+@pytest.mark.parametrize("kernel", KERNELS)
+def test_the_gpu_is_checked_before_the_data_is_pulled(kernel):
+    """A refusal after the pool is downloaded has already spent the cost.
+
+    The pinned pool is 37 913 files. Checking the accelerator beside
+    `model.train()` - which is where it started - means a P100 allocation still
+    costs the download and the tree build before it says so, which is most of
+    what the 2026-08-16 failure cost.
+    """
+    text = source(kernel)
+    guard = text.index("require_usable_gpu(\"train")
+    pull = text.index("download_dataset(")
+    assert guard < pull, (
+        f"{kernel} checks the GPU after downloading the dataset; the check has to "
+        "come first or it saves nothing"
+    )
+
+
 def test_the_training_kernels_refuse_an_unusable_gpu():
     # A silent CPU fallback would burn the wall clock and deliver hours late;
     # a crash inside Ultralytics reproduces 2026-08-16. Neither is acceptable.
@@ -438,11 +479,16 @@ def test_every_rung_writes_a_file_as_well_as_printing(kernel):
     assert 'WORKING / f"{NAME}.json"' in source(kernel)
 
 
-def test_only_the_last_rung_asks_for_a_gpu():
-    # The quota is 30 h/week and finding a boundary must not cost any of it.
+def test_only_the_two_gpu_rungs_ask_for_a_gpu():
+    """The quota is 30 h/week and finding a boundary must not cost much of it.
+
+    Two rungs need one and both earn it: `smoke_gpu` runs for seconds and is the
+    only thing that can say whether the image's own torch matches the allocated
+    device, and `smoke_train` runs one epoch. Everything else is CPU.
+    """
+    needs_gpu = {"smoke_gpu", "smoke_train"}
     for kernel in SMOKE_KERNELS:
-        expected = kernel == "smoke_train"
-        assert metadata(kernel)["enable_gpu"] is expected, kernel
+        assert metadata(kernel)["enable_gpu"] is (kernel in needs_gpu), kernel
 
 
 def test_the_ladder_does_not_upload_anything():

@@ -40,12 +40,16 @@ What is fixable is the *symptom*: a run that discovers this at the first tensor
 move, deep inside somebody else's library, produces no weights and - as on
 2026-08-16 - no log either.
 
-So this module turns it into a sentence, in seconds, before any data is pulled:
-a training kernel refuses (:func:`require_usable_gpu`) and a diagnostic one
-reports and continues on the CPU (:func:`inspect_accelerator`). The remedy
-itself is a **T4 rather than a P100**, which is Kaggle's allocation to make and
-has no field in the kernel metadata schema - so it is retry-until, and the check
-below is what makes "retry" a decision rather than an hour.
+So this module turns it into a sentence, in seconds and **before any data is
+pulled**: a training kernel refuses (:func:`require_usable_gpu`) and a
+diagnostic one reports and continues on the CPU
+(:func:`inspect_accelerator`).
+
+The remedy itself is a **T4 rather than a P100**, and that is *requested*, not
+waited for: ``machine_shape: "NvidiaTeslaT4"`` in ``kernel-metadata.json``,
+which every GPU kernel here sets. This check is the belt to that braces - the
+field could be dropped, or Kaggle could change what it ships - and it is why a
+wrong allocation costs seconds rather than an hour.
 """
 
 from __future__ import annotations
@@ -55,6 +59,7 @@ from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 
 @dataclass(frozen=True)
@@ -152,14 +157,19 @@ def require_usable_gpu(what_for: str = "train") -> Accelerator:
 
     if accelerator.usable:
         return accelerator
-
     raise SystemExit(
-        f"refusing to {what_for}: {accelerator.describe()}.\n"
-        "Measured on Kaggle 2026-08-18: the image ships torch 2.10.0+cu128, which "
-        "dropped sm_60, and the platform allocates P100 (sm_60) as well as T4 "
-        "(sm_75). Nothing in this repository caused that and nothing in it fixes "
-        "it - the remedy is a run that lands on a T4, and the kernel metadata "
-        "schema has no field to ask for one.\n"
-        "Re-dispatch. This is the failure that produced a run with no weights and "
-        "no log on 2026-08-16; refusing here costs seconds instead of an hour."
+        f"""refusing to {what_for}: {accelerator.describe()}.
+
+Measured on Kaggle 2026-08-18: the image ships torch 2.10.0+cu128, which dropped
+sm_60, and the platform allocates P100 (sm_60) as well as T4 (sm_75). Nothing in
+this repository caused that.
+
+ASK FOR THE T4 rather than waiting for one: set machine_shape to NvidiaTeslaT4 in
+the kernel's kernel-metadata.json, or push with
+`kaggle kernels push --accelerator NvidiaTeslaT4`. Every GPU kernel here already
+does, so reaching this message means the field was dropped or the allocation
+ignored it - re-dispatch.
+
+This is the failure that produced a run with no weights and no log on 2026-08-16;
+refusing here costs seconds instead of an hour."""
     )
