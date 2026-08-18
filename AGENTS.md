@@ -20,10 +20,11 @@ Bin Recognition."* Full analysis of what carried over and what did not:
 **Status:** phase 1 is done. Phase 3's two halves are built and, as of
 2026-08-17, actually joined: the wire is pinned to shared byte fixtures across
 both languages, the degradation ladder runs end to end, and CI covers `ml/`,
-`service/` and `web/`. **Phase 2's gate is answered and its concurrency half
-failed** — nothing was ever observed above 8 concurrent scanners at one bin
-against a gate of 10, so the kill criterion has fired. See
-[`docs/07-roadmap.md`](docs/07-roadmap.md).
+`service/` and `web/`. **Phase 2's latency half passes and its concurrency
+half is UNRESOLVED** — nothing has ever been observed above 8 concurrent
+scanners against a gate of 10, so it has certainly not passed, but the 4 that
+the kill criterion was recorded against is not a measurement the host could
+sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
 
 **Two things changed on 2026-08-18, and both are about believing numbers**
 ([probe P8](docs/research/probes/P8-recovery-measurements.md)):
@@ -43,10 +44,13 @@ against a gate of 10, so the kill criterion has fired. See
   with no weights and no log. Established by a rung that installs **nothing**
   (`smoke_gpu`: `installed_anything: false`), after the first explanation —
   that `pip install ultralytics` had replaced torch — turned out to be wrong.
-  **The remedy is a run that lands on a T4**, and the kernel metadata schema has
-  no field to ask for one, so it is re-dispatch. What this repo now does is
-  refuse in seconds with the reason (`sbr.utils.gpu`) instead of dying silently
-  an hour in.
+  **The remedy is to ask for a T4, and it is askable**: `machine_shape:
+  "NvidiaTeslaT4"` in `kernel-metadata.json` (equivalently
+  `kaggle kernels push --accelerator`). Every GPU kernel here now requests one.
+  An earlier version of this note said no field existed and that the remedy was
+  to re-dispatch until lucky; that was wrong. The capability check
+  (`sbr.utils.gpu`) stays as the belt to that braces, and it runs **before the
+  pool is pulled** so a bad allocation costs seconds.
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
@@ -60,8 +64,9 @@ confidently wrong.
 the first 98 frames with four or more bins, and 17 474 background frames. What
 is left is the human adjudication pass (identifier only) and a training run
 that completes. No model has been trained yet. The ship gate is **answered**:
-both latency budgets pass and the concurrency half fails at 4 concurrent
-scanners against a gate of 10 ([docs/11](docs/11-phase2-results.md)).
+both latency budgets pass and the concurrency half is unresolved - never
+observed above 8 against a gate of 10, on a host that cannot hold a figure
+still ([docs/11](docs/11-phase2-results.md)).
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the

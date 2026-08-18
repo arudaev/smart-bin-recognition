@@ -15,18 +15,21 @@ on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 |---|---|---|---|
 | validator @ 448 | **26.6 – 33.0 ms** | ≤ 50 ms | **within budget**, ~40 % headroom |
 | identifier @ 320, per crop | **17.4 – 21.7 ms** | ≤ 25 ms | **within budget** |
-| concurrent scanners, 1 bin | **4 ± 3** (see below) | ≥ 10 | **not met** |
+| concurrent scanners, 1 bin | **not reliably measured** (see below) | ≥ 10 | **not established** |
 | concurrent scanners, 6 bins | **1** (measured) | – | the PRD's normal input |
 
-> **The concurrency row carries ±3 as of 2026-08-18, and the uncertainty is the
-> host.** [Probe P8](research/probes/P8-recovery-measurements.md) bracketed a
+> **The concurrency row stopped being a measurement on 2026-08-18, and the
+> reason is the host.** [Probe P8](research/probes/P8-recovery-measurements.md) bracketed a
 > measurement block with the same baseline at both ends and got **7 at 22:30 and
 > 4 at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor,
 > and the laptop was also running the development tooling at ~50 % CPU, so the
 > container was being starved — the service's own `ms` moved from a flat 33 ms
-> to 46–55 ms. **No absolute concurrency figure from this project is better than
-> ±3 until a controlled 2-vCPU x86 host produces one.** The highest figure ever
-> observed under any configuration is 8, so the gate is not met either way.
+> to 46–55 ms. Two baselines an evening apart is an **observed spread**, not an
+> error bar — the experiment was never designed to estimate one. **No absolute
+> concurrency figure from this project should be quoted until a controlled
+> 2-vCPU x86 host produces one.** The highest figure ever observed under any
+> configuration is 8, so the gate has certainly not passed; that it *failed* is
+> no longer supported by an admissible measurement either.
 
 **The concurrency figure is no longer a prediction.** The load test ran on
 2026-08-17 against `docker run --cpus 2`, ramping virtual scanners at 3 fps in
@@ -245,12 +248,21 @@ A rung that installs **nothing at all** settled it:
 | verdict | the image ships a torch that cannot use this GPU |
 
 **Nothing in this repository caused it and nothing in this repository fixes
-it.** Kaggle allocates P100 or T4 and the kernel metadata schema has no field to
-ask for one, so the remedy is to re-dispatch until a **T4 (sm_75)** is
-allocated. What the repo does now is refuse in seconds with the reason
-(`sbr.utils.gpu.require_usable_gpu`) rather than dying an hour in with no log —
-and the smoke rung reports and continues on CPU, which is how a one-epoch run
-completed and produced a checkpoint on 2026-08-18.
+it.** What the repo *can* do is stop asking for the wrong machine and stop
+paying for the discovery:
+
+- **Ask for the T4 by name.** `machine_shape: "NvidiaTeslaT4"` in
+  `kernel-metadata.json` is read by `kernels_push`, and
+  `kaggle kernels push --accelerator` sets the same field. Every GPU kernel
+  here now requests one, and a test pins it. An earlier draft of this section
+  said no such field existed and that the remedy was to re-dispatch until
+  lucky — **that was wrong**, and it is corrected here rather than quietly.
+- **Check capability before spending anything.**
+  `sbr.utils.gpu.require_usable_gpu` runs *before* the pool is pulled, so an
+  unusable allocation costs seconds rather than a 37 913-file download and a
+  tree build. The smoke rung reports and continues on CPU instead of refusing,
+  which is how a one-epoch run completed and produced a checkpoint on
+  2026-08-18.
 
 So the validator run is **unblocked in the sense that matters** — the failure is
 understood, detected and survivable — and **still not done**, because it needs a

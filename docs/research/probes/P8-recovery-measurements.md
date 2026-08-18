@@ -184,8 +184,12 @@ anything about the service.
 
 **So the absolute concurrency ceiling is not measurable on this host**, and that
 applies backwards as well as forwards: the **4** recorded on 2026-08-17 comes
-from the same protocol on the same laptop and cannot be quoted to better than
-±3 either.
+from the same protocol on the same laptop and is not a measured ceiling either.
+
+Two baselines is an **observed spread of three**, not an error bar. This probe
+was not designed to estimate the variance of the measurement and does not; it
+was designed to detect whether the block was admissible, and it detected that
+it was not.
 
 ## Results, part two: the paired comparison, which is admissible
 
@@ -206,8 +210,13 @@ Median paired difference in p95, `sharedpool − baseline`:
 | **Δ p95 (ms)** | −130 | −54 | −78 | −96 | −123 | −122 | −127 | −115 |
 | favouring sharedpool | 4/4 | 3/4 | 4/4 | 4/4 | 4/4 | 4/4 | 3/4 | 3/4 |
 
-**41 of 48 paired comparisons favour the shared pool, median −105 ms**, and the
-direction holds in both ABBA orderings. The absolute numbers in these cycles are
+**Every one of the four cycles favours the shared pool at most levels, median
+−105 ms**, and the direction holds in both ABBA orderings. The right unit of
+replication is the **cycle, of which there are four** — the twelve levels
+inside one cycle share a container and a moment, so they are correlated and
+the raw 41-of-48 count overstates the independent evidence. This is a
+consistent direction and an indicative magnitude, not a production-sized
+effect estimate. The absolute numbers in these cycles are
 poor — the host was busy — and that is exactly the point: the *difference*
 survives conditions that destroy the *level*.
 
@@ -238,8 +247,8 @@ it is simply unidentified.
 |---|---|
 | gate | **≥ 10 concurrent scanners at one bin** |
 | highest figure observed, any configuration | **8** |
-| this host's own uncertainty | **±3** |
-| verdict | **not met** — and no configuration was ever observed at 10 |
+| the same baseline, twice in one evening | **7, then 4** |
+| verdict | **not established either way** — nothing was observed at 10, and no admissible absolute measurement exists |
 
 docs/12's combined-run rule reads an absolute number off this host, and **this
 host cannot supply one**. So the rule does not fire in either direction: the
@@ -251,6 +260,43 @@ that is not also running the tooling.** The earlier plan treated that as
 something to do only if the ARM result reached ten. It is now the only way to get
 any absolute number at all, which makes it the next step rather than a
 contingency.
+
+---
+
+## Corrections after review
+
+Four claims in the first draft of this probe were wrong or overstated, and they
+are listed rather than quietly edited, because a probe that hides its own
+corrections is worth less than one that has none.
+
+**"No metadata field can request a GPU type" — wrong.** `machine_shape` is read
+by `kernels_push`, and `kaggle kernels push --accelerator` sets the same field;
+the accepted values are `NvidiaTeslaT4` and `NvidiaTeslaP100`. So the remedy for
+the torch/GPU mismatch is to **ask for the T4**, not to re-dispatch until lucky.
+Every GPU kernel here now does, and a test pins it.
+
+**"Refuses in seconds before any data is pulled" — not yet true when written.**
+`require_usable_gpu()` sat *after* `download_dataset` and `build_yolo_tree` in
+both training kernels, so a P100 allocation still cost the 37 913-file pull
+before anything said so. Moved, and a test now asserts the guard precedes the
+pull.
+
+**"The gate fails" — overstated.** It has not passed, and nothing was ever
+observed at ten. But the 4 it was recorded as failing on is a number this probe
+showed the host cannot sustain, so the kill criterion is **unresolved**, not
+fired. Relatedly, *observed drift of 3* is what two baselines showed; calling it
+`±3` implies an error bound this experiment was never designed to estimate.
+
+**"41 of 48 paired comparisons" — an overcount of independent evidence.** The
+arithmetic is right, but twelve concurrency levels inside one cycle share a
+container and a moment. The unit of replication is the **cycle, of which there
+are four**, and the result is a consistent direction with an indicative
+magnitude — not a production-sized effect estimate.
+
+One design decision changed with them: the shared thread pool is **conditional
+on two graphs being loaded** rather than unconditionally on. The same experiment
+that measured +31 ms for two sessions measured −11 % for one, and the service is
+single-session until the identifier exists.
 
 ---
 

@@ -438,9 +438,10 @@ p95. P8a and P8c are **not established**. The verdict rule above **did not
 fire in either direction**, because it reads an absolute number and the host
 could not supply one: the same baseline gave 7 and then 4 in a single evening,
 on a laptop that was also running the development tooling, where
-`docker run --cpus 2` is a ceiling and not a floor. The gate remains **not met**
-— nothing was ever observed at ten — and what it now waits on is **a controlled
-2-vCPU x86 host**, not another idea.
+`docker run --cpus 2` is a ceiling and not a floor. **The gate has not passed**
+— nothing was ever observed at ten — and neither has it been shown to fail,
+because the measurement it would fail on is not admissible. What it waits on is
+**a controlled 2-vCPU x86 host**, not another idea.
 
 ---
 

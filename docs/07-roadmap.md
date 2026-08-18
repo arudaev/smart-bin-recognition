@@ -97,9 +97,11 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       returns True and the first tensor move raises — pool pulled, dataset
       built, `args.yaml` written, no weights, which is the 2026-08-16 signature
       exactly. Established by a rung that installs **nothing**. The remedy is a
-      run that lands on a **T4**, which no metadata field can request, so it is
-      re-dispatch; the kernels now refuse in seconds with the reason
-      (`sbr.utils.gpu`) instead of dying silently an hour in.
+      run that lands on a **T4**, and that is requestable rather than luck:
+      `machine_shape: "NvidiaTeslaT4"` in the kernel metadata, which every GPU
+      kernel here now sets. The capability check (`sbr.utils.gpu`) backs it up
+      and runs **before the pool is pulled**, so a bad allocation costs seconds
+      instead of a download and a tree build.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
@@ -125,13 +127,22 @@ roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
 end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
 Probe P4 measures the curve.
 
-### Gate status, 2026-08-17: ANSWERED. The latency half passes, the concurrency half fails, and the kill criterion fires.
+### Gate status: the latency half passes. The concurrency half is UNRESOLVED, and was wrongly recorded as answered.
+
+> **Revised 2026-08-18.** This section read *"ANSWERED … the kill criterion
+> fires"* on the strength of the concurrency row below. [Probe
+> P8](research/probes/P8-recovery-measurements.md) then bracketed that same
+> measurement and found the host could not sustain it: the identical baseline
+> gave 7 and then 4 in one evening. **The 4 is not a measured ceiling**, so it
+> cannot carry a kill criterion. Nothing has ever been observed at ten either,
+> so the gate has certainly not passed. The status is *unresolved*, and the
+> thing that resolves it is a controlled 2-vCPU x86 host.
 
 | half | budget | measured | verdict |
 |---|---|---|---|
 | validator @ 448 | ≤ 50 ms | 26.6 – 33.0 ms | **pass**, ~40 % headroom |
 | identifier @ 320 per crop | ≤ 25 ms | 17.4 – 21.7 ms | **pass** |
-| concurrent scanners @ 1 bin | ≥ 10 | **4** | **FAIL** |
+| concurrent scanners @ 1 bin | ≥ 10 | ~~4~~ **not reliably measured** | **unresolved** — never observed above 8 |
 | concurrent scanners @ 6 bins | – | **1** | the PRD's normal input |
 
 No longer a prediction. Measured 2026-08-17 by `service/loadtest/run.py` against
@@ -177,8 +188,8 @@ finding.**
 |---|---|
 | gate | **≥ 10 concurrent scanners at one bin** |
 | highest figure observed, any configuration | **8** |
-| the host's own uncertainty | **±3** |
-| verdict | **not met**, and no configuration was ever observed at 10 |
+| the same baseline, twice in one evening | **7, then 4** |
+| verdict | **not established either way.** Nothing was observed at 10, and no admissible absolute measurement exists |
 
 **P8b found the 15–40 ms and it is one line of configuration.** A frame carries
 15.3 ms that belongs to neither graph, and the cause is exact: the service holds
@@ -188,7 +199,9 @@ burns the running model's cycles. Holding the session count as the only variable
 (one session called twice, versus two sessions of the *same* graph) measures
 switching at **+36.9 ms**; one shared pool removes it and takes the two-graph
 call from **57.1 ms to 26.3 ms**. Under load it is worth a median **−105 ms at
-p95**, in 41 of 48 paired comparisons, in both orderings.
+p95** across four ABBA cycles, in both orderings. The concurrency levels
+within a cycle are correlated, so that is a consistent direction rather than
+48 independent samples.
 
 **P8a (384 px) and P8c (capping crops) are not established.** 384 sat inside the
 drift; the crop cap was never reached. The cap's *cost* is established without a
@@ -205,9 +218,16 @@ reported `ms` rose from a flat 33 ms to 46–55 ms — the container being starv
 not the service getting slower.
 
 **That applies backwards.** The **4** recorded on 2026-08-17 came from the same
-protocol on the same laptop and carries the same ±3. The gate table above still
-says *not met* — nothing ever reached ten — but the margin is unknown, and
-quoting 4 as a measured ceiling is no longer defensible.
+protocol on the same laptop, so it is not a measured ceiling either.
+
+**Which means the kill criterion is not established, in either direction.**
+Nothing was ever observed at ten, so the gate has certainly not *passed* — but
+the evidence that it *failed* is a number this probe has just shown to be
+unreliable. The honest status is **unresolved**, and it is worth one piece of
+arithmetic: at the 33 ms per frame this host measures when quiet, ten scanners
+at 3 fps offer 30 frames/second against a service rate of about 30 — saturation,
+so a 250 ms p95 at ten is unreachable *at that frame cost*. Whether x86 makes
+the frame cheap enough is precisely what nobody has measured.
 
 **So the next step is a host, not another recovery.** A controlled 2-vCPU x86
 box that is not also running the tooling is now the only way to get any absolute
@@ -412,9 +432,11 @@ Stated in advance, so they are not rationalised away later:
 - **Phase 2 gate fails and cannot be recovered** → the free-tier serving thesis
   is wrong. Stop and cost a paid tier honestly rather than shipping something
   that falls over at launch.
-  **FIRED, 2026-08-17, on the first half.** Measured 4 concurrent scanners at
-  one bin per frame against a gate of 10, and 1 at six bins.
-  **Still fired after the recoveries were measured, 2026-08-18
+  **Recorded as FIRED on 2026-08-17 and downgraded to UNRESOLVED on
+  2026-08-18.** It fired on a measurement of 4 concurrent scanners that P8
+  has since shown the host could not sustain - the same configuration gave 7
+  hours later. A criterion cannot fire on a number that is not a measurement.
+  **The recoveries were measured anyway, 2026-08-18
   ([P8](research/probes/P8-recovery-measurements.md)), and the reason has
   changed.** One recovery is real — a shared onnxruntime thread pool, worth
   −105 ms at p95 — and the highest figure ever observed under any configuration

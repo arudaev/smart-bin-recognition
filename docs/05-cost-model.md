@@ -157,8 +157,10 @@ query, at any traffic level.
 > quota. The service's own reported `ms` rose from a flat 33 ms to 46–55 ms,
 > which is starvation rather than slowness.
 >
-> **So the 4 above carries ±3 and is not a measured ceiling.** It is the best
-> figure a laptop could give. Every *relative* result in P8 stands — they were
+> **So the 4 above is not a measured ceiling.** The same configuration gave 7
+> and then 4 across one evening; that is an *observed spread of three*, not a
+> statistical error bound - two baselines is not a sample. It is the best a
+> laptop could give, and it is not enough to state a ceiling at all. Every *relative* result in P8 stands — they were
 > taken as paired ABBA comparisons minutes apart, which is why they survive a
 > host that destroys the absolute level — and no absolute concurrency figure
 > should be quoted from this project until a controlled 2-vCPU x86 host produces
@@ -168,7 +170,9 @@ query, at any traffic level.
 > sessions with two spinning intra-op thread pools on two cores, and switching
 > between them costs **+36.9 ms**. A single shared pool removes it — the
 > two-graph call falls from 57.1 ms to 26.3 ms, and p95 under load by a median
-> of 105 ms across 41 of 48 paired comparisons.
+> of 105 ms. That is **four ABBA cycles**, each favouring the shared pool at
+> most concurrency levels; the levels within a cycle are correlated, so it is
+> a consistent direction rather than 48 independent replications.
 
 Measured cost per frame, and the ceiling re-derived on it:
 

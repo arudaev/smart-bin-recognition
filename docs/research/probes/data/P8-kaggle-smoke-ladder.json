@@ -2,7 +2,7 @@
   "probe": "the Kaggle smoke ladder, docs/07 phase 2",
   "ran": "2026-08-17/18",
   "question": "the 2026-08-16 training run errored with an empty log; which layer is at fault?",
-  "answer": "the Kaggle image ships torch 2.10.0+cu128 (no sm_60) while the platform allocates P100 (sm_60). Not caused by, and not fixable in, this repository.",
+  "answer": "the Kaggle image ships torch 2.10.0+cu128 (no sm_60) while the platform allocates P100 (sm_60). Not caused by this repository.",
   "rungs": {
     "smoke_bare": {
       "log_entries": 27,
@@ -65,5 +65,6 @@
         "[sbr] smoke_train: OK - a checkpoint exists. These weights are NOT a model and are not uploaded."
       ]
     }
-  }
+  },
+  "remedy": "Request the T4: machine_shape=NvidiaTeslaT4 in kernel-metadata.json, which kernels_push reads, or `kaggle kernels push --accelerator NvidiaTeslaT4`. Every GPU kernel here now sets it. A first draft of this probe claimed no such field existed and that the only remedy was to re-dispatch until lucky; that was wrong and is corrected here rather than silently."
 }
