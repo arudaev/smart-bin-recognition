@@ -253,10 +253,12 @@ empty-form-factor gaps · whether the human pass is affordable at scale.
 
 ## P8 – The three recoveries, and whether the gate can be recovered
 
-**Question.** docs/07's phase-2 kill criterion has two halves. The first fired on
-2026-08-17: **4 concurrent scanners at one bin per frame against a gate of 10**,
-and 1 at the six-container bank. The second half — *"and cannot be recovered"* —
-is unestablished, because the three cheap recoveries
+**Question.** docs/07's phase-2 kill criterion has two halves. The first was
+*recorded as fired* on 2026-08-17 — **4 concurrent scanners at one bin per frame
+against a gate of 10**, and 1 at the six-container bank — and this probe found
+that the 4 is not a figure the measuring host can hold still, so **neither half
+is established**. The second half — *"and cannot be recovered"* — was untested
+when this probe was written, because the three cheap recoveries
 [docs/05 § 7](05-cost-model.md#7-when-it-stops-being-free-and-what-to-do) named
 in advance have never been measured. This probe measures them.
 

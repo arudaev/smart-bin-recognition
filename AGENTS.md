@@ -51,12 +51,14 @@ sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
   unblocked.** Every GPU kernel here requests one. An earlier version of this
   note said no such field existed; that was wrong. The capability check
   (`sbr.utils.gpu`) stays as the belt to those braces and runs **before the
-  pool is pulled**, so a bad allocation costs seconds.
+  pool is pulled**, so a bad allocation does not pay for the download.
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
-needs the 403-crop human pass, and the validator's first training run failed on
-Kaggle with no log. Google Cloud is provisioned, budgeted and documented, and
+needs the 403-crop human pass, and the validator's run is **in flight** as of
+2026-08-18 — dispatched onto a requested T4 with the platform blocker cleared.
+In flight is not finished: there are no weights, no metrics and no sidecar yet,
+and `gate.py` still decides shipping separately once there are. Google Cloud is provisioned, budgeted and documented, and
 nothing is deployed, because deploying an untrained graph would make the product
 confidently wrong.
 
@@ -64,10 +66,10 @@ confidently wrong.
 `c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
 the first 98 frames with four or more bins, and 17 474 background frames. What
 is left is the human adjudication pass (identifier only) and a training run
-that completes. No model has been trained yet. The ship gate is **answered**:
-both latency budgets pass and the concurrency half is unresolved - never
-observed above 8 against a gate of 10, on a host that cannot hold a figure
-still ([docs/11](docs/11-phase2-results.md)).
+that completes. No model has been trained yet. The ship gate is **half
+answered**: both latency budgets pass, and the concurrency half is
+**unresolved** - never observed above 8 against a gate of 10, on a host that
+cannot hold a figure still ([docs/11](docs/11-phase2-results.md)).
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the

@@ -102,8 +102,9 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       kernel here now sets. **Verified 2026-08-18** — the request was honoured
       and the image's torch runs on the allocated T4, so the training path is
       unblocked. The capability check (`sbr.utils.gpu`) backs it up and runs
-      **before the pool is pulled**, so a bad allocation costs seconds instead
-      of a download and a tree build.
+      **before the pool is pulled**, so a bad allocation is refused without
+      paying for the download and the tree build. It still follows dependency
+      installation, so it is not instant - it is cheap.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
@@ -114,8 +115,11 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       is not a colour any more than it is a shape, and whether a mask is needed
       at all is exactly what the probe tests.
 - [x] **Load-test the service: how many concurrent scanners before degradation?**
-      Done 2026-08-17. **4 at one bin per frame, 1 at six**, on a pinned 2-vCPU
-      container. It also found that the degradation ladder had never been
+      Built and run 2026-08-17, and the instrument outlived its first answer.
+      It reported **4 at one bin per frame, 1 at six**; P8 later showed the
+      host cannot hold that figure still, so the absolute number is
+      **unresolved** and the harness now compares configurations in pairs.
+      Its lasting finding stands: the degradation ladder had never been
       reachable in production — inference blocked the event loop, so the load
       shedder never saw a queue and no rung ever fired.
 
@@ -151,6 +155,13 @@ No longer a prediction. Measured 2026-08-17 by `service/loadtest/run.py` against
 `docker run --cpus 2`, virtual scanners at 3 fps in strict request-response,
 ramped until p95 crossed 250 ms. Full curve and hardware in
 [11-phase2-results](11-phase2-results.md).
+
+> ### ⚠ SUPERSEDED 2026-08-18 — everything from here to the end of this section
+> was written on the strength of the **4**, and
+> [P8](research/probes/P8-recovery-measurements.md) has since shown that figure
+> is not one this host can sustain. It is kept because the reasoning is still
+> the right reasoning; only its input turned out to be unreliable. **Read the
+> recoveries section below it for the current status**, which is *unresolved*.
 
 **So: the kill criterion below fires.** It is stated as *"phase 2 gate fails and
 cannot be recovered → the free-tier serving thesis is wrong. Stop and cost a
@@ -225,11 +236,13 @@ protocol on the same laptop, so it is not a measured ceiling either.
 **Which means the kill criterion is not established, in either direction.**
 Nothing was ever observed at ten, so the gate has certainly not *passed* — but
 the evidence that it *failed* is a number this probe has just shown to be
-unreliable. The honest status is **unresolved**, and it is worth one piece of
-arithmetic: at the 33 ms per frame this host measures when quiet, ten scanners
-at 3 fps offer 30 frames/second against a service rate of about 30 — saturation,
-so a 250 ms p95 at ten is unreachable *at that frame cost*. Whether x86 makes
-the frame cheap enough is precisely what nobody has measured.
+unreliable. The honest status is **unresolved** — with one observation worth
+keeping. In the quiet window, ten scanners measured **p95 366–369 ms in all
+three repeats**, against a 250 ms budget, while the service's own frame cost
+held flat at 32–33 ms. So ten is not marginal on this host; it is comfortably
+outside, and closing that gap needs a materially cheaper frame rather than a
+steadier laptop. **Whether x86 provides one is exactly what nobody has
+measured**, and it is the only thing that can settle the gate.
 
 **So the next step is a host, not another recovery.** A controlled 2-vCPU x86
 box that is not also running the tooling is now the only way to get any absolute

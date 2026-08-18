@@ -100,10 +100,11 @@ Two notes on how this page should be read:
   above is no longer empty. ONNX cost depends on architecture and input
   shape rather than on weights, so P4 and P5 filled it from stock
   exports while the identifier is still blocked on the human pass.
-- **The concurrency figure is a range over scene complexity.** One bin per
-  frame is the easy end and measures 4; a bank of six — which the PRD calls
-  a normal input — measures **1**. Quoting the single number 4 without the
-  scene it assumes is the same mistake as quoting 10 was.
+- **The concurrency figure is a range over scene complexity**, and as of
+  2026-08-18 its absolute values are withdrawn. One bin per frame was the easy
+  end and measured 4; a bank of six — which the PRD calls a normal input —
+  measured **1**. Quoting 4 without the scene it assumes was one mistake;
+  quoting it at all, on this host, is the other.
 
 ## Architecture
 
@@ -268,8 +269,9 @@ paying for the discovery:
   rather than quietly.
 - **Check capability before spending anything.**
   `sbr.utils.gpu.require_usable_gpu` runs *before* the pool is pulled, so an
-  unusable allocation costs seconds rather than a 37 913-file download and a
-  tree build. The smoke rung reports and continues on CPU instead of refusing,
+  unusable allocation is refused without paying for a 37 913-file download and
+  a tree build. It still runs after dependency installation, so the saving is
+  the expensive part rather than all of it. The smoke rung reports and continues on CPU instead of refusing,
   which is how a one-epoch run completed and produced a checkpoint on
   2026-08-18.
 

@@ -241,7 +241,7 @@ whenever there is a host worth running it on. What is already established withou
 a measurement is that the cap **costs coverage** — the remainder is not deferred,
 it is simply unidentified.
 
-**The gate: not met, and the margin is not known.**
+**The gate: not established, in either direction.**
 
 | | |
 |---|---|
@@ -275,11 +275,13 @@ the accepted values are `NvidiaTeslaT4` and `NvidiaTeslaP100`. So the remedy for
 the torch/GPU mismatch is to **ask for the T4**, not to re-dispatch until lucky.
 Every GPU kernel here now does, and a test pins it.
 
-**"Refuses in seconds before any data is pulled" — not yet true when written.**
-`require_usable_gpu()` sat *after* `download_dataset` and `build_yolo_tree` in
-both training kernels, so a P100 allocation still cost the 37 913-file pull
-before anything said so. Moved, and a test now asserts the guard precedes the
-pull.
+**"Refuses in seconds before any data is pulled" — not yet true when written,
+and "seconds" was wrong anyway.** `require_usable_gpu()` sat *after*
+`download_dataset` and `build_yolo_tree` in both training kernels, so a P100
+allocation still cost the 37 913-file pull before anything said so. Moved, and
+a test now asserts the guard precedes the pull. It still follows dependency
+installation, so the claim is now *before the pool is pulled* with no duration
+attached to it.
 
 **"The gate fails" — overstated.** It has not passed, and nothing was ever
 observed at ten. But the 4 it was recorded as failing on is a number this probe
