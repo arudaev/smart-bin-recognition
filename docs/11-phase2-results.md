@@ -251,12 +251,21 @@ A rung that installs **nothing at all** settled it:
 it.** What the repo *can* do is stop asking for the wrong machine and stop
 paying for the discovery:
 
-- **Ask for the T4 by name.** `machine_shape: "NvidiaTeslaT4"` in
-  `kernel-metadata.json` is read by `kernels_push`, and
-  `kaggle kernels push --accelerator` sets the same field. Every GPU kernel
-  here now requests one, and a test pins it. An earlier draft of this section
-  said no such field existed and that the remedy was to re-dispatch until
-  lucky — **that was wrong**, and it is corrected here rather than quietly.
+- **Ask for the T4 by name — and it works.** `machine_shape: "NvidiaTeslaT4"`
+  in `kernel-metadata.json` is read by `kernels_push`, and
+  `kaggle kernels push --accelerator` sets the same field. Re-running the
+  no-install rung with it set returned:
+
+  ```
+  accelerator: Tesla T4, capability sm_75, torch 2.10.0+cu128 - usable
+  verdict: "the image's torch can use the GPU it was given"
+  ```
+
+  Same image, same torch, allocation honoured. **The training path is
+  unblocked**, and every GPU kernel here requests a T4 with a test pinning it.
+  An earlier draft said no such field existed and that the remedy was to
+  re-dispatch until lucky — **that was wrong**, and it is corrected here
+  rather than quietly.
 - **Check capability before spending anything.**
   `sbr.utils.gpu.require_usable_gpu` runs *before* the pool is pulled, so an
   unusable allocation costs seconds rather than a 37 913-file download and a
@@ -264,9 +273,9 @@ paying for the discovery:
   which is how a one-epoch run completed and produced a checkpoint on
   2026-08-18.
 
-So the validator run is **unblocked in the sense that matters** — the failure is
-understood, detected and survivable — and **still not done**, because it needs a
-GPU allocation this project does not control.
+So the validator run is **unblocked**: the failure is understood, the right
+machine is requestable and the request was honoured on 2026-08-18. What remains
+is to run it.
 
 Two things follow. The ship gate's latency half still has no
 service-hardware measurement, because `gate.py` needs the bench kernel. And

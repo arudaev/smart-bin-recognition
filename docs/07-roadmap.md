@@ -97,11 +97,13 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       returns True and the first tensor move raises — pool pulled, dataset
       built, `args.yaml` written, no weights, which is the 2026-08-16 signature
       exactly. Established by a rung that installs **nothing**. The remedy is a
-      run that lands on a **T4**, and that is requestable rather than luck:
+      run on a **T4**, and that is requestable rather than luck:
       `machine_shape: "NvidiaTeslaT4"` in the kernel metadata, which every GPU
-      kernel here now sets. The capability check (`sbr.utils.gpu`) backs it up
-      and runs **before the pool is pulled**, so a bad allocation costs seconds
-      instead of a download and a tree build.
+      kernel here now sets. **Verified 2026-08-18** — the request was honoured
+      and the image's torch runs on the allocated T4, so the training path is
+      unblocked. The capability check (`sbr.utils.gpu`) backs it up and runs
+      **before the pool is pulled**, so a bad allocation costs seconds instead
+      of a download and a tree build.
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU

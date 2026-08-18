@@ -44,13 +44,14 @@ sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
   with no weights and no log. Established by a rung that installs **nothing**
   (`smoke_gpu`: `installed_anything: false`), after the first explanation —
   that `pip install ultralytics` had replaced torch — turned out to be wrong.
-  **The remedy is to ask for a T4, and it is askable**: `machine_shape:
+  **The remedy is to ask for a T4, and asking works.** `machine_shape:
   "NvidiaTeslaT4"` in `kernel-metadata.json` (equivalently
-  `kaggle kernels push --accelerator`). Every GPU kernel here now requests one.
-  An earlier version of this note said no field existed and that the remedy was
-  to re-dispatch until lucky; that was wrong. The capability check
-  (`sbr.utils.gpu`) stays as the belt to that braces, and it runs **before the
-  pool is pulled** so a bad allocation costs seconds.
+  `kaggle kernels push --accelerator`) was honoured on 2026-08-18: *Tesla T4,
+  capability sm_75, torch 2.10.0+cu128 - usable*. **The training path is
+  unblocked.** Every GPU kernel here requests one. An earlier version of this
+  note said no such field existed; that was wrong. The capability check
+  (`sbr.utils.gpu`) stays as the belt to those braces and runs **before the
+  pool is pulled**, so a bad allocation costs seconds.
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
