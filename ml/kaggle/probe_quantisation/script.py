@@ -8,10 +8,15 @@ keeps the model inside the 0.02 budget. No training: ``v1/best.pt`` already
 exists, and every row here is an export of it.
 
 **The partitioning is the part that makes the answer usable.** Calibration draws
-from ``train``. Every variant is scored on ``val``. ``test`` is touched exactly
-once, at the end, on the locked winner and the fp32 ONNX control. Selecting on
-``test`` and then reporting that same number as ship-gate evidence would make
-the gate a number that was tuned against, which is not a gate.
+from ``train`` and **no candidate is ever selected on ``test``** - every variant
+is scored on ``val`` and the winner is chosen there. Selecting on ``test`` and
+then reporting that same number as ship-gate evidence would make the gate a
+number that was tuned against, which is not a gate.
+
+``test`` is scored three times and each one is named: the historical baseline
+(which must use ``test``, because 0.025 was measured there and reproducing it is
+the point), and then the locked winner and the fp32 control. An earlier version
+of this docstring said "touched exactly once", which was simply false.
 
 **Three drops, not one.** The 0.7524 came from PyTorch on a GPU and the 0.025
 from onnxruntime on a CPU, so precision is not the only thing that changed
@@ -60,9 +65,10 @@ SCRATCH = pathlib.Path("/tmp/sbr")
 #: kernel reports is against THIS number, never against one it recomputed.
 PYTORCH_FP32_TEST_MAP50 = 0.7524389678079388
 
-#: docs/12 P9's tie-break, in the order it is applied.
-NOISE_MAP50 = 0.005
-NOISE_MS = 1.0
+#: The tie-break itself lives in `sbr.export.selection` rather than here,
+#: because a rule written inside a kernel is a rule nothing can import and
+#: therefore a rule nothing tests - and this one decides whether an artefact
+#: reaches the ship gate at all.
 
 
 def log(message: str) -> None:
@@ -143,6 +149,7 @@ def main() -> None:
         quantise,
         score_onnx,
     )
+    from sbr.export.selection import Candidate, choose_winner
     from sbr.utils.hub import configure_hf_runtime, download_dataset, load_hf_token
 
     configure_hf_runtime()
@@ -188,6 +195,8 @@ def main() -> None:
         log(f"composition matches the contract for {expectation.revision[:12]}")
 
     rows: list[dict] = []
+    #: sha256 -> the complete ordered calibration manifest.
+    calibration_sets: dict[str, dict] = {}
 
     def run(
         variant: str,
@@ -210,8 +219,13 @@ def main() -> None:
             "note": note,
             "split": split,
             "settings": settings.as_dict() if settings is not None else None,
+            # The hash, not the list: the complete ordered manifest for every set
+            # is written once under `calibration_sets` and referenced from here.
+            "calibration_sha256": calibration.sha256 if calibration is not None else None,
             "calibration": calibration.as_dict() if calibration is not None else None,
         }
+        if calibration is not None:
+            calibration_sets.setdefault(calibration.sha256, calibration.manifest())
         started = time.perf_counter()
         try:
             build(out)
@@ -362,46 +376,110 @@ def main() -> None:
     # ---------------------------------------------------------------------- #
     # The winner, by the rule docs/12 P9 fixed in advance
     # ---------------------------------------------------------------------- #
+    # The eligibility reference is the PYTORCH fp32 score on val, measured here
+    # from best.pt. Using the fp32 ONNX score instead - which an earlier version
+    # did, while calling it "PyTorch-equivalent" - lets a lossy export lower the
+    # bar its own candidates are judged against. That is the same failure the
+    # three-drop accounting exists to prevent, one split further up.
+    from ultralytics import YOLO
+
+    pytorch_val = float(
+        YOLO(str(weights)).val(
+            data=str(data_yaml), imgsz=imgsz, split="val", verbose=False
+        ).box.map50
+    )
     fp32_val, fp32_val_error = score_onnx(
         fp32, role=ROLE, data=data_yaml, imgsz=imgsz, split="val"
     )
-    log(f"PyTorch-equivalent fp32 ONNX on val = {fp32_val} ({fp32_val_error or 'ok'})")
+    log(
+        f"val references: PyTorch fp32 {pytorch_val:.4f} (the one eligibility reads) · "
+        f"fp32 ONNX {fp32_val} ({fp32_val_error or 'ok'}), which separates export loss "
+        "from quantisation loss and is NOT the reference"
+    )
 
-    quantised_rows = [
-        row for row in rows
-        if row["variant"].startswith(("1", "2"))
-        and row["split"] == "val"
-        and row.get("metric") is not None
-        and row["settings"] is not None          # excludes the fp32 control
-        and row["variant"] != "02-fp16-informational"   # cannot ship on a CPU EP
-    ]
-    eligible = [
-        row for row in quantised_rows
-        if fp32_val is not None and (fp32_val - row["metric"]) <= 0.02
-    ]
+    def candidates_from(rows_in: list[dict]) -> list:
+        """Reduce the measured rows to what the selection rule reads."""
+        out = []
+        for row in rows_in:
+            if row["split"] != "val" or row.get("metric") is None or row["settings"] is None:
+                continue
+            out.append(
+                Candidate(
+                    variant=row["variant"],
+                    map50=row["metric"],
+                    latency_ms=row.get("latency", {}).get("median_latency_ms"),
+                    departures=len(QuantSettings(**row["settings"]).departures),
+                    # fp16 is reported and cannot be chosen: the CPU execution
+                    # provider does not broadly support fp16 ops, so it measures
+                    # a configuration this service cannot serve.
+                    shippable=row["variant"] != "02-fp16-informational",
+                )
+            )
+        return out
 
-    def rank(row: dict) -> tuple:
-        """docs/12 P9's tie-break, in the order the protocol states it.
+    # --- the combined run, when the two axes disagree ---------------------- #
+    # docs/12 P9 promises this and an earlier version of the kernel omitted it,
+    # which could have concluded "post-training quantisation cannot recover the
+    # model" when two remedies are jointly necessary and neither suffices alone.
+    format_rows = [r for r in rows if r["variant"].startswith("1") and r.get("metric") is not None]
+    calibration_rows = [r for r in rows if r["variant"].startswith("2")
+                        and r.get("metric") is not None and r["settings"] is not None]
 
-        Quantising the two continuous quantities to their noise floors is what
-        makes "within 0.005 mAP, then within 1 ms, then simpler" a total order
-        rather than three separate arguments. The final key is the variant name,
-        so a tie that survives all three is still deterministic.
-        """
-        latency = row.get("latency", {}).get("median_latency_ms", 1e9)
-        return (
-            -round(row["metric"] / NOISE_MAP50),                 # highest val mAP
-            round(latency / NOISE_MS),                           # then the faster graph
-            len(QuantSettings(**row["settings"]).departures),    # then the simpler one
-            row["variant"],
+    best_format = max(format_rows, key=lambda r: r["metric"], default=None)
+    best_calibration = max(calibration_rows, key=lambda r: r["metric"], default=None)
+
+    if (
+        best_format is not None
+        and best_calibration is not None
+        and best_format["variant"] != "10-reference-u8s8"
+    ):
+        # The format winner's settings, applied to the calibration winner's set
+        # (and its fit, which is a calibration property that lives in settings).
+        format_settings = QuantSettings(**best_format["settings"])
+        calibration_settings = QuantSettings(**best_calibration["settings"])
+        combined_settings = QuantSettings(
+            **(
+                format_settings.as_dict()
+                | {"calibration_fit": calibration_settings.calibration_fit}
+            )
         )
+        combined_calibration = (
+            enriched if best_calibration["variant"] == "20-positive-enriched" else reference
+        )
+        log(
+            f"the two axes disagree - {best_format['variant']} on format, "
+            f"{best_calibration['variant']} on calibration - so they are combined"
+        )
+        run(
+            "30-combined",
+            f"the format from {best_format['variant']} with the calibration from "
+            f"{best_calibration['variant']} - docs/12 P9's combined confirmation",
+            settings=combined_settings,
+            calibration=combined_calibration,
+            split="val",
+            build=lambda out, s=combined_settings, c=combined_calibration: quantise(
+                fp32, c, out, imgsz=export_imgsz, settings=s
+            ),
+        )
+    else:
+        log("the reference already leads its axis - no combined run is called for")
 
-    winner = min(eligible, key=rank) if eligible else None
+    # --- the winner, by the rule in sbr.export.selection -------------------- #
+    max_drop = config["export"]["gates"]["max_accuracy_drop"]
+    candidates = candidates_from(rows)
+    if pytorch_val is None:
+        raise SystemExit(
+            "the PyTorch fp32 val score could not be measured, so eligibility has "
+            "no reference and no winner can be chosen. Nothing is confirmed on test."
+        )
+    chosen = choose_winner(candidates, reference_map50=pytorch_val, max_drop=max_drop)
+
+    winner = next((row for row in rows if chosen and row["variant"] == chosen.variant), None)
     if winner is None:
         log(
-            "NO VARIANT IS ELIGIBLE. Every quantised graph is more than 0.02 below "
-            "the fp32 ONNX on val, so there is nothing to confirm on test and the "
-            "test split stays untouched - which is the point of holding it back."
+            f"NO VARIANT IS ELIGIBLE against PyTorch fp32 val {pytorch_val:.4f} at a "
+            f"budget of {max_drop}. There is nothing to confirm, so the test split "
+            "stays untouched - which is the point of holding it back."
         )
     else:
         log(f"winner by the pre-registered rule: {winner['variant']}")
@@ -417,6 +495,7 @@ def main() -> None:
             build=lambda out, w=winner: out.write_bytes((artifacts / f"{w['variant']}.onnx").read_bytes()),
         )
         confirmation["calibration"] = winner["calibration"]
+        confirmation["calibration_sha256"] = winner["calibration_sha256"]
         confirmation["tensor_error"] = quantisation_error(
             fp32, artifacts / f"{winner['variant']}.onnx", reference, export_imgsz
         )
@@ -431,7 +510,7 @@ def main() -> None:
                 f"export drop {PYTORCH_FP32_TEST_MAP50 - control['metric']:.4f} · "
                 f"quantisation drop {control['metric'] - confirmation['metric']:.4f} · "
                 f"TOTAL SERVED DROP {PYTORCH_FP32_TEST_MAP50 - confirmation['metric']:.4f} "
-                f"against a budget of {config['export']['gates']['max_accuracy_drop']}"
+                f"against a budget of {max_drop}"
             )
 
     # ---------------------------------------------------------------------- #
@@ -450,6 +529,8 @@ def main() -> None:
         },
         "reference": {
             "pytorch_fp32_test_map50": PYTORCH_FP32_TEST_MAP50,
+            # Measured here, and the one eligibility actually reads.
+            "pytorch_fp32_val_map50": pytorch_val,
             "fp32_onnx_val_map50": fp32_val,
             "fp32_onnx_val_error": fp32_val_error,
             "shipped_int8_sha256": shipped_sha,
@@ -457,10 +538,15 @@ def main() -> None:
         },
         "partitioning": {
             "calibration": "train (except 00-historical-baseline, which reproduces v1's val list)",
-            "selection": "val",
-            "confirmation": "test, once, on the locked winner and the fp32 control",
+            "selection": "val - no candidate is ever selected on test",
+            "test_evaluations": [
+                "00-historical-baseline (reproduces the published 0.025, which was measured on test)",
+                "90-confirm-<winner> (the locked winner)",
+                "91-confirm-fp32-control (so the three drops can be separated)",
+            ],
         },
         "winner": winner["variant"] if winner else None,
+        "calibration_sets": calibration_sets,
         "rows": rows,
     }
     out = WORKING / f"{NAME}.json"

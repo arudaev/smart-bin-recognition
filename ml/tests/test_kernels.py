@@ -577,13 +577,78 @@ def test_the_quantisation_probe_never_calibrates_on_val_or_test():
     assert set(splits) <= {"train", "val"}, splits
 
 
-def test_the_quantisation_probe_selects_on_val_and_confirms_once_on_test():
+def test_the_quantisation_probe_selects_on_val_and_confirms_on_test():
     # A winner chosen on `test` and then reported as ship-gate evidence is a
-    # number tuned against its own gate.
+    # number tuned against its own gate. Note the claim is "no candidate is
+    # SELECTED on test", not "test is touched once" - test is scored three
+    # times and each one is named.
     text = source("probe_quantisation")
     assert 'split="val"' in text
     assert "only ship-gate number in this file" in text
-    assert text.count("90-confirm-") >= 1
+    assert "no candidate is ever selected on ``test``" in text
+    # Asserted on the LIVE claim rather than on the presence of a phrase: the
+    # docstring also records that it once said "touched exactly once" and that
+    # this was false, and a test that forbade the phrase outright would forbid
+    # keeping the correction visible.
+    import ast
+
+    docstring = ast.get_docstring(ast.parse(text)) or ""
+    named = [line for line in docstring.splitlines() if "touched exactly once" in line]
+    assert all("was simply false" in line or "said" in line for line in named), (
+        "the docstring still claims test is touched exactly once; it is scored three times"
+    )
+
+
+def test_the_quantisation_probe_uses_the_tested_selection_rule():
+    """The winner rule must be importable, or it is a rule nothing tests.
+
+    It decides whether an artefact reaches the ship gate. The first version
+    lived inline in this kernel and ranked candidates by rounding mAP and
+    latency into buckets, which is not the same as the protocol's sequential
+    "within 0.005, then within 1 ms" and picks a different winner near an edge.
+    """
+    text = source("probe_quantisation")
+    assert "from sbr.export.selection import Candidate, choose_winner" in text
+    assert "choose_winner(" in text
+    # The bucketing that used to stand in for the rule.
+    assert "NOISE_MAP50" not in text
+    assert "round(latency / NOISE_MS)" not in text
+
+
+def test_the_quantisation_probe_judges_against_the_pytorch_reference():
+    """Eligibility reads the PyTorch fp32 val score, not the fp32 ONNX one.
+
+    A lossy ONNX export would otherwise lower the bar its own candidates are
+    measured against - the same failure the three-drop accounting prevents, one
+    split further up. An earlier version measured the ONNX score and called it
+    "PyTorch-equivalent", which is not the same thing.
+    """
+    text = source("probe_quantisation")
+    assert "pytorch_val" in text
+    assert "reference_map50=pytorch_val" in text
+    # The ONNX score is still measured - it is what separates export loss from
+    # quantisation loss - but it must not be what eligibility reads.
+    assert "reference_map50=fp32_val" not in text
+
+
+def test_the_quantisation_probe_runs_the_combined_variant():
+    """docs/12 P9 promises one when the two axes disagree.
+
+    Without it the probe could conclude that post-training quantisation cannot
+    recover the model when two remedies are jointly necessary and neither is
+    sufficient alone.
+    """
+    text = source("probe_quantisation")
+    assert "30-combined" in text
+    assert "best_format" in text and "best_calibration" in text
+
+
+def test_the_quantisation_probe_records_the_whole_calibration_list():
+    # The hash fingerprints a set without saying what is in it. Both are needed,
+    # and the manifests are written once and referenced by hash from each row.
+    text = source("probe_quantisation")
+    assert "calibration_sets" in text
+    assert ".manifest()" in text
 
 
 def test_the_quantisation_probe_reproduces_the_baseline_before_remedying_it():

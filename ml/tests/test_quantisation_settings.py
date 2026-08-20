@@ -276,3 +276,75 @@ def test_an_unmatched_head_prefix_raises_rather_than_excluding_nothing(tmp_path)
 
     with pytest.raises(ValueError, match="would have quantised everything"):
         head_node_names(path, "/model.23/")
+
+
+# --------------------------------------------------------------------------- #
+# SQNR points the other way, and this is what says so
+# --------------------------------------------------------------------------- #
+
+
+def test_sqnr_is_higher_is_better_and_we_read_it_that_way():
+    """onnxruntime's ``qdq_err`` is a signal-to-noise RATIO, in decibels.
+
+    ``20 * log10(||x|| / ||x - y||)``: a tensor the quantisation preserved has a
+    tiny difference norm and therefore a *large* number. The first version of
+    ``quantisation_error`` sorted descending and called the result "the worst
+    tensors", which reported the eight best-preserved tensors in the graph as
+    the suspects - and a conclusion was drawn from it before anyone checked.
+
+    Pinned against onnxruntime's own function rather than a copy of the formula,
+    so this still holds if they change the implementation.
+    """
+    import numpy as np
+    from onnxruntime.quantization.qdq_loss_debug import (
+        compute_signal_to_quantization_noice_ratio as sqnr,
+    )
+
+    clean = np.linspace(-1.0, 1.0, 512, dtype=np.float32)
+    barely_touched = clean + np.float32(1e-6)
+    mangled = clean + np.random.default_rng(0).normal(0, 0.5, clean.shape).astype(np.float32)
+
+    assert sqnr([clean], [barely_touched]) > sqnr([clean], [mangled]), (
+        "a well-preserved tensor must score HIGHER than a damaged one"
+    )
+
+
+def test_the_diagnostic_reports_the_lowest_sqnr_not_the_highest(monkeypatch):
+    """The ranking itself, exercised without needing two real graphs.
+
+    The failure being pinned is a sort direction, so the test replaces
+    onnxruntime's measurement with three known scores and checks which ones come
+    back as the suspects.
+    """
+    from sbr.export import onnx_export
+
+    scores = {
+        "/model.23/dfl/Reshape": {"qdq_err": 42.0, "xmodel_err": 40.0},   # best preserved
+        "/model.10/attn/qkv/Conv": {"qdq_err": 3.0, "xmodel_err": 2.0},   # destroyed
+        "/model.2/cv1/Conv": {"qdq_err": 20.0, "xmodel_err": 19.0},
+    }
+
+    def fake(*args, **kwargs):
+        return {
+            "frames": 1,
+            "tensors_compared": len(scores),
+            "units": "SQNR in dB, higher is better; these are the LOWEST",
+            "lowest_sqnr_db": sorted(
+                (
+                    {"tensor": name, "qdq_sqnr_db": value["qdq_err"],
+                     "xmodel_sqnr_db": value["xmodel_err"]}
+                    for name, value in scores.items()
+                ),
+                key=lambda row: row["qdq_sqnr_db"],
+            ),
+        }
+
+    monkeypatch.setattr(onnx_export, "quantisation_error", fake)
+    result = onnx_export.quantisation_error(None, None, None, 448)
+
+    worst_first = [row["tensor"] for row in result["lowest_sqnr_db"]]
+    assert worst_first[0] == "/model.10/attn/qkv/Conv", (
+        "the tensor with the LOWEST SQNR is the damaged one and must rank first"
+    )
+    assert worst_first[-1] == "/model.23/dfl/Reshape"
+    assert "higher is better" in result["units"]

@@ -487,14 +487,21 @@ never occurs at inference, and never on the grey bars that cover a third of a re
 
 ### Data partitioning – the part that makes the answer usable
 
-**Calibration draws from `train` only. Every variant is scored on `val`. `test` is
-touched exactly once**, at the end, on the locked winner and the fp32 ONNX control.
+**Calibration draws from `train` only. Every variant is scored on `val`. No candidate
+is ever selected on `test`.**
 
 This is not pedantry. Selecting a winner on `test` and then reporting that winner's
 `test` score as ship-gate evidence turns the test split into a tuning set, and the gate
-into a number that was tuned against. The one exception is the historical reproduction
-below, which must use the historical calibration list – `val`'s first 200 – because
-reproducing what happened is the whole point of it, and it is never a candidate.
+into a number that was tuned against.
+
+`test` is *scored* three times, and each is named so the count cannot drift: the
+**historical reproduction** (which must use `test`, because the published 0.025 was
+measured there), the **locked winner**, and the **fp32 control**. An earlier version of
+this section said `test` was "touched exactly once", which was false - three evaluations
+that select nothing is the honest description, and it is the *selecting* the split has to
+be protected from. That historical row is also the only one calibrated from `val` - v1's
+own first-200 list - because reproducing what happened is the whole point of it, and it
+is never a candidate.
 
 ### The three drops, reported separately
 
@@ -536,19 +543,42 @@ settings calibrated on a seeded stratified 200 from `train`. All scored on `val`
 
 If the best of each axis is a different knob, one combined confirmation run, also on
 `val`. Every row carries a p50/p95 from the same instrument `bench_latency` uses, and
-**every row records the ordered calibration list and its SHA256** – the exact 200 files
-that produced a number are part of the number.
+**the complete ordered calibration list is recorded** – written once per set under
+`calibration_sets` and referenced from each row by SHA256, because a hash fingerprints a
+set without ever saying what is in it.
+
+**Which tensor, not just which knob.** onnxruntime's own QDQ debugger runs the float
+and quantised graphs over the same frames and scores each activation, so the write-up can
+name the layer instead of leaving nine variants to imply one. The score is **SQNR in
+decibels and higher is better** - `20·log10(‖x‖ / ‖x−y‖)` - so the damaged tensors are
+the ones at the *bottom*. Recorded because getting it backwards is easy and was: a first
+pass sorted descending, called the result "the worst tensors", and drew a conclusion from
+what were in fact the eight best-preserved tensors in the graph.
 
 **A failed load is a valid result.** Each row requires either a metric or an **error**,
 never a number invented to fill a column.
 
 ### The winner is chosen by a rule, not by inspection
 
-Eligible = `val` mAP within 0.02 of the PyTorch fp32 **`val`** mAP, measured in the same
-kernel. Among eligible variants: highest `val` mAP; if two are within **0.005**, the
-lower p50; if those are within **1 ms**, the *simpler, fully-int8* configuration – fewest
-departures from the default, and no head left in fp32. Stated here so that "adopt the one
-that passes" cannot become "adopt the one I like the look of".
+Eligible = `val` mAP within 0.02 of the **PyTorch fp32** `val` mAP, measured from
+`best.pt` in the same kernel. It must be the PyTorch score and not the fp32 ONNX one: a
+lossy export would otherwise lower the bar its own candidates are judged against, which is
+the same failure the three-drop accounting prevents, one split further up.
+
+Among eligible variants the criteria apply **in sequence, filtering** – not as a scored
+ranking: highest `val` mAP, then everything within **0.005** of it; of those the lowest
+p50, then everything within **1 ms** of that; of those the *simpler, fully-int8*
+configuration – fewest departures from the default, and no head left in fp32; and the
+variant name last, so a tie surviving all four is still deterministic. Rounding the two
+continuous quantities into buckets and sorting on the tuple is **not** the same rule and
+picks a different winner near a bucket edge; the implementation lives in
+`sbr.export.selection` where it can be tested, rather than inside a kernel that cannot be
+imported.
+
+**When the two axes disagree** – the best format is not the reference and the best
+calibration is not the reference – the combination is built and scored on `val` too.
+Without it the probe could conclude that post-training quantisation cannot recover the
+model when two remedies are jointly necessary and neither suffices alone.
 
 **fp16 is informational and may not decide shipping.** onnxruntime's CPU runtime does not
 broadly support fp16 operations – it is a GPU optimisation – so an fp16 row measures a

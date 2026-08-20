@@ -469,8 +469,19 @@ class CalibrationSet:
             ),
             "sources": dict(sorted(self.sources.items())),
             "sha256": self.sha256,
-            "first": [path.name for path in self.images[:5]],
         }
+
+    def manifest(self) -> dict[str, Any]:
+        """The summary **and the complete ordered list**.
+
+        Separate from :meth:`as_dict` so a result file can carry each set once
+        and have every row reference it by hash, rather than repeating 200
+        filenames a dozen times. The list itself is not optional: docs/12 P9
+        promises that the exact frames behind a number are recorded, and an
+        earlier version kept only the hash and the first five names - which
+        fingerprints a set without ever saying what is in it.
+        """
+        return self.as_dict() | {"images": [path.name for path in self.images]}
 
 
 def _source_of(image: Path) -> str:
@@ -784,28 +795,27 @@ def quantisation_error(
     *,
     fit: str = "stretch",
     frames: int = 8,
-    worst: int = 15,
+    lowest: int = 15,
 ) -> dict[str, Any]:
     """Which *tensor* loses the signal, using onnxruntime's own QDQ debugger.
 
     Nine variants can say that something helps without ever saying what was
     wrong. onnxruntime ships the tool for that - it runs the float and the
-    quantised graph over the same inputs, matches their activations, and reports
-    a signal-to-quantisation-noise ratio per tensor. A low SQNR names the layer.
+    quantised graph over the same inputs, matches their activations, and scores
+    each one.
 
-    This is worth having because the naive suspect may be the wrong one. On a
-    stock YOLO11n export, quantisation reports
-
-        Increased scale[152] for weight `model.10.m.0.attn.qkv.conv.weight` by
-        ratio 1516.96 to ensure bias input ... has a valid scale
-
-    - a three-orders-of-magnitude range distortion in the **attention block of
-    the backbone**, which is neither the detection head nor the calibration set,
-    and which excluding the head would not touch.
+    **The score is SQNR in decibels, and higher is better.** onnxruntime computes
+    ``20 * log10(||x|| / ||x - y||)``: a tensor the quantisation preserved has a
+    large ratio and therefore a large number, and the damaged ones are at the
+    *bottom*. This is worth stating twice because the first version of this
+    function sorted descending and reported the result as "the worst tensors",
+    which named the eight best-preserved tensors in the graph as the suspects.
+    The rows below are sorted **ascending**, and the key is ``lowest_sqnr_db``
+    rather than anything that could be read as an error magnitude.
 
     Best effort by construction: it returns an ``error`` key rather than raising
     if the debug API is unavailable or the graphs will not match up. A probe that
-    died in its diagnostics would lose the nine measurements it had already made.
+    died in its diagnostics would lose the measurements it had already made.
     """
     try:
         import numpy as np
@@ -853,16 +863,22 @@ def quantisation_error(
 
     ranked = sorted(
         (
-            {"tensor": name, "qdq_error": float(value["qdq_err"]), "xmodel_error": float(value["xmodel_err"])}
+            {
+                "tensor": name,
+                # onnxruntime's own names, kept verbatim so a reader can go back
+                # to the source. Both are SQNR in dB: HIGHER IS BETTER.
+                "qdq_sqnr_db": float(value["qdq_err"]),
+                "xmodel_sqnr_db": float(value.get("xmodel_err", float("nan"))),
+            }
             for name, value in errors.items()
         ),
-        key=lambda row: row["qdq_error"],
-        reverse=True,
+        key=lambda row: row["qdq_sqnr_db"],
     )
     return {
         "frames": len(images),
         "tensors_compared": len(ranked),
-        "worst": ranked[:worst],
+        "units": "SQNR in dB, higher is better; these are the LOWEST",
+        "lowest_sqnr_db": ranked[:lowest],
     }
 
 
