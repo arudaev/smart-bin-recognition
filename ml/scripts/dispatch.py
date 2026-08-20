@@ -167,6 +167,83 @@ def status(kernel: str) -> None:
     _kaggle("kernels", "status", metadata["id"])
 
 
+def kernel_log(kernel: str, tail: int) -> None:
+    """Print a kernel's log without downloading its output files.
+
+    ``kaggle kernels output`` fetches **every** file the kernel wrote, and a run
+    that builds a dataset tree writes tens of thousands of them - which is why
+    reading the log of ``smoke_data`` once meant pulling the whole 37 913-file
+    pool. The REST endpoint returns the log as a field in its JSON response, so
+    this asks for that and nothing else.
+
+    Worth saying because it has already misled once: **an empty log beside
+    status ERROR is not a platform fault.** It is what a ``SystemExit`` looks
+    like from out here, and reading it as a Kaggle problem cost two days.
+    """
+    metadata = json.loads((KAGGLE_DIR / KERNELS[kernel] / "kernel-metadata.json").read_text(encoding="utf-8"))
+    user, slug = metadata["id"].split("/", 1)
+
+    payload = _kaggle_api(f"/kernels/output?userName={user}&kernelSlug={slug}")
+    log = payload.get("log")
+    if not log:
+        # Three different things produce no log, and only one of them is a
+        # problem. Saying which is the entire point of this command.
+        state = _kaggle_api(f"/kernels/status?userName={user}&kernelSlug={slug}")
+        status = str(state.get("status", "unknown"))
+        if "running" in status.lower() or "queued" in status.lower():
+            print(f"{metadata['id']}: {status} - no log yet because it has not finished.")
+        elif "error" in status.lower():
+            print(
+                f"{metadata['id']}: {status} with an EMPTY LOG. That is how a "
+                "SystemExit surfaces - read it as a refusal the kernel made, not "
+                f"as a platform failure. Kaggle says: {state.get('failureMessage') or '(nothing)'}"
+            )
+        else:
+            print(f"{metadata['id']}: {status}, and the log is empty.")
+        return
+
+    # The API returns either a JSON array of stream records or plain text.
+    try:
+        lines = [record.get("data", "") for record in json.loads(log)]
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        lines = str(log).splitlines()
+
+    for line in lines[-tail:] if tail else lines:
+        print(line.rstrip())
+
+
+def _kaggle_api(path: str) -> dict:
+    """One authenticated GET against Kaggle's REST API."""
+    import base64
+    import os
+    import urllib.request
+
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(REPO_ROOT / ".env")
+    except ImportError:
+        pass
+
+    token = os.environ.get("KAGGLE_API_TOKEN")
+    if token:
+        headers = {"Authorization": f"Bearer {token}"}
+    else:
+        username, key = os.environ.get("KAGGLE_USERNAME"), os.environ.get("KAGGLE_KEY")
+        if not (username and key):
+            credentials = Path.home() / ".kaggle" / "kaggle.json"
+            if not credentials.exists():
+                raise SystemExit("no Kaggle credentials - set KAGGLE_API_TOKEN in .env")
+            loaded = json.loads(credentials.read_text(encoding="utf-8"))
+            username, key = loaded["username"], loaded["key"]
+        basic = base64.b64encode(f"{username}:{key}".encode()).decode()
+        headers = {"Authorization": f"Basic {basic}"}
+
+    request = urllib.request.Request(f"https://www.kaggle.com/api/v1{path}", headers=headers)
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return json.loads(response.read())
+
+
 def output(kernel: str, out_dir: Path) -> None:
     metadata = json.loads((KAGGLE_DIR / KERNELS[kernel] / "kernel-metadata.json").read_text(encoding="utf-8"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -205,6 +282,10 @@ def main() -> None:
     p_output.add_argument("kernel", choices=KERNELS)
     p_output.add_argument("--out", type=Path, default=Path("artifacts"))
 
+    p_log = sub.add_parser("log", help="print the log WITHOUT downloading the output files")
+    p_log.add_argument("kernel", choices=KERNELS)
+    p_log.add_argument("--tail", type=int, default=0, help="last N lines (0 = all)")
+
     args = parser.parse_args()
 
     if args.command == "push":
@@ -213,6 +294,8 @@ def main() -> None:
         status(args.kernel)
     elif args.command == "output":
         output(args.kernel, args.out)
+    elif args.command == "log":
+        kernel_log(args.kernel, args.tail)
 
 
 if __name__ == "__main__":
