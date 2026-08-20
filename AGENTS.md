@@ -176,6 +176,8 @@ service/                 FastAPI + ONNX inference service (Cloud Run)
 ├── loadtest/                   the concurrency measurement – a client, not in the image
 └── deploy/                     cloudrun.sh, cloudbuild.yaml, and the runbook
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
+├── business/                   market, model, EVC, go-to-market, validation, naming
+└── research/                   dated evidence notes and probe results
 handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two prompts
 ```
 
@@ -194,6 +196,7 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
 | [11-phase2-results](docs/11-phase2-results.md) | quoting a number about a model |
 | [12-validation-protocol](docs/12-validation-protocol.md) | **before hard-coding anything still theoretical** |
+| [docs/business/](docs/business/README.md) | deciding who uses, buys, pays, how value is measured, how the product goes to market, or what it is called |
 | [docs/research/](docs/research/README.md) | the evidence behind the numbers, and the 2026-08-16 hardening register |
 | [web/CONVENTIONS](web/CONVENTIONS.md) | **any UI work – read this first** |
 | [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) + [handoff/FLOW-NOTES](handoff/FLOW-NOTES.md) | why the UI is the way it is |
