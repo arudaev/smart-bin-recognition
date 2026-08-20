@@ -27,6 +27,10 @@ train = [
 export = [
     "onnx>=1.16.0",
     "onnxruntime>=1.18.0",
+    # fp16 conversion, for docs/12 P9's informational row only. The CPU
+    # execution provider does not broadly support fp16 ops, so this can bound
+    # what the weights are capable of but can never decide shipping.
+    "onnxconverter-common>=1.14.0",
 ]
 dev = [
     "pytest>=8.0",
