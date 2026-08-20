@@ -1,0 +1,662 @@
+{
+  "probe": "P8b",
+  "generated": "2026-08-17T09:26:01Z",
+  "hardware": "docker run --cpus 2, linux/arm64 native, Snapdragon X1E80100 @ 3.40 GHz",
+  "representative": false,
+  "reports": [
+    {
+      "measured": "2026-08-17 12:27:16",
+      "label": "decompose-1bin",
+      "url": "http://localhost:8080/detect",
+      "hardware": "docker run --cpus 2, linux/arm64 native, Snapdragon X1E80100 @ 3.40 GHz",
+      "representative": false,
+      "bins_per_frame": 1,
+      "budget_p95_ms": 250.0,
+      "scanner_fps": 3.0,
+      "hold_seconds": 20.0,
+      "repeats": 3,
+      "levels_requested": [
+        1
+      ],
+      "debug_requested": true,
+      "frame_bytes": 36559,
+      "verdict_rule": "largest N such that every level up to N stayed within the p95 budget with no errors, in every repeat",
+      "concurrent_scanners_within_budget": 1,
+      "health": {
+        "ok": true,
+        "service": "smart-bin-recognition inference",
+        "retention": "none - frames are processed in memory and discarded",
+        "gated": false,
+        "artefacts": {
+          "validator": {
+            "role": "validator",
+            "version": 1,
+            "onnx": "validator-probe.onnx",
+            "imgsz": 448,
+            "classes": 80,
+            "quantised": true,
+            "dynamic_batch": false,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the validator has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 map50 drop for the validator is unmeasured (need both fp32 and int8 map50)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_precision_on_negatives",
+                "min_recall_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          },
+          "identifier": {
+            "role": "identifier",
+            "version": 1,
+            "onnx": "identifier-probe.onnx",
+            "imgsz": 320,
+            "classes": 0,
+            "quantised": true,
+            "dynamic_batch": true,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the identifier has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 top1 drop for the identifier is unmeasured (need both fp32 and int8 top1)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_formfactor_acc_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          }
+        },
+        "missing": {},
+        "pipeline": {
+          "batched_crops": true,
+          "max_crops": 6,
+          "crop_padding": 0.12,
+          "min_box_px": 64,
+          "unknown_threshold": 0.55,
+          "nms": {
+            "score": 0.35,
+            "iou": 0.45
+          },
+          "region_packs": [
+            {
+              "region_id": "de-by-deggendorf",
+              "status": "draft",
+              "publishable": true,
+              "geohash_tiles": [
+                "u2853",
+                "u2856"
+              ]
+            }
+          ]
+        },
+        "colour": {
+          "method": "illuminant from the whole frame (shades-of-gray p=6), applied to a centre-weighted sample inside the box, named by CIEDE2000 in CIELAB",
+          "status": "PROVISIONAL - docs/12 probe P3 has not run",
+          "max_delta_e": 20.0,
+          "centre_fraction": 0.5,
+          "lid_colour": "not measured - lid/body separation is an open problem (research/06 \u00a7 3)",
+          "sam": "not used - P3 has not shown a mask is needed"
+        },
+        "load": {
+          "depth": 0,
+          "peak_depth": 1,
+          "shed": 0,
+          "frame_cost_ms": 69.3,
+          "thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        },
+        "settings": {
+          "model_repo": "arudaev/smart-bin-detect",
+          "revision": "main",
+          "artefact_dir": "/artefacts/loadtest-artefacts",
+          "intra_op_threads": 2,
+          "identifier_threads": null,
+          "ort_spinning": true,
+          "ort_shared_pool": false,
+          "inference_slots": 1,
+          "max_crops": 6,
+          "allow_ungated": true,
+          "force_crops": 1,
+          "shed_thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        }
+      },
+      "repeats_detail": [
+        [
+          {
+            "scanners": 1,
+            "repeat": 0,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.19,
+            "p50_ms": 74.1,
+            "p95_ms": 112.9,
+            "p99_ms": 152.3,
+            "mean_ms": 81.5,
+            "decomposition": {
+              "server_ms": 54.0,
+              "wall_ms": 74.1,
+              "transport_ms": 20.1,
+              "validator_ms": 28.3,
+              "identifier_ms": 13.8,
+              "other_server_ms": 11.9
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 1,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.18,
+            "p50_ms": 73.5,
+            "p95_ms": 84.0,
+            "p99_ms": 98.3,
+            "mean_ms": 73.1,
+            "decomposition": {
+              "server_ms": 57.0,
+              "wall_ms": 73.5,
+              "transport_ms": 16.5,
+              "validator_ms": 28.6,
+              "identifier_ms": 13.1,
+              "other_server_ms": 15.3
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 2,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.18,
+            "p50_ms": 68.6,
+            "p95_ms": 86.3,
+            "p99_ms": 104.0,
+            "mean_ms": 70.0,
+            "decomposition": {
+              "server_ms": 55.0,
+              "wall_ms": 68.6,
+              "transport_ms": 13.6,
+              "validator_ms": 26.1,
+              "identifier_ms": 13.3,
+              "other_server_ms": 15.6
+            },
+            "first_error": null
+          }
+        ]
+      ],
+      "raw": null
+    },
+    {
+      "measured": "2026-08-17 12:28:28",
+      "label": "decompose-3bin",
+      "url": "http://localhost:8080/detect",
+      "hardware": "docker run --cpus 2, linux/arm64 native, Snapdragon X1E80100 @ 3.40 GHz",
+      "representative": false,
+      "bins_per_frame": 3,
+      "budget_p95_ms": 250.0,
+      "scanner_fps": 3.0,
+      "hold_seconds": 20.0,
+      "repeats": 3,
+      "levels_requested": [
+        1
+      ],
+      "debug_requested": true,
+      "frame_bytes": 36559,
+      "verdict_rule": "largest N such that every level up to N stayed within the p95 budget with no errors, in every repeat",
+      "concurrent_scanners_within_budget": 1,
+      "health": {
+        "ok": true,
+        "service": "smart-bin-recognition inference",
+        "retention": "none - frames are processed in memory and discarded",
+        "gated": false,
+        "artefacts": {
+          "validator": {
+            "role": "validator",
+            "version": 1,
+            "onnx": "validator-probe.onnx",
+            "imgsz": 448,
+            "classes": 80,
+            "quantised": true,
+            "dynamic_batch": false,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the validator has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 map50 drop for the validator is unmeasured (need both fp32 and int8 map50)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_precision_on_negatives",
+                "min_recall_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          },
+          "identifier": {
+            "role": "identifier",
+            "version": 1,
+            "onnx": "identifier-probe.onnx",
+            "imgsz": 320,
+            "classes": 0,
+            "quantised": true,
+            "dynamic_batch": true,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the identifier has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 top1 drop for the identifier is unmeasured (need both fp32 and int8 top1)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_formfactor_acc_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          }
+        },
+        "missing": {},
+        "pipeline": {
+          "batched_crops": true,
+          "max_crops": 6,
+          "crop_padding": 0.12,
+          "min_box_px": 64,
+          "unknown_threshold": 0.55,
+          "nms": {
+            "score": 0.35,
+            "iou": 0.45
+          },
+          "region_packs": [
+            {
+              "region_id": "de-by-deggendorf",
+              "status": "draft",
+              "publishable": true,
+              "geohash_tiles": [
+                "u2853",
+                "u2856"
+              ]
+            }
+          ]
+        },
+        "colour": {
+          "method": "illuminant from the whole frame (shades-of-gray p=6), applied to a centre-weighted sample inside the box, named by CIEDE2000 in CIELAB",
+          "status": "PROVISIONAL - docs/12 probe P3 has not run",
+          "max_delta_e": 20.0,
+          "centre_fraction": 0.5,
+          "lid_colour": "not measured - lid/body separation is an open problem (research/06 \u00a7 3)",
+          "sam": "not used - P3 has not shown a mask is needed"
+        },
+        "load": {
+          "depth": 0,
+          "peak_depth": 1,
+          "shed": 0,
+          "frame_cost_ms": 71.8,
+          "thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        },
+        "settings": {
+          "model_repo": "arudaev/smart-bin-detect",
+          "revision": "main",
+          "artefact_dir": "/artefacts/loadtest-artefacts",
+          "intra_op_threads": 2,
+          "identifier_threads": null,
+          "ort_spinning": true,
+          "ort_shared_pool": false,
+          "inference_slots": 1,
+          "max_crops": 6,
+          "allow_ungated": true,
+          "force_crops": 3,
+          "shed_thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        }
+      },
+      "repeats_detail": [
+        [
+          {
+            "scanners": 1,
+            "repeat": 0,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.17,
+            "p50_ms": 114.1,
+            "p95_ms": 136.7,
+            "p99_ms": 163.1,
+            "mean_ms": 112.8,
+            "decomposition": {
+              "server_ms": 94.0,
+              "wall_ms": 114.1,
+              "transport_ms": 20.1,
+              "validator_ms": 37.7,
+              "identifier_ms": 36.8,
+              "other_server_ms": 19.5
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 1,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.17,
+            "p50_ms": 120.0,
+            "p95_ms": 142.6,
+            "p99_ms": 148.0,
+            "mean_ms": 118.3,
+            "decomposition": {
+              "server_ms": 101.0,
+              "wall_ms": 120.0,
+              "transport_ms": 19.0,
+              "validator_ms": 39.5,
+              "identifier_ms": 38.9,
+              "other_server_ms": 22.6
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 2,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.17,
+            "p50_ms": 123.0,
+            "p95_ms": 147.1,
+            "p99_ms": 155.1,
+            "mean_ms": 119.8,
+            "decomposition": {
+              "server_ms": 98.0,
+              "wall_ms": 123.0,
+              "transport_ms": 25.0,
+              "validator_ms": 38.1,
+              "identifier_ms": 38.1,
+              "other_server_ms": 21.8
+            },
+            "first_error": null
+          }
+        ]
+      ],
+      "raw": null
+    },
+    {
+      "measured": "2026-08-17 12:29:41",
+      "label": "decompose-6bin",
+      "url": "http://localhost:8080/detect",
+      "hardware": "docker run --cpus 2, linux/arm64 native, Snapdragon X1E80100 @ 3.40 GHz",
+      "representative": false,
+      "bins_per_frame": 6,
+      "budget_p95_ms": 250.0,
+      "scanner_fps": 3.0,
+      "hold_seconds": 20.0,
+      "repeats": 3,
+      "levels_requested": [
+        1
+      ],
+      "debug_requested": true,
+      "frame_bytes": 36559,
+      "verdict_rule": "largest N such that every level up to N stayed within the p95 budget with no errors, in every repeat",
+      "concurrent_scanners_within_budget": 1,
+      "health": {
+        "ok": true,
+        "service": "smart-bin-recognition inference",
+        "retention": "none - frames are processed in memory and discarded",
+        "gated": false,
+        "artefacts": {
+          "validator": {
+            "role": "validator",
+            "version": 1,
+            "onnx": "validator-probe.onnx",
+            "imgsz": 448,
+            "classes": 80,
+            "quantised": true,
+            "dynamic_batch": false,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the validator has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 map50 drop for the validator is unmeasured (need both fp32 and int8 map50)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_precision_on_negatives",
+                "min_recall_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          },
+          "identifier": {
+            "role": "identifier",
+            "version": 1,
+            "onnx": "identifier-probe.onnx",
+            "imgsz": 320,
+            "classes": 0,
+            "quantised": true,
+            "dynamic_batch": true,
+            "source": "/artefacts/loadtest-artefacts [UNGATED]",
+            "gate_result": {
+              "failures": [],
+              "unmeasured": [
+                "median latency for the identifier has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench",
+                "int8 top1 drop for the identifier is unmeasured (need both fp32 and int8 top1)"
+              ],
+              "may_ship": false
+            },
+            "target_result": {
+              "met": {},
+              "missed": {},
+              "unmeasurable": [
+                "min_formfactor_acc_heldout_city"
+              ]
+            },
+            "latency_hardware": null
+          }
+        },
+        "missing": {},
+        "pipeline": {
+          "batched_crops": true,
+          "max_crops": 6,
+          "crop_padding": 0.12,
+          "min_box_px": 64,
+          "unknown_threshold": 0.55,
+          "nms": {
+            "score": 0.35,
+            "iou": 0.45
+          },
+          "region_packs": [
+            {
+              "region_id": "de-by-deggendorf",
+              "status": "draft",
+              "publishable": true,
+              "geohash_tiles": [
+                "u2853",
+                "u2856"
+              ]
+            }
+          ]
+        },
+        "colour": {
+          "method": "illuminant from the whole frame (shades-of-gray p=6), applied to a centre-weighted sample inside the box, named by CIEDE2000 in CIELAB",
+          "status": "PROVISIONAL - docs/12 probe P3 has not run",
+          "max_delta_e": 20.0,
+          "centre_fraction": 0.5,
+          "lid_colour": "not measured - lid/body separation is an open problem (research/06 \u00a7 3)",
+          "sam": "not used - P3 has not shown a mask is needed"
+        },
+        "load": {
+          "depth": 0,
+          "peak_depth": 1,
+          "shed": 0,
+          "frame_cost_ms": 74.5,
+          "thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        },
+        "settings": {
+          "model_repo": "arudaev/smart-bin-detect",
+          "revision": "main",
+          "artefact_dir": "/artefacts/loadtest-artefacts",
+          "intra_op_threads": 2,
+          "identifier_threads": null,
+          "ort_spinning": true,
+          "ort_shared_pool": false,
+          "inference_slots": 1,
+          "max_crops": 6,
+          "allow_ungated": true,
+          "force_crops": 6,
+          "shed_thresholds": {
+            "slow": 4,
+            "tap": 8,
+            "queue": 16
+          }
+        }
+      },
+      "repeats_detail": [
+        [
+          {
+            "scanners": 1,
+            "repeat": 0,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.17,
+            "p50_ms": 157.9,
+            "p95_ms": 179.2,
+            "p99_ms": 183.1,
+            "mean_ms": 151.0,
+            "decomposition": {
+              "server_ms": 133.0,
+              "wall_ms": 157.9,
+              "transport_ms": 24.9,
+              "validator_ms": 38.8,
+              "identifier_ms": 66.9,
+              "other_server_ms": 27.3
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 1,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.16,
+            "p50_ms": 151.9,
+            "p95_ms": 174.0,
+            "p99_ms": 185.7,
+            "mean_ms": 150.8,
+            "decomposition": {
+              "server_ms": 134.0,
+              "wall_ms": 151.9,
+              "transport_ms": 17.9,
+              "validator_ms": 37.6,
+              "identifier_ms": 67.7,
+              "other_server_ms": 28.7
+            },
+            "first_error": null
+          }
+        ],
+        [
+          {
+            "scanners": 1,
+            "repeat": 2,
+            "frames": 45,
+            "errors": 0,
+            "refused_503": 0,
+            "advice_slow": 0,
+            "advice_tap": 0,
+            "throughput_fps": 2.16,
+            "p50_ms": 156.9,
+            "p95_ms": 174.0,
+            "p99_ms": 177.0,
+            "mean_ms": 156.4,
+            "decomposition": {
+              "server_ms": 137.0,
+              "wall_ms": 156.9,
+              "transport_ms": 19.9,
+              "validator_ms": 40.3,
+              "identifier_ms": 69.1,
+              "other_server_ms": 27.6
+            },
+            "first_error": null
+          }
+        ]
+      ],
+      "raw": null
+    }
+  ]
+}

@@ -354,14 +354,31 @@ class Pipeline:
 
         # A box too small to identify is still a box: it is reported, and the
         # identifier is simply not asked about it.
+        #
+        # NOTHING BEYOND max_crops IS DEFERRED. It is truncated, here, and never
+        # revisited: the boxes past the cap are still drawn, but they carry no
+        # form factor and no colour, so at the six-container bank a cap of three
+        # leaves three containers permanently unidentified rather than answered a
+        # frame later. docs/05 § 7 and settings.DEFAULT_MAX_CROPS both used to say
+        # "with the remainder deferred to the next frame"; that was never built,
+        # and the honest reading of the cap is that it trades coverage for cost.
         identifiable = [
             b for b in boxes
             if min(b.x2 - b.x1, b.y2 - b.y1) >= self.min_box_px
         ][: self.settings.max_crops]
 
         if self.settings.force_crops is not None:
-            identifiable = _forced_crops(self.settings.force_crops, width, height)
-            boxes = boxes or identifiable
+            # THE FORCED BOXES ARE THE SCENE, and the cap applies to them.
+            #
+            # This used to assign to `identifiable` *after* the truncation above,
+            # which silently bypassed max_crops entirely: SBR_FORCE_CROPS=6 with
+            # SBR_MAX_CROPS=3 ran six crops, so a probe measuring the cap would
+            # have measured nothing and reported a number. Replacing `boxes` too
+            # is what makes the detection count deterministic, and therefore what
+            # makes "six detections, three crops" checkable from outside.
+            forced = _forced_crops(self.settings.force_crops, width, height)
+            boxes = forced
+            identifiable = forced[: self.settings.max_crops]
 
         crops = [crop_for(frame, box, self.crop_padding) for box in identifiable]
         crops = [c for c in crops if c.size > 0]

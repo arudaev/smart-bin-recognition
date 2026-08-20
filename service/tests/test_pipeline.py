@@ -194,6 +194,40 @@ def test_a_box_over_the_cap_is_still_reported(jpeg):
     assert all(d.form_factor is None for d in response.detections[3:])
 
 
+def test_the_cap_applies_to_forced_crops_too(jpeg):
+    """The measuring hook must not bypass the thing being measured.
+
+    ``force_crops`` used to replace the crop list *after* ``max_crops`` had
+    truncated it, so a forced six-bin scene ran six crops whatever the cap said.
+    docs/12 probe P8c exists to measure that cap: against the old code it would
+    have measured nothing and reported a number, which is worse than not running.
+
+    ``Settings`` is constructed directly here, so ``from_env``'s refusal to
+    combine ``force_crops`` with a gated artefact is not in play - that guard is
+    tested in test_app.py and is about serving, not about arithmetic.
+    """
+    engine = pipeline(boxes=1, force_crops=6, max_crops=3)
+    response = engine.run(DetectRequest(seq=1, debug=True), jpeg)
+
+    # Six detections and three crops: the scene the probe forces, and the cost
+    # the cap allows. This exact pair is what service/loadtest/matrix.py checks
+    # before it lets a P8c ramp count.
+    assert len(response.detections) == 6
+    assert response.debug is not None
+    assert response.debug["crops"] == 3
+    assert len(response.debug["validator_boxes"]) == 6
+    assert engine.identifier.session.calls[0][0] == 3
+    assert sum(1 for d in response.detections if d.form_factor) == 3
+
+
+def test_forced_crops_replace_the_validator_findings_entirely(jpeg):
+    # Otherwise the detection count depends on what an untrained graph happened
+    # to fire on, and "six detections" stops being checkable from outside.
+    engine = pipeline(boxes=4, force_crops=2)
+    response = engine.run(DetectRequest(seq=1), jpeg)
+    assert len(response.detections) == 2
+
+
 # --------------------------------------------------------------------------- #
 # The guardrail
 # --------------------------------------------------------------------------- #

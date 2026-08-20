@@ -1,0 +1,163 @@
+{
+  "probe": "P8",
+  "mode": "serial matrix, bracketed",
+  "bins_per_frame": 1,
+  "repeats": 3,
+  "hardware": "docker run --cpus 2, linux/arm64 native, Snapdragon X1E80100 @ 3.40 GHz, onnxruntime 1.28.0",
+  "representative": false,
+  "admissible": false,
+  "why_not": "the bracket failed: the identical baseline measured 7 at 22:30 and 4 at 23:48, a drift of three concurrent scanners against candidate effects of one",
+  "runs": [
+    {
+      "label": "baseline-a",
+      "measured": "2026-08-17 22:30:16",
+      "env": {},
+      "verdict": 7,
+      "p95_median_by_level": {
+        "1": 100.6,
+        "2": 102.5,
+        "3": 119.8,
+        "4": 147.4,
+        "5": 176.9,
+        "6": 203.3,
+        "7": 226.2,
+        "8": 255.4,
+        "9": 287.4,
+        "10": 369.0,
+        "11": 409.1,
+        "12": 451.6
+      }
+    },
+    {
+      "label": "val384",
+      "measured": "2026-08-17 22:43:08",
+      "env": {
+        "SBR_ARTEFACT_DIR": "/artefacts/p8/artefacts-val384"
+      },
+      "verdict": 7,
+      "p95_median_by_level": {
+        "1": 101.7,
+        "2": 101.9,
+        "3": 112.2,
+        "4": 136.6,
+        "5": 165.6,
+        "6": 197.6,
+        "7": 210.9,
+        "8": 247.6,
+        "9": 267.7,
+        "10": 350.2,
+        "11": 400.5,
+        "12": 430.6
+      }
+    },
+    {
+      "label": "sharedpool",
+      "measured": "2026-08-17 22:56:01",
+      "env": {
+        "SBR_ORT_SHARED_POOL": "1"
+      },
+      "verdict": 8,
+      "p95_median_by_level": {
+        "1": 100.2,
+        "2": 106.2,
+        "3": 118.5,
+        "4": 148.2,
+        "5": 180.4,
+        "6": 197.4,
+        "7": 228.1,
+        "8": 245.2,
+        "9": 277.2,
+        "10": 283.3,
+        "11": 361.5,
+        "12": 402.0
+      }
+    },
+    {
+      "label": "combined",
+      "measured": "2026-08-17 23:08:55",
+      "env": {
+        "SBR_ORT_SHARED_POOL": "1",
+        "SBR_ARTEFACT_DIR": "/artefacts/p8/artefacts-val384"
+      },
+      "verdict": 8,
+      "p95_median_by_level": {
+        "1": 106.5,
+        "2": 106.5,
+        "3": 111.3,
+        "4": 138.6,
+        "5": 168.8,
+        "6": 186.8,
+        "7": 214.0,
+        "8": 237.5,
+        "9": 253.1,
+        "10": 281.1,
+        "11": 314.3,
+        "12": 375.2
+      }
+    },
+    {
+      "label": "nospin",
+      "measured": "2026-08-17 23:21:47",
+      "env": {
+        "SBR_ORT_SPINNING": "0"
+      },
+      "verdict": 7,
+      "p95_median_by_level": {
+        "1": 94.2,
+        "2": 92.3,
+        "3": 124.2,
+        "4": 158.0,
+        "5": 187.6,
+        "6": 227.7,
+        "7": 239.7,
+        "8": 276.3,
+        "9": 317.4,
+        "10": 386.6,
+        "11": 420.3,
+        "12": 467.5
+      }
+    },
+    {
+      "label": "val448local",
+      "measured": "2026-08-17 23:35:12",
+      "env": {
+        "SBR_ARTEFACT_DIR": "/artefacts/p8/artefacts-val448local"
+      },
+      "verdict": 4,
+      "p95_median_by_level": {
+        "1": 108.0,
+        "2": 138.6,
+        "3": 182.9,
+        "4": 220.6,
+        "5": 251.1,
+        "6": 296.9,
+        "7": 417.9,
+        "8": 470.2,
+        "9": 524.2,
+        "10": 597.3,
+        "11": 641.8,
+        "12": 699.5
+      }
+    },
+    {
+      "label": "baseline-b",
+      "measured": "2026-08-17 23:48:42",
+      "env": {},
+      "verdict": 4,
+      "p95_median_by_level": {
+        "1": 103.2,
+        "2": 145.8,
+        "3": 181.9,
+        "4": 226.9,
+        "5": 260.2,
+        "6": 296.5,
+        "7": 405.9,
+        "8": 474.3,
+        "9": 511.2,
+        "10": 571.2,
+        "11": 630.5,
+        "12": 700.2
+      }
+    }
+  ]
+}

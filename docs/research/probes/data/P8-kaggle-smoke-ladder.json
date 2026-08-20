@@ -1,0 +1,70 @@
+{
+  "probe": "the Kaggle smoke ladder, docs/07 phase 2",
+  "ran": "2026-08-17/18",
+  "question": "the 2026-08-16 training run errored with an empty log; which layer is at fault?",
+  "answer": "the Kaggle image ships torch 2.10.0+cu128 (no sm_60) while the platform allocates P100 (sm_60). Not caused by this repository.",
+  "rungs": {
+    "smoke_bare": {
+      "log_entries": 27,
+      "sbr_lines": [
+        "[sbr] smoke_bare: alive",
+        "[sbr] smoke_bare: wrote /kaggle/working/smoke_bare.json",
+        "[sbr] smoke_bare: OK"
+      ]
+    },
+    "smoke_plain": {
+      "log_entries": 38,
+      "sbr_lines": [
+        "[sbr] smoke_plain: alive",
+        "[sbr] smoke_plain: unpacked 26 files",
+        "[sbr] smoke_plain: OK"
+      ]
+    },
+    "smoke_secrets": {
+      "log_entries": 23,
+      "sbr_lines": [
+        "[sbr] smoke_secrets: alive",
+        "[sbr] smoke_secrets: 1 file(s) under /kaggle/input",
+        "[sbr] smoke_secrets: OK"
+      ]
+    },
+    "smoke_usersecret": {
+      "log_entries": 22,
+      "sbr_lines": [
+        "[sbr] smoke_usersecret: alive",
+        "[sbr] smoke_usersecret: OK - and 'no secret' is an answer, not a failure"
+      ]
+    },
+    "smoke_data": {
+      "log_entries": 175,
+      "sbr_lines": [
+        "[sbr] unpacked bundle to /kaggle/working/project",
+        "[sbr] pulling arudaev/smart-bin-detect @ 8666aa23ff1a",
+        "[sbr] pool: 75828 files",
+        "[sbr] composition: {\"per_split\": {\"test\": 2866, \"train\": 13265, \"val\": 2823}, \"per_pool\": {\"legacy\": 370, \"negatives\": 17474, \"open_images\": 1110}, \"background_per_split\": {\"test\": 2662, \"train\": 12230, \"val\": 2582}, \"positives\": 1480, \"background_images\": 17474, \"negative_ratio\": 11.8, \"classes\": [\"bin\"]}",
+        "[sbr] composition matches the contract for 8666aa23ff1a",
+        "[sbr] smoke_data: wrote /kaggle/working/smoke_data.json",
+        "[sbr] smoke_data: OK - the data path works end to end without a GPU"
+      ]
+    },
+    "smoke_gpu": {
+      "log_entries": 61,
+      "sbr_lines": [
+        "[sbr] accelerator: Tesla P100-PCIE-16GB, capability sm_60, torch 2.10.0+cu128 - NOT USABLE: this torch was built for sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120, which does not include sm_60",
+        "[sbr] smoke_gpu: OK - 'THE IMAGE SHIPS A TORCH THAT CANNOT USE THIS GPU - nothing in this repository caused it and nothing in it can fix it'"
+      ]
+    },
+    "smoke_train": {
+      "log_entries": 314,
+      "sbr_lines": [
+        "[sbr] unpacked bundle to /kaggle/working/project",
+        "[sbr] accelerator: Tesla P100-PCIE-16GB, capability sm_60, torch 2.10.0+cu128 - NOT USABLE: this torch was built for sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120, which does not include sm_60",
+        "[sbr] train: kept 400 of 13265",
+        "[sbr] val: kept 100 of 2823",
+        "[sbr] {",
+        "[sbr] smoke_train: OK - a checkpoint exists. These weights are NOT a model and are not uploaded."
+      ]
+    }
+  },
+  "remedy": "Request the T4: machine_shape=NvidiaTeslaT4 in kernel-metadata.json, which kernels_push reads, or `kaggle kernels push --accelerator NvidiaTeslaT4`. Every GPU kernel here now sets it. A first draft of this probe claimed no such field existed and that the only remedy was to re-dispatch until lucky; that was wrong and is corrected here rather than silently."
+}

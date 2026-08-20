@@ -91,6 +91,77 @@ def test_a_missing_artefact_is_not_an_ungated_one(artefact_dir):
         load_artefact("identifier", _settings(directory))
 
 
+def test_a_second_session_does_not_die_on_the_global_thread_pool(monkeypatch):
+    """onnxruntime's global pools cannot be replaced, and this service opens two.
+
+    The first implementation called ``set_global_thread_pool_sizes`` per session,
+    so ``SBR_ORT_SHARED_POOL=1`` opened the validator and then took the process
+    down on the identifier with ``FAIL: Global thread pools have already been
+    created``. Invisible to every test that opens one session - which was all of
+    them - and found by running it in the container.
+    """
+    import artefacts
+
+    calls: list[tuple[int, int]] = []
+
+    class FakeOrt:
+        __version__ = "1.28.0"
+
+        @staticmethod
+        def set_global_thread_pool_sizes(intra: int, inter: int) -> None:
+            if calls:
+                raise RuntimeError("Global thread pools have already been created")
+            calls.append((intra, inter))
+
+    monkeypatch.setattr(artefacts, "_GLOBAL_POOL", None)
+    assert artefacts._use_global_pool(FakeOrt, 2) is True
+    assert artefacts._use_global_pool(FakeOrt, 2) is True   # the identifier
+    assert calls == [(2, 1)], "the pool must be created exactly once per process"
+
+
+def test_an_old_runtime_falls_back_and_says_so(monkeypatch, caplog):
+    # Silently measuring the default configuration while the report says
+    # "shared_pool" is the one outcome worse than not measuring at all.
+    import artefacts
+
+    class Ancient:
+        __version__ = "1.18.0"
+
+    monkeypatch.setattr(artefacts, "_GLOBAL_POOL", None)
+    assert artefacts._use_global_pool(Ancient, 2) is False
+    assert "falling back to per-session pools" in caplog.text
+
+
 def test_an_unknown_role_is_rejected_before_any_io(artefact_dir):
     with pytest.raises(ValueError, match="unknown model role"):
         load_artefact("detector", _settings(artefact_dir("validator")))
+
+
+# --------------------------------------------------------------------------- #
+# One thread pool or two - decided before anything is opened
+# --------------------------------------------------------------------------- #
+
+
+def test_the_existence_probe_does_not_open_a_session(artefact_dir):
+    """It has to answer before the first session, so it cannot use one.
+
+    onnxruntime's global thread pools cannot be created after the first session
+    that opts out of per-session threads, so "will there be two graphs" must be
+    answered from the sidecars alone. The .onnx files this fixture writes are
+    empty, so anything that opened one would raise rather than return.
+    """
+    from artefacts import artefact_exists
+
+    directory = artefact_dir("validator")
+    assert artefact_exists("validator", _settings(directory)) is True
+    assert artefact_exists("identifier", _settings(directory)) is False
+
+
+def test_an_ungated_artefact_still_counts_as_existing(artefact_dir):
+    # The pool decision is about how many graphs get opened, not about whether
+    # they are allowed to serve. Conflating the two would silently change the
+    # threading of every ungated measurement run.
+    from artefacts import artefact_exists
+
+    directory = artefact_dir("validator", may_ship=False)
+    assert artefact_exists("validator", _settings(directory)) is True

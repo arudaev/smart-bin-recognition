@@ -20,25 +20,60 @@ Bin Recognition."* Full analysis of what carried over and what did not:
 **Status:** phase 1 is done. Phase 3's two halves are built and, as of
 2026-08-17, actually joined: the wire is pinned to shared byte fixtures across
 both languages, the degradation ladder runs end to end, and CI covers `ml/`,
-`service/` and `web/`. **Phase 2's gate is answered and its concurrency half
-failed** — 4 concurrent scanners at one bin per frame against a gate of 10,
-measured on a pinned 2-vCPU container, so the kill criterion has fired. See
-[`docs/07-roadmap.md`](docs/07-roadmap.md).
+`service/` and `web/`. **Phase 2's latency half passes and its concurrency
+half is UNRESOLVED** — nothing has ever been observed above 8 concurrent
+scanners against a gate of 10, so it has certainly not passed, but the 4 that
+the kill criterion was recorded against is not a measurement the host could
+sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
+
+**Two things changed on 2026-08-18, and both are about believing numbers**
+([probe P8](docs/research/probes/P8-recovery-measurements.md)):
+
+- **The concurrency figure has no trustworthy absolute value yet.** Bracketing a
+  measurement block with the same baseline at both ends gave **7 at 22:30 and 4
+  at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor, and
+  the laptop was also running the development tooling, so the container was
+  starved. **Do not quote 4, or 7, or 8, as a measured ceiling** — quote the gate
+  and say it is unmet. A controlled 2-vCPU x86 host is what unblocks this, and
+  it is now the critical path rather than a contingency.
+- **The training run's failure is understood, and it is not ours.** The Kaggle
+  image ships **torch 2.10.0+cu128**, which dropped `sm_60`, and the platform
+  allocates **P100 (sm_60)** as well as T4 (sm_75). `torch.cuda.is_available()`
+  returns `True` and the first tensor move then raises — which is why the
+  2026-08-16 run pulled the pool, built the dataset, wrote `args.yaml` and died
+  with no weights and no log. Established by a rung that installs **nothing**
+  (`smoke_gpu`: `installed_anything: false`), after the first explanation —
+  that `pip install ultralytics` had replaced torch — turned out to be wrong.
+  **The remedy is to ask for a T4, and asking works.** `machine_shape:
+  "NvidiaTeslaT4"` in `kernel-metadata.json` (equivalently
+  `kaggle kernels push --accelerator`) was honoured on 2026-08-18: *Tesla T4,
+  capability sm_75, torch 2.10.0+cu128 - usable*. **The training path is
+  unblocked.** Every GPU kernel here requests one. An earlier version of this
+  note said no such field existed; that was wrong. The capability check
+  (`sbr.utils.gpu`) stays as the belt to those braces and runs **before the
+  pool is pulled**, so a bad allocation does not pay for the download.
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
-needs the 403-crop human pass, and the validator's first training run failed on
-Kaggle with no log. Google Cloud is provisioned, budgeted and documented, and
-nothing is deployed, because deploying an untrained graph would make the product
-confidently wrong.
+needs the 403-crop human pass, and the validator **trained on 2026-08-18 and
+cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
+2 662 background frames — and **int8 quantisation costs it 0.727 mAP against a
+0.02 budget**, collapsing it to 0.025. The service serves int8 by construction,
+so `may_ship: false` stands and the refusal is correct. Fixing the quantisation
+is the next blocker and it is not yet diagnosed ([docs/12 P9](docs/12-validation-protocol.md)).
+
+Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
+because deploying a graph that scores 0.025 would make the product confidently
+wrong.
 
 **Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
-`c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
+`8666aa23` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
 the first 98 frames with four or more bins, and 17 474 background frames. What
-is left is the human adjudication pass (identifier only) and a training run
-that completes. No model has been trained yet. The ship gate is **answered**:
-both latency budgets pass and the concurrency half fails at 4 concurrent
-scanners against a gate of 10 ([docs/11](docs/11-phase2-results.md)).
+is left is the human adjudication pass (identifier only) and an int8 export
+that survives quantisation. **The validator is trained**; it is the quantised
+graph that is not shippable. The ship gate is **half answered**: both latency budgets pass, and the concurrency half is
+**unresolved** - never observed above 8 against a gate of 10, on a host that
+cannot hold a figure still ([docs/11](docs/11-phase2-results.md)).
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the

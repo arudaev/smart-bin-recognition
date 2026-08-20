@@ -22,9 +22,17 @@ from pathlib import Path
 #: the tier we pay for" rather than "one frame on whatever the scheduler gave us".
 DEFAULT_INTRA_OP_THREADS = 2
 
-#: Crops per frame. docs/05 § 3 names capping this, with the remainder deferred
-#: to the next frame, as one of the two cheap ways to move the concurrency
-#: ceiling. Six is what the PRD calls a normal input, so six is the default.
+#: Crops per frame. docs/05 § 7 names capping this as one of the cheap ways to
+#: move the concurrency ceiling. Six is what the PRD calls a normal input, so six
+#: is the default.
+#:
+#: **The remainder is NOT deferred to the next frame.** This constant's docstring
+#: and docs/05 § 7 both said it was; neither the pipeline nor the client ever
+#: implemented it. `pipeline.run` truncates and never revisits, so a box past the
+#: cap is drawn with `form_factor: null` and no colour - lowering this trades
+#: coverage for cost, and the trade has to be stated wherever the number is.
+#: Deferral is buildable and the client's result lock is the natural place for
+#: it; docs/12 P8c records what it would take.
 DEFAULT_MAX_CROPS = 6
 
 #: How many frames may be inside onnxruntime at the same time.
@@ -42,13 +50,54 @@ DEFAULT_MAX_CROPS = 6
 DEFAULT_INFERENCE_SLOTS = 1
 
 
-def _flag(name: str) -> bool:
-    return os.environ.get(name, "").strip() in {"1", "true", "yes", "on"}
+#: The two onnxruntime threading knobs docs/12 probe P8b tested, and the one it
+#: changed.
+#:
+#: **The shared pool is AUTOMATIC: on when two graphs are loaded, off when one
+#: is.** This service holds two sessions on two cores, and onnxruntime gives each
+#: its own intra-op pool which spins while idle - four threads contending for
+#: two, so the idle model burns the running model's cycles. That was P4's
+#: unexplained 15-40 ms per frame. P8b measured it by varying the SESSION count
+#: while holding the graph fixed: **switching cost +36.9 ms**, one shared pool
+#: removed it, and the two-graph call fell from 57.1 ms to 26.3 ms.
+#:
+#: It is conditional rather than unconditional because the same experiment
+#: measured the other side: with ONE hot session, spinning genuinely helps, and
+#: sharing cost 29.6 ms -> 33.0 ms, about 11 %. The service runs single-session
+#: today, because the identifier does not exist yet. An unconditional default
+#: would take a measured 11 % regression now in exchange for a benefit that
+#: arrives later, which is the wrong way round.
+#:
+#: ``None`` means decide at load time; ``SBR_ORT_SHARED_POOL=1`` or ``=0`` forces
+#: it either way, which is what the x86 confirmation run needs to measure both.
+DEFAULT_ORT_SHARED_POOL: bool | None = None
+
+DEFAULT_ORT_SPINNING = True
+
+
+def _flag(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _int(name: str, default: int) -> int:
     raw = os.environ.get(name, "").strip()
     return int(raw) if raw else default
+
+
+def _flag_or_none(name: str) -> bool | None:
+    """Unset means "decide later", which is different from "off"."""
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return None
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _optional_int(name: str) -> int | None:
+    raw = os.environ.get(name, "").strip()
+    return int(raw) if raw else None
 
 
 @dataclass(frozen=True)
@@ -88,6 +137,22 @@ class Settings:
     intra_op_threads: int = DEFAULT_INTRA_OP_THREADS
     max_crops: int = DEFAULT_MAX_CROPS
 
+    #: Whether onnxruntime's intra-op threads spin while idle. See
+    #: DEFAULT_ORT_SPINNING - this is a docs/12 P8b variable, not a tuning knob
+    #: somebody should set by feel.
+    ort_spinning: bool = DEFAULT_ORT_SPINNING
+
+    #: Whether both sessions share ONE global thread pool instead of getting one
+    #: each. ``None`` means decide from how many graphs actually load - see
+    #: DEFAULT_ORT_SHARED_POOL. Setting it to ``True`` alongside
+    #: `identifier_threads` is refused: a shared pool has a single size, so the
+    #: per-session count would be silently ignored rather than applied.
+    ort_shared_pool: bool | None = DEFAULT_ORT_SHARED_POOL
+
+    #: Intra-op threads for the identifier alone. ``None`` means the same as the
+    #: validator, which is what the service has always done.
+    identifier_threads: int | None = None
+
     #: How many frames may be *inside* onnxruntime at once. Distinct from queue
     #: depth, which is how many are waiting - see DEFAULT_INFERENCE_SLOTS.
     inference_slots: int = DEFAULT_INFERENCE_SLOTS
@@ -120,6 +185,19 @@ class Settings:
                 "it can never be mistaken for one answering real questions."
             )
 
+        shared_pool = _flag_or_none("SBR_ORT_SHARED_POOL")
+        identifier_threads = _optional_int("SBR_IDENTIFIER_THREADS")
+        if shared_pool is True and identifier_threads is not None:
+            raise ValueError(
+                "SBR_IDENTIFIER_THREADS has no effect while the shared thread pool is "
+                "on, and the shared pool is now the DEFAULT (docs/12 P8b). One pool has "
+                "one size, so a per-session count would be silently ignored rather than "
+                "applied - which is how a measurement ends up describing a configuration "
+                "nobody ran.\n"
+                "Set SBR_ORT_SHARED_POOL=0 as well if you mean to give the identifier "
+                "its own thread count."
+            )
+
         return cls(
             model_repo=os.environ.get("SBR_MODEL_REPO", cls.model_repo),
             revision=os.environ.get("SBR_MODEL_REVISION", cls.revision),
@@ -128,6 +206,9 @@ class Settings:
             artefact_dir=Path(directory) if directory else None,
             intra_op_threads=_int("SBR_INTRA_OP_THREADS", DEFAULT_INTRA_OP_THREADS),
             max_crops=_int("SBR_MAX_CROPS", DEFAULT_MAX_CROPS),
+            ort_spinning=_flag("SBR_ORT_SPINNING", DEFAULT_ORT_SPINNING),
+            ort_shared_pool=shared_pool,
+            identifier_threads=identifier_threads,
             inference_slots=max(1, _int("SBR_INFERENCE_SLOTS", DEFAULT_INFERENCE_SLOTS)),
             allow_ungated=allow_ungated,
             force_crops=forced if forced >= 0 else None,
@@ -142,6 +223,9 @@ class Settings:
             "revision": self.revision,
             "artefact_dir": str(self.artefact_dir) if self.artefact_dir else None,
             "intra_op_threads": self.intra_op_threads,
+            "identifier_threads": self.identifier_threads,
+            "ort_spinning": self.ort_spinning,
+            "ort_shared_pool": self.ort_shared_pool,
             "inference_slots": self.inference_slots,
             "max_crops": self.max_crops,
             "allow_ungated": self.allow_ungated,

@@ -51,20 +51,34 @@ def unpack_bundle() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
         archive.extractall(PROJECT)
-    sys.path.insert(0, str(PROJECT / "src"))
+    sys.path.insert(0, str(PROJECT / "ml" / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
 def install_dependencies() -> None:
-    packages = [
-        "ultralytics>=8.3.0",
-        "onnx>=1.16.0",
-        "onnxruntime>=1.18.0",
-        "huggingface_hub>=1.2.0",
-        "pyyaml",
-    ]
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *packages])
-    log("dependencies installed")
+    """Install what the kernel needs without letting pip decide about torch.
+
+    ``--no-deps`` is hygiene rather than a fix, and it is worth being exact
+    about which: ``pip install ultralytics`` *does* resolve its own torch, and
+    that was the first suspect for the 2026-08-16 failure. It was wrong. A rung
+    that installs nothing at all (``smoke_gpu``) found the image already ships
+    torch 2.10.0+cu128 against a P100 at sm_60, so **the mismatch arrives with
+    the image**. See ``sbr.utils.gpu``.
+
+    Keeping pip away from torch is still right - a resolver that swapped it
+    would add a second, harder-to-see cause on top of the first - and it is
+    faster. Everything else ultralytics needs is already in the Kaggle image;
+    ``ultralytics-thop`` is the one that is not, so it is named.
+    """
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+         "ultralytics>=8.3.0", "ultralytics-thop"]
+    )
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q",
+         "onnx>=1.16.0", "onnxruntime>=1.18.0", "huggingface_hub>=1.2.0", "pyyaml"]
+    )
+    log("dependencies installed (torch left exactly as the image shipped it)")
 
 
 def seed_everything(seed: int) -> None:
@@ -129,6 +143,7 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
+    from sbr.utils.gpu import require_usable_gpu
     from sbr.utils.hub import (
         configure_hf_runtime,
         download_dataset,
@@ -140,9 +155,15 @@ def main() -> None:
     # Before a GPU hour, not after.
     if os.environ.get("SBR_SKIP_UPLOAD") != "1":
         require_hf_token("upload the trained artefacts")
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])
+
+    # --- the GPU, BEFORE the pull ------------------------------------------- #
+    # See sbr.utils.gpu, and train_validator for why this is here rather than
+    # beside model.train(): refusing after the data is downloaded costs most of
+    # what the failed run cost.
+    accelerator = require_usable_gpu("train the identifier")
 
     # --- data -------------------------------------------------------------- #
     pool = download_dataset(
@@ -166,7 +187,6 @@ def main() -> None:
         )
 
     # --- train ------------------------------------------------------------- #
-    import torch
     from ultralytics import YOLO
 
     model = YOLO(f"{config['model']['arch']}.pt")
@@ -188,7 +208,7 @@ def main() -> None:
         project=str(WORKING / "runs"),
         name=config["run_name"],
         exist_ok=True,
-        device=0 if torch.cuda.is_available() else "cpu",
+        device=accelerator.device,
         **config["augment"],
     )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"

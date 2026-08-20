@@ -40,16 +40,54 @@ KERNELS = {
     "negatives": "build_negatives",      # the corpus A is mostly trained on
     "bench": "bench_latency",            # the ship gate's measuring instrument
     "probe": "probe_latency",            # docs/12 P4 and P5 – no model needed
+    # The smoke ladder. On 2026-08-16 the validator and the bench both ended
+    # with status ERROR, an empty log and an empty failure message, while the
+    # probe completed – so there is no diagnostic to read and the only way to
+    # find the boundary is to change one thing at a time. Run them in this
+    # order; the first failure is the answer. Each writes a file as well as
+    # printing, because "no artefact and an empty log" is the thing being
+    # diagnosed. See docs/07 phase 2.
+    "smoke-bare": "smoke_bare",              # 1a: no bundle, no dataset, no GPU
+    "smoke-plain": "smoke_plain",            # 1b: + the injected bundle
+    "smoke-secrets": "smoke_secrets",        # 2:  + the attached secrets dataset
+    "smoke-usersecret": "smoke_usersecret",  # 2b: a Kaggle Secret instead – does it bind?
+    "smoke-data": "smoke_data",              # 3:  the pinned pool and the composition contract
+    "smoke-gpu": "smoke_gpu",                # 1c: what GPU, and can the IMAGE'S torch use it?
+    "smoke-train": "smoke_train",            # 4:  one epoch on the GPU, and a checkpoint
 }
 
 #: Which config each kernel loads, where it is not the kernel's own name.
-CONFIGS = {"negatives": "open_images", "bench": "validator", "probe": "validator"}
+CONFIGS = {
+    "negatives": "open_images",
+    "bench": "validator",
+    "probe": "validator",
+    "smoke-bare": "validator",
+    "smoke-plain": "validator",
+    "smoke-secrets": "validator",
+    "smoke-usersecret": "validator",
+    "smoke-data": "validator",
+    "smoke-gpu": "validator",
+    "smoke-train": "validator",
+}
 
 #: Bundled into the kernel payload. `data/taxonomy` is included because the
 #: detector's class list is derived from it – the kernel must not have to guess.
+#:
+#: **THE PREFIXES MIRROR THE REPOSITORY, and that is load-bearing.** `sbr` finds
+#: its data by walking up from its own file: `taxonomy.py` resolves the repo root
+#: as `parents[3]` and `config.py` resolves configs as `parents[2]/configs`. The
+#: earlier layout unpacked `src/` and `data/taxonomy` as siblings, so
+#: `<unpack>/src/sbr/taxonomy.py` put `parents[3]` one level ABOVE the unpack
+#: directory and every call to `load_taxonomy()` died with
+#: `FileNotFoundError: .../data/taxonomy/waste-streams.json`.
+#:
+#: It was invisible for two reasons: `load_config` resolved correctly from the
+#: same tree, and the one kernel that completed - `probe_latency` - never calls
+#: `load_taxonomy`. The kernels that do were the ones failing. `service/Dockerfile`
+#: mirrors the repo under `/app` for exactly this reason and says so.
 BUNDLE_PATHS = [
-    (ML_ROOT / "src", "src"),
-    (ML_ROOT / "configs", "configs"),
+    (ML_ROOT / "src", "ml/src"),
+    (ML_ROOT / "configs", "ml/configs"),
     (REPO_ROOT / "data" / "taxonomy", "data/taxonomy"),
 ]
 

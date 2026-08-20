@@ -50,20 +50,35 @@ def unpack_bundle() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
         archive.extractall(PROJECT)
-    sys.path.insert(0, str(PROJECT / "src"))
+    sys.path.insert(0, str(PROJECT / "ml" / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
 def install_dependencies() -> None:
-    packages = [
-        "ultralytics>=8.3.0",
-        "onnx>=1.16.0",
-        "onnxruntime>=1.18.0",
-        "huggingface_hub>=1.2.0",
-        "pyyaml",
-    ]
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", *packages])
-    log("dependencies installed")
+    """Install what the kernel needs without letting pip decide about torch.
+
+    ``--no-deps`` is hygiene rather than a fix, and it is worth being exact
+    about which: ``pip install ultralytics`` *does* resolve its own torch, and
+    that was the first suspect for the 2026-08-16 failure. It was wrong. A rung
+    that installs nothing at all (``smoke_gpu``) found the image already ships
+    torch 2.10.0+cu128 against a P100 at sm_60, so **the mismatch arrives with
+    the image**. See ``sbr.utils.gpu``.
+
+    Keeping pip away from torch is still right - a resolver that swapped it
+    would add a second, harder-to-see cause on top of the first - and it is
+    faster. Everything else ultralytics needs is already in the Kaggle image;
+    ``ultralytics-thop`` is the one that is not, so it is named.
+    """
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps",
+         "ultralytics>=8.3.0", "ultralytics-thop"]
+    )
+    # These carry no torch dependency, so they may resolve normally.
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "-q",
+         "onnx>=1.16.0", "onnxruntime>=1.18.0", "huggingface_hub>=1.2.0", "pyyaml"]
+    )
+    log("dependencies installed (torch left exactly as the image shipped it)")
 
 
 def seed_everything(seed: int) -> None:
@@ -168,6 +183,7 @@ def main() -> None:
     install_dependencies()
 
     from sbr.config import load_config
+    from sbr.dataset.expected import check_composition, expectation_for
     from sbr.dataset.prepare import build_yolo_tree
     from sbr.export.onnx_export import (
         ExportReport,
@@ -178,10 +194,12 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
+    from sbr.utils.gpu import require_usable_gpu
     from sbr.utils.hub import (
         configure_hf_runtime,
         download_dataset,
         require_hf_token,
+        resolve_revision,
         upload_artifacts,
     )
 
@@ -189,9 +207,18 @@ def main() -> None:
     # Before a GPU hour, not after.
     if os.environ.get("SBR_SKIP_UPLOAD") != "1":
         require_hf_token("upload the trained artefacts")
-    config = load_config(CONFIG_NAME, PROJECT / "configs")
+    config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
     log(f"config: {json.dumps(config, indent=2)}")
     seed_everything(config["project"]["seed"])
+
+    # --- the GPU, BEFORE the 2.2 GB pull ------------------------------------ #
+    # `torch.cuda.is_available()` answers "is there a device", not "was this
+    # torch compiled for it", and the gap between those two questions is what
+    # produced a run with no weights and no log on 2026-08-16. Checked here
+    # rather than beside `model.train()`: a refusal that arrives after the pool
+    # has been downloaded and the tree built has already spent most of what the
+    # failed run spent, which is the cost this check exists to avoid.
+    accelerator = require_usable_gpu("train the validator")
 
     # --- data -------------------------------------------------------------- #
     # strict=True: an unpinned revision stops the run. A number measured against
@@ -208,8 +235,30 @@ def main() -> None:
     composition = json.loads((tree / "composition.json").read_text(encoding="utf-8"))
     log(f"composition: {json.dumps(composition)}")
 
+    # BEFORE THE GPU HOUR, not after it. A pin says which data; it does not say
+    # what is in it. The 2026-08-16 run got this far, reported background_images:
+    # 0 over a pool that is 92 % background, and trained anyway - the number was
+    # right there in the log and nothing was watching it. This is what watches.
+    expectation = expectation_for(config["data"]["repo_id"])
+    if expectation is None:
+        log(f"no composition contract for {config['data']['repo_id']} - proceeding unchecked")
+    else:
+        resolved = resolve_revision(config["data"]["repo_id"], config["data"]["revision"], strict=True)
+        if resolved != expectation.revision:
+            raise SystemExit(
+                f"this run resolved {resolved[:12]} but sbr.dataset.expected describes "
+                f"{expectation.revision[:12]}. Pinning new data is a deliberate act: update "
+                "the contract in the same commit as the pin, with the reason in the message."
+            )
+        check_composition(composition, expectation)
+        log(
+            f"composition matches the contract for {expectation.revision[:12]}: "
+            f"{expectation.total_frames} frames = {expectation.background_frames} background "
+            f"+ {expectation.positive_frames} positive. Negative ratio "
+            f"{json.dumps(expectation.ratios())}"
+        )
+
     # --- train ------------------------------------------------------------- #
-    import torch
     from ultralytics import YOLO
 
     classes = composition["classes"]
@@ -237,7 +286,7 @@ def main() -> None:
         project=str(WORKING / "runs"),
         name=config["run_name"],
         exist_ok=True,
-        device=0 if torch.cuda.is_available() else "cpu",
+        device=accelerator.device,
         **config["augment"],
     )
     best = pathlib.Path(model.trainer.save_dir) / "weights" / "best.pt"

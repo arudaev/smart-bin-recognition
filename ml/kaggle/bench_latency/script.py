@@ -54,7 +54,7 @@ def unpack_bundle() -> None:
     PROJECT.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(PROJECT_BUNDLE_B64))) as archive:
         archive.extractall(PROJECT)
-    sys.path.insert(0, str(PROJECT / "src"))
+    sys.path.insert(0, str(PROJECT / "ml" / "src"))
     log(f"unpacked bundle to {PROJECT}")
 
 
@@ -93,7 +93,7 @@ def main() -> None:
 
     results: dict[str, dict] = {}
     for role in ROLES:
-        config = load_config(role, PROJECT / "configs")
+        config = load_config(role, PROJECT / "ml" / "configs")
         repo = config["hub"]["model_repo"]
         token = load_hf_token()
         try:
@@ -141,7 +141,7 @@ def main() -> None:
     if os.environ.get("SBR_SKIP_UPLOAD") == "1":
         return
     for role in results:
-        config = load_config(role, PROJECT / "configs")
+        config = load_config(role, PROJECT / "ml" / "configs")
         upload_artifacts(
             repo_id=config["hub"]["model_repo"],
             files={f"v{MODEL_VERSION}/bench-v{MODEL_VERSION}.json": out},

@@ -35,7 +35,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from artefacts import ArtefactMissingError, UngatedArtefactError, load_artefact
+from artefacts import (
+    ArtefactMissingError,
+    UngatedArtefactError,
+    artefact_exists,
+    load_artefact,
+)
 from colour import measurement_note
 from pipeline import Pipeline
 from settings import Settings
@@ -63,7 +68,28 @@ def _load() -> None:
     STATE["slots"] = threading.BoundedSemaphore(settings.inference_slots)
     STATE["errors"] = {}
 
-    validator = load_artefact("validator", settings)
+    # ONE THREAD POOL OR TWO, decided before anything is opened.
+    #
+    # onnxruntime's global pools are process-wide and cannot be created after the
+    # first session that opts out of per-session threads, so this cannot be
+    # deferred until we discover whether an identifier exists. docs/12 P8b
+    # measured both sides: sharing is worth ~31 ms on the two-graph call and
+    # costs ~11 % on a single hot session, and the service is single-session
+    # today because the identifier does not exist yet.
+    if settings.ort_shared_pool is not None:
+        shared_pool = settings.ort_shared_pool          # explicitly forced either way
+    elif settings.identifier_threads is not None:
+        shared_pool = False                             # a per-session count implies per-session pools
+    else:
+        shared_pool = artefact_exists("identifier", settings)
+    STATE["ort_shared_pool"] = shared_pool
+    logger.info(
+        "onnxruntime thread pool: %s (%s)",
+        "shared" if shared_pool else "per session",
+        "explicit" if settings.ort_shared_pool is not None else "from the number of graphs",
+    )
+
+    validator = load_artefact("validator", settings, shared_pool=shared_pool)
 
     # The identifier is expected to be absent today: it is blocked on the human
     # adjudication pass (docs/07 phase 2), and the service runs perfectly well
@@ -71,7 +97,7 @@ def _load() -> None:
     # that exists but failed its gates is a different matter and is not caught.
     identifier = None
     try:
-        identifier = load_artefact("identifier", settings)
+        identifier = load_artefact("identifier", settings, shared_pool=shared_pool)
     except ArtefactMissingError as error:
         STATE["errors"]["identifier"] = str(error)
         logger.warning(
@@ -249,7 +275,10 @@ def health() -> dict[str, Any]:
         "pipeline": pipeline.health(),
         "colour": measurement_note(),
         "load": shedder.stats() if shedder else None,
-        "settings": settings.as_dict(),
+        # The effective pool, not just the request: `ort_shared_pool: null`
+        # means "decide from the graph count", and a report that only echoed
+        # the request would not say which way it went.
+        "settings": settings.as_dict() | {"ort_shared_pool_effective": STATE.get("ort_shared_pool")},
     }
 
 

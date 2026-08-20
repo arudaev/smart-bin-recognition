@@ -20,7 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from settings import Settings
@@ -28,6 +28,14 @@ from settings import Settings
 logger = logging.getLogger("sbr.service")
 
 ROLES = ("validator", "identifier")
+
+#: Whether this process has already created onnxruntime's global thread pools,
+#: and at what size. They are **process-wide and immutable**: a second call
+#: raises ``FAIL: Global thread pools have already been created, cannot replace
+#: them``, which - since the service opens the validator and then the identifier
+#: - means an unguarded implementation crashes at startup on the second session
+#: and never on the first. Found by running it, not by reading it.
+_GLOBAL_POOL: tuple[int, int] | None = None
 
 
 class UngatedArtefactError(RuntimeError):
@@ -111,12 +119,31 @@ class Artefact:
         }
 
 
-def open_session(onnx_path: Path, threads: int) -> Any:
+def open_session(
+    onnx_path: Path, threads: int, *, spinning: bool = True, shared_pool: bool = False
+) -> Any:
     """An onnxruntime session pinned to the service's core count.
 
     The same pinning as ``sbr.bench.open_session``, and for the same reason: a
     latency number is only comparable to the budget if it was taken on the same
     number of threads the budget was stated for.
+
+    ``spinning`` and ``shared_pool`` are the two variables docs/12 probe P8b
+    tests, and both default to onnxruntime's own behaviour so that the probe's
+    baseline is the runtime as it ships. What they change:
+
+    - **spinning.** Intra-op threads spin while waiting for work. With one model
+      that is free; with two sessions on two cores it means the idle model's
+      threads burn the running model's cycles.
+    - **shared_pool.** By default each session builds its own intra-op pool, so
+      this service runs four threads on two cores. One global pool is what makes
+      the two sessions share rather than compete - and it makes per-session
+      thread counts meaningless, which is why ``Settings`` refuses to combine it
+      with ``SBR_IDENTIFIER_THREADS``.
+
+    A runtime too old for the global-pool API falls back to per-session pools and
+    **says so**, rather than silently measuring the configuration it was asked to
+    move away from.
     """
     import onnxruntime as ort
 
@@ -124,7 +151,54 @@ def open_session(onnx_path: Path, threads: int) -> Any:
     options.intra_op_num_threads = threads
     options.inter_op_num_threads = 1
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+    if not spinning:
+        # The documented spelling; an unknown key is ignored rather than raising,
+        # so this is logged at the call site where the setting is known.
+        options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+
+    if shared_pool and _use_global_pool(ort, threads):
+        options.use_per_session_threads = False
+
     return ort.InferenceSession(str(onnx_path), options, providers=["CPUExecutionProvider"])
+
+
+def _use_global_pool(ort: Any, threads: int) -> bool:
+    """Create the process-wide thread pools once. Returns whether to opt in.
+
+    Once, because onnxruntime's global pools cannot be replaced: the second call
+    raises. The service opens two sessions, so the naive version works for the
+    validator and takes the process down on the identifier - a failure that is
+    invisible to any test that opens one session, which is every test that used
+    to exist here.
+    """
+    global _GLOBAL_POOL
+
+    setter = getattr(ort, "set_global_thread_pool_sizes", None)
+    if setter is None:
+        logger.warning(
+            "SBR_ORT_SHARED_POOL is set but onnxruntime %s exposes no global thread "
+            "pool API - falling back to per-session pools. Any P8b number from this "
+            "process describes the DEFAULT configuration, not the one asked for.",
+            ort.__version__,
+        )
+        return False
+
+    if _GLOBAL_POOL is None:
+        setter(threads, 1)
+        _GLOBAL_POOL = (threads, 1)
+        logger.info("created the global onnxruntime thread pool: %d intra, 1 inter", threads)
+    elif _GLOBAL_POOL != (threads, 1):
+        # Both sessions share one pool, so the first sizing is the only sizing.
+        # Saying so is the difference between a measurement and a guess about a
+        # measurement - Settings refuses the combination that would cause this,
+        # so reaching here means something else set it.
+        logger.warning(
+            "the global thread pool already exists at %s; this session asked for "
+            "%d intra and gets the existing pool. A shared pool has ONE size.",
+            _GLOBAL_POOL, threads,
+        )
+    return True
 
 
 def _from_directory(directory: Path, role: str, version: int) -> tuple[Path, dict[str, Any]]:
@@ -133,11 +207,19 @@ def _from_directory(directory: Path, role: str, version: int) -> tuple[Path, dic
         raise ArtefactMissingError(f"no sidecar at {sidecar_path}")
     sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
 
-    onnx_path = Path(str(sidecar["onnx_path"]))
+    recorded = str(sidecar["onnx_path"])
+    onnx_path = Path(recorded)
     if not onnx_path.exists():
         # Sidecars record the path they were written at, which is a Kaggle
         # working directory. Beside the sidecar is where it actually is.
-        onnx_path = directory / onnx_path.name
+        #
+        # Backslashes are normalised first: a sidecar written on Windows records
+        # `artifacts\p8\...\validator-probe.onnx`, which on Linux is a single
+        # filename containing backslashes rather than a path - so `.name` returns
+        # the whole string and the fallback looks for a file whose name is a
+        # path. The container then exits at startup with ArtefactMissingError,
+        # which reads exactly like a missing artefact and is not one.
+        onnx_path = directory / PurePosixPath(recorded.replace("\\", "/")).name
     if not onnx_path.exists():
         raise ArtefactMissingError(f"sidecar at {sidecar_path} but no graph at {onnx_path}")
     return onnx_path, sidecar
@@ -170,7 +252,32 @@ def _from_hub(settings: Settings, role: str, version: int) -> tuple[Path, dict[s
     return Path(onnx_local), sidecar
 
 
-def load_artefact(role: str, settings: Settings) -> Artefact:
+def artefact_exists(role: str, settings: Settings) -> bool:
+    """Is there a sidecar for this role? Answered WITHOUT opening a session.
+
+    The service needs this before it opens anything, because whether two
+    graphs will be loaded decides whether they should share a thread pool -
+    and onnxruntime's global pools cannot be created after the first session
+    that opts out of per-session threads. On the Hub path this warms the same
+    cache ``load_artefact`` then reads, so it costs one request and no more.
+    """
+    version = settings.validator_version if role == "validator" else settings.identifier_version
+    try:
+        if settings.artefact_dir:
+            _from_directory(settings.artefact_dir, role, version)
+        else:
+            _from_hub(settings, role, version)
+    except ArtefactMissingError:
+        return False
+    except Exception as error:  # noqa: BLE001 - unreachable Hub is not 'absent'
+        logger.warning("could not tell whether a %s exists (%s); assuming it does not", role, error)
+        return False
+    return True
+
+
+def load_artefact(
+    role: str, settings: Settings, *, shared_pool: bool | None = None
+) -> Artefact:
     """Fetch, verify and open one artefact.
 
     Raises :class:`ArtefactMissingError` when there is nothing to load and
@@ -206,15 +313,32 @@ def load_artefact(role: str, settings: Settings) -> Artefact:
         logger.warning("SERVING AN UNGATED ARTEFACT: %s", message)
         source += " [UNGATED]"
 
+    # The identifier may be given fewer threads than the validator: it is the
+    # smaller graph and it is the one that runs n times per frame, so it is where
+    # a per-session count is worth testing at all (docs/12 P8b).
+    threads = settings.intra_op_threads
+    if role == "identifier" and settings.identifier_threads is not None:
+        threads = settings.identifier_threads
+
     artefact = Artefact(
         role=role,
-        session=open_session(onnx_path, settings.intra_op_threads),
+        session=open_session(
+            onnx_path,
+            threads,
+            spinning=settings.ort_spinning,
+            # Decided by the caller, which is the only place that knows how many
+            # graphs there will be. See settings.DEFAULT_ORT_SHARED_POOL.
+            shared_pool=bool(settings.ort_shared_pool if shared_pool is None else shared_pool),
+        ),
         sidecar=sidecar,
         source=source,
     )
     logger.info(
-        "loaded %s v%s from %s: imgsz %d, %d classes, dynamic_batch=%s",
+        "loaded %s v%s from %s: imgsz %d, %d classes, dynamic_batch=%s, "
+        "threads=%d, spinning=%s, shared_pool=%s",
         role, sidecar.get("version"), source, artefact.imgsz,
         len(artefact.classes), artefact.dynamic_batch,
+        threads, settings.ort_spinning,
+        bool(settings.ort_shared_pool if shared_pool is None else shared_pool),
     )
     return artefact
