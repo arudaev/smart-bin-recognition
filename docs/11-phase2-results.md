@@ -140,7 +140,7 @@ carries both, in three categories — met, missed, and **unmeasurable**:
 | target | role | status |
 |---|---|---|
 | `min_recall_heldout_city` ≥ 0.97 | validator | **unmeasurable** – no subset carries a second `region_id` |
-| `min_precision_on_negatives` ≥ 0.97 | validator | _not measured_ – the run has not completed |
+| `min_precision_on_negatives` ≥ 0.97 | validator | **MET, 0.9793** – measured 2026-08-18 on 2 662 background frames |
 | `min_formfactor_acc_heldout_city` ≥ 0.85 | identifier | **unmeasurable** – same reason |
 
 *Unmeasurable* is not *missed*. It means the evidence does not exist,
@@ -290,9 +290,85 @@ One thing in the output deserves its own look: `composition.json` reports
 rather than a reporting bug, the validator would train with no negatives at all
 — and `min_precision_on_negatives ≥ 0.97` is one of its targets.
 
+## The validator, trained 2026-08-18: it exists, and it may not ship
+
+The first training run to complete. `hlexnc/sbr-train-validator`, yolo11n @ 448,
+80 epochs, batch 32, seed 42, on a **requested Tesla T4**, against
+`arudaev/smart-bin-detect@8666aa23ff1a` — whose composition the kernel asserted
+against `sbr.dataset.expected` before spending a GPU minute, and which matched.
+Artefacts at `arudaev/smart-bin-detect` `v1/`.
+
+| metric | split | value |
+|---|---|---|
+| mAP@0.5 | test (group-aware) | **0.7524** |
+| mAP@0.5:0.95 | test | 0.5175 |
+| precision | test | 0.7960 |
+| recall | test | 0.6879 |
+| mAP@0.5 | held-out region | **unmeasurable** — no subset carries a second `region_id` |
+
+**`may_ship: false`, and the reason is new.**
+
+```
+SHIP GATE FAILED: int8 quantisation cost 0.727 map50 (max 0.02)
+```
+
+**int8 quantisation destroys this model: 0.7524 fp32 against 0.025 int8.** Not a
+degradation — a collapse to noise. The service is int8 by construction (docs/05's
+whole latency budget assumes it), so there is no shippable artefact and the
+refusal in `artefacts.py` is correct to hold.
+
+This is the gate that **had no owner until 2026-08-16**, when both kernels were
+deferring int8 accuracy to `gate.py`, which measures only latency. It was added
+so that `may_ship` was reachable at all. **It fired on the first real run and
+caught a model that would otherwise have shipped as a working detector and
+answered noise.** That is the single best argument for the gate apparatus this
+project has produced.
+
+Not yet diagnosed, and it should not be guessed at: static QDQ per-channel
+quantisation of a YOLO detection head is a known-fragile spot — the box
+regression outputs are wide-range and the head is where precision is cheapest to
+lose — but which ops are responsible is a measurement, not a hunch. It needs its
+own probe: quantise backbone-only, compare per-tensor against per-channel, and
+score each on the same split.
+
+### Recall by bins per frame
+
+docs/04 § 5 commits to this so a model that only works on one big centred bin
+cannot hide behind an aggregate. **fp32, test split.** It does not hide:
+
+| bins in frame | frames | truth boxes | detected | recall |
+|---:|---:|---:|---:|---:|
+| 1 | 153 | 153 | 139 | **0.9085** |
+| 2 | 23 | 46 | 28 | 0.6087 |
+| 3 | 15 | 45 | 35 | 0.7778 |
+| **4+** | 13 | 70 | 42 | **0.6000** |
+
+One bin is good and crowded frames lose a third of their containers. The `4+`
+row exists at all only because the Open Images subset landed — the legacy
+archive has no such frame — and 13 frames is a thin basis for it. **The bank of
+six the PRD calls a normal input is the weakest case this model has.**
+
+### Precision on the negative corpus
+
+The predecessor hallucinated a glass container on a slide of black text on white.
+Measured for the first time, on the 2 662 background frames in the test split:
+
+| | |
+|---|---|
+| negative frames | 2 662 |
+| frames with a false positive | 55 |
+| frame-level specificity | **0.9793** |
+
+**`min_precision_on_negatives` ≥ 0.97 is MET** — the first target in this
+document ever to be measured rather than deferred, and the payoff for the 17 474
+background frames. `min_recall_heldout_city` stays **unmeasurable**: no subset
+carries a second `region_id`, which is what P7 exists to change.
+
 ## What the models were trained on
 
-_The validator run has not completed._
+The validator: `arudaev/smart-bin-detect@8666aa23ff1a`, 18 954 frames =
+17 474 background + 1 480 positive, split 13 265 train / 2 823 val / 2 866
+test. The identifier: nothing yet.
 
 The split is **group-aware by capture cluster** – frames of one bin in one
 visit share a split – and never random. docs/08 § 7.3's 0.9873 came from a
@@ -300,28 +376,10 @@ random 20 % of one capture session and is not comparable to anything below.
 
 ## Validator
 
-| metric | split | value |
-|---|---|---|
-| mAP@0.5 | test (group-aware) | _not measured_ |
-| mAP@0.5:0.95 | test | _not measured_ |
-| precision | test | _not measured_ |
-| recall | test | _not measured_ |
-| mAP@0.5 | **held-out region** | _not measured_ |
-| recall | **held-out region** | _not measured_ |
-
-### Recall by bins per frame
-
-docs/04 § 5 commits to this so a model that only works on one big centred
-bin cannot hide behind an aggregate.
-
-Not measured – the validator run has not completed.
-
-Note that the legacy subset alone cannot fill the `4+` row: it has **no frame with four or more bins**.
-
-
-### Precision on the negative corpus
-
-Not measured – the validator run has not completed.
+**Measured 2026-08-18 — see [the validator section above](#the-validator-trained-2026-08-18-it-exists-and-it-may-not-ship)**,
+which carries the numbers, the recall-by-bins table, the negative-corpus
+specificity, and the reason the artefact still may not ship: int8
+quantisation costs 0.727 mAP@0.5 against a 0.02 budget.
 
 
 ## Identifier

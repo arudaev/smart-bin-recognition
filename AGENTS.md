@@ -55,19 +55,23 @@ sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
 
 **Everything now waits on a model.** The service refuses to start without an
 artefact whose sidecar says `may_ship`, and neither role has one: the identifier
-needs the 403-crop human pass, and the validator's run is **in flight** as of
-2026-08-18 — dispatched onto a requested T4 with the platform blocker cleared.
-In flight is not finished: there are no weights, no metrics and no sidecar yet,
-and `gate.py` still decides shipping separately once there are. Google Cloud is provisioned, budgeted and documented, and
-nothing is deployed, because deploying an untrained graph would make the product
-confidently wrong.
+needs the 403-crop human pass, and the validator **trained on 2026-08-18 and
+cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
+2 662 background frames — and **int8 quantisation costs it 0.727 mAP against a
+0.02 budget**, collapsing it to 0.025. The service serves int8 by construction,
+so `may_ship: false` stands and the refusal is correct. Fixing the quantisation
+is the next blocker and it is not yet diagnosed ([docs/12 P9](docs/12-validation-protocol.md)).
+
+Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
+because deploying a graph that scores 0.025 would make the product confidently
+wrong.
 
 **Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
-`c39b0f87` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
+`8666aa23` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
 the first 98 frames with four or more bins, and 17 474 background frames. What
-is left is the human adjudication pass (identifier only) and a training run
-that completes. No model has been trained yet. The ship gate is **half
-answered**: both latency budgets pass, and the concurrency half is
+is left is the human adjudication pass (identifier only) and an int8 export
+that survives quantisation. **The validator is trained**; it is the quantised
+graph that is not shippable. The ship gate is **half answered**: both latency budgets pass, and the concurrency half is
 **unresolved** - never observed above 8 against a gate of 10, on a host that
 cannot hold a figure still ([docs/11](docs/11-phase2-results.md)).
 

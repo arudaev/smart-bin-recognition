@@ -76,7 +76,15 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       recorded as a gap rather than as a failure.
 - [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
       403 crops are not labelled against a class list that turns out wrong
-- [ ] **First training run on a Kaggle kernel — attempted 2026-08-16, failed.**
+- [x] **First training run on a Kaggle kernel — COMPLETED 2026-08-18**, after
+      two failures and a six-rung diagnosis. yolo11n @ 448, 80 epochs, on a
+      requested T4: **test mAP@0.5 = 0.7524**, specificity on 2 662 background
+      frames **0.9793** (the `min_precision_on_negatives` target, MET). **It
+      may not ship**: int8 quantisation costs **0.727 mAP@0.5** against a 0.02
+      budget, so `may_ship: false` and the service's refusal holds. The gate
+      that had no owner until 2026-08-16 fired on the first real run and
+      caught a model that would have served noise. Full numbers in
+      [docs/11](11-phase2-results.md). *The original failure, for the record:*
       The kernel pulled the pinned pool, built the dataset (18 954 images, split
       13 265/2 823/2 866) and started Ultralytics, then ended with status
       `ERROR`, **no weights, an empty log and an empty failure message**.

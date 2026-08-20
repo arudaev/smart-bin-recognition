@@ -1,6 +1,6 @@
 # 12 – Validation protocol
 
-> How a claim gets tested before it gets hard-coded. Eight probes, each with its
+> How a claim gets tested before it gets hard-coded. Nine probes, each with its
 > question, its cost, and a **decision rule written before the result**.
 
 The design docs contain claims of three kinds: things measured (docs/08 § 7),
@@ -447,12 +447,59 @@ because the measurement it would fail on is not admissible. What it waits on is
 
 ---
 
+## P9 – Why int8 destroys the validator
+
+**Question.** The first completed validator scores **mAP@0.5 = 0.7524 in fp32
+and 0.025 in int8**. Which part of the quantisation does that, and is there a
+configuration that keeps the model inside the 0.02 budget?
+
+**Why it is a probe and not a fix.** There are three plausible culprits and they
+imply different remedies: the detection head's box-regression outputs are
+wide-range and quantise badly; per-channel weight quantisation may be wrong for
+this graph; and the calibration set may be unrepresentative — it is
+`dataset/images/val`, which is **92 % background**, so the activation ranges are
+calibrated mostly on frames with no bin in them. Guessing costs a re-export and
+teaches nothing.
+
+**Method.** One CPU kernel, no training. `v1/best.pt` already exists, so each
+variant is an export and a score on the **same test split** the 0.7524 came
+from:
+
+1. baseline, as shipped — QDQ, per-channel, calibrated on `val`
+2. per-tensor instead of per-channel
+3. **backbone only**, with the detection head left in fp32
+4. calibrated on a **bin-balanced** subset rather than 92 % background
+5. fp16 instead of int8, as the fallback that changes the latency budget
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| any int8 variant is within **0.02** of fp32 | adopt it; pin the export settings in `validator.yaml` with the run that produced it |
+| best int8 is 0.02–0.10 below fp32 | the gate is missed but the model is real. **Do not loosen the gate** - report it, and decide the trade explicitly against the latency the alternative costs |
+| only fp16 is acceptable | **the latency budget is reopened**, because docs/05's arithmetic assumes int8. Re-measure the frame on the 2-vCPU bench before anything ships |
+| nothing recovers it | the architecture or the head is unsuitable for quantised serving, and P5 reopens with a new question |
+
+**What must not happen.** `export.gates.max_accuracy_drop` is 0.02 and it stays
+0.02. It was added on 2026-08-16 because int8 accuracy had no owner and
+`may_ship` was unreachable; it fired on the first real run and caught a model
+that would have served noise. **A gate that is widened the first time it fires
+was never a gate.**
+
+**Cost.** One CPU kernel, minutes. No GPU, no retraining.
+
+**Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export
+settings · the third of docs/07 phase 2's remaining blockers.
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
 |---|---|---|
 | 1 | **P4, P5** | nothing — no model needed, run immediately |
 | 1 | **P8** | docs/07's kill criterion. No model needed either, and it is the only thing standing between "the gate failed" and a decision |
+| 1 | **P9** | whether validator v1 can ship at all. One CPU kernel against weights that already exist |
 | 2 | **P1** | the 403-crop adjudication pass, and therefore model B |
 | 3 | **P3** | whether `autolabel/` needs SAM |
 | 4 | **P6** | whether docs/05 § 5 keeps a paid path |
