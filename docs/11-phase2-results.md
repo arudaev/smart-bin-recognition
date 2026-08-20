@@ -324,12 +324,40 @@ caught a model that would otherwise have shipped as a working detector and
 answered noise.** That is the single best argument for the gate apparatus this
 project has produced.
 
-Not yet diagnosed, and it should not be guessed at: static QDQ per-channel
-quantisation of a YOLO detection head is a known-fragile spot — the box
-regression outputs are wide-range and the head is where precision is cheapest to
-lose — but which ops are responsible is a measurement, not a hunch. It needs its
-own probe: quantise backbone-only, compare per-tensor against per-channel, and
-score each on the same split.
+### Diagnosed 2026-08-21: it is the detection head, and only the head
+
+[P9](research/probes/P9-int8-quantisation.md) measured eleven export
+configurations off the same `best.pt`, calibrating from `train` and scoring on
+`val`. Kaggle CPU kernel, **`representative: false`**.
+
+| variant | val mAP@0.5 | drop vs PyTorch fp32 (0.7734) |
+|---|---|---|
+| fp32 ONNX control | 0.7748 | −0.0014 — **there is no export loss** |
+| **detection head left in fp32** | **0.7481** | **+0.0252** |
+| head fp32 + letterboxed calibration | 0.7350 | +0.0384 |
+| letterboxed calibration alone | 0.0847 | +0.6887 |
+| S8S8 · `reduce_range` · U8U8 · per-tensor · positive-enriched | 0.024–0.025 | ≈ +0.749 |
+| as shipped | 0.015 | +0.7584 |
+
+Excluding `/model.23/` is a **50-fold** recovery and costs 5.7 ms and 1.2 MB,
+both well inside budget. **Every remedy onnxruntime's guidance names — S8S8,
+`reduce_range`, U8U8 — does nothing**, and S8S8 is 2.5× slower besides; this is
+not the x86 saturation case it looked like. The calibration hypotheses were both
+wrong too: enriching positives changes nothing, and letterboxing helps a
+collapsed graph while *hurting* a working one.
+
+**It still may not ship.** 0.0252 against a 0.02 budget is the middle row of P9's
+pre-registered rule: the gate is missed, the model is real, and **the gate does
+not move**. Whether to take a 0.025 trade is a product decision, and it would
+need a `test` measurement first — there is none, deliberately, because nothing
+was eligible and the split was left unspent.
+
+Two figures here need their caveats carried with them. The historical baseline
+reproduces the **collapse** but not the **figure** — 0.0150 against the published
+0.025, on a graph that is not byte-identical to the Hub's — which is a toolchain
+confound, recorded rather than smoothed. And anything below ~0.1 in that table is
+**one number, not several**: across two runs the collapsed rows swap places
+freely, while every row that means something replicates to within 0.001.
 
 ### Recall by bins per frame
 
@@ -379,7 +407,9 @@ random 20 % of one capture session and is not comparable to anything below.
 **Measured 2026-08-18 — see [the validator section above](#the-validator-trained-2026-08-18-it-exists-and-it-may-not-ship)**,
 which carries the numbers, the recall-by-bins table, the negative-corpus
 specificity, and the reason the artefact still may not ship: int8
-quantisation costs 0.727 mAP@0.5 against a 0.02 budget.
+quantisation costs 0.727 mAP@0.5 against a 0.02 budget — diagnosed
+2026-08-21 as the detection head, and still 0.0252 short with the head
+excluded ([P9](research/probes/P9-int8-quantisation.md)).
 
 
 ## Identifier

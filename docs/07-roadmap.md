@@ -84,7 +84,21 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       budget, so `may_ship: false` and the service's refusal holds. The gate
       that had no owner until 2026-08-16 fired on the first real run and
       caught a model that would have served noise. Full numbers in
-      [docs/11](11-phase2-results.md). *The original failure, for the record:*
+      [docs/11](11-phase2-results.md).
+- [x] **Probe P9 — why int8 destroys it. ANSWERED 2026-08-21.** It is the
+      **detection head, and only the head**: excluding `/model.23/` from
+      quantisation moves the model from 0.015 to **0.7481** on `val`, a 50-fold
+      recovery, for 5.7 ms and 1.2 MB. Every format remedy onnxruntime documents
+      — S8S8, `reduce_range`, U8U8, per-tensor — stays at collapse, and S8S8 is
+      additionally 2.5× slower. The pre-registered combined run made things
+      worse. **The best configuration is 0.0252 below the PyTorch fp32 reference
+      against a 0.02 budget: the gate is missed by 0.0052, and the gate does not
+      move.** So the blocker is **diagnosed and not cleared** — v1 still cannot
+      ship, and whether to take a 0.025 trade is a product decision that is not
+      the probe's to make. There is deliberately **no `test` measurement** of that
+      configuration: nothing was eligible, so nothing was confirmed, and the test
+      split is unspent. [P9](research/probes/P9-int8-quantisation.md).
+      *The original failure, for the record:*
       The kernel pulled the pinned pool, built the dataset (18 954 images, split
       13 265/2 823/2 866) and started Ultralytics, then ended with status
       `ERROR`, **no weights, an empty log and an empty failure message**.

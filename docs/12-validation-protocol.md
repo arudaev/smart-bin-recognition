@@ -449,6 +449,17 @@ because the measurement it would fail on is not admissible. What it waits on is
 
 ## P9 – Why int8 destroys the validator
 
+> **ANSWERED 2026-08-21.** It is the detection head, and only the head:
+> excluding `/model.23/` from quantisation moves the model from 0.015 to
+> **0.7481** on `val`. Nothing else helps — every format remedy onnxruntime
+> documents (S8S8, `reduce_range`, U8U8, per-tensor) stays at collapse, and the
+> pre-registered combined run made things *worse*. The best configuration is
+> **0.0252 below** the PyTorch fp32 reference against a 0.02 budget, so the
+> middle row of the rule below fires: **the gate is missed, the model is real,
+> and the gate does not move.** Full result, including two things this probe got
+> wrong before it got them right:
+> [probes/P9-int8-quantisation.md](research/probes/P9-int8-quantisation.md).
+
 **Question.** The first completed validator scores **mAP@0.5 = 0.7524389678079388 in
 fp32 and 0.025 in int8**. Which part of the quantisation does that, and is there a
 configuration that keeps the model inside the 0.02 budget?

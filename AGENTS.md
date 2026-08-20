@@ -59,8 +59,20 @@ needs the 403-crop human pass, and the validator **trained on 2026-08-18 and
 cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
 2 662 background frames — and **int8 quantisation costs it 0.727 mAP against a
 0.02 budget**, collapsing it to 0.025. The service serves int8 by construction,
-so `may_ship: false` stands and the refusal is correct. Fixing the quantisation
-is the next blocker and it is not yet diagnosed ([docs/12 P9](docs/12-validation-protocol.md)).
+so `may_ship: false` stands and the refusal is correct.
+
+**That is now diagnosed and still not cleared** ([P9](docs/research/probes/P9-int8-quantisation.md),
+2026-08-21). It is the **detection head, and only the head**: leaving `/model.23/`
+in fp32 takes the model from 0.015 to **0.7481** on `val` — a 50-fold recovery —
+for 5.7 ms and 1.2 MB, both inside budget. Every remedy onnxruntime's guidance
+names (S8S8, `reduce_range`, U8U8, per-tensor) stays at collapse, so this is not
+the x86 saturation case it resembled, and the pre-registered combined run made
+things worse. **The best configuration is 0.0252 below the PyTorch fp32 reference
+against a 0.02 budget — missed by 0.0052, and the gate does not move.** Whether to
+take a 0.025 trade is a product decision; it would need a `test` measurement,
+and there deliberately is none, because nothing was eligible and the split was
+left unspent. Post-training int8 over the whole graph is not viable for this
+architecture: any future YOLO11 export here starts from `exclude_head=True`.
 
 Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
 because deploying a graph that scores 0.025 would make the product confidently
