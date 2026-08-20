@@ -449,47 +449,132 @@ because the measurement it would fail on is not admissible. What it waits on is
 
 ## P9 – Why int8 destroys the validator
 
-**Question.** The first completed validator scores **mAP@0.5 = 0.7524 in fp32
-and 0.025 in int8**. Which part of the quantisation does that, and is there a
+**Question.** The first completed validator scores **mAP@0.5 = 0.7524389678079388 in
+fp32 and 0.025 in int8**. Which part of the quantisation does that, and is there a
 configuration that keeps the model inside the 0.02 budget?
 
-**Why it is a probe and not a fix.** There are three plausible culprits and they
-imply different remedies: the detection head's box-regression outputs are
-wide-range and quantise badly; per-channel weight quantisation may be wrong for
-this graph; and the calibration set may be unrepresentative — it is
-`dataset/images/val`, which is **92 % background**, so the activation ranges are
-calibrated mostly on frames with no bin in them. Guessing costs a re-export and
-teaches nothing.
+**Why it is a probe and not a fix.** There are several plausible culprits and they imply
+different remedies. onnxruntime's own guidance names the first two: **QDQ with S8S8 is
+normally the right choice on CPU**, and a large accuracy loss under **U8S8 – which is
+what this exporter uses – is a known symptom of x86 activation saturation**, whose
+remedies are `reduce_range=True` or U8U8. Beyond the numeric format: per-channel weight
+quantisation may be wrong for this graph; the detection head's box-regression outputs are
+wide-range and quantise badly; and the calibration set is not what it should be, in a way
+described below. Guessing costs a re-export and teaches nothing.
 
-**Method.** One CPU kernel, no training. `v1/best.pt` already exists, so each
-variant is an export and a score on the **same test split** the 0.7524 came
-from:
+**The calibration set is not what the first draft of this probe claimed.** It was written
+here as "`dataset/images/val`, which is 92 % background". That is the *split*; it is not
+the *sample*. `quantise` takes the **first 200 lexicographically sorted files**, which is
+a systematic sample and not a random one. Reconstructed against the pinned tree at
+`8666aa23ff1a`, the 200 images actually used were:
 
-1. baseline, as shipped — QDQ, per-channel, calibrated on `val`
-2. per-tensor instead of per-channel
-3. **backbone only**, with the detection head left in fp32
-4. calibrated on a **bin-balanced** subset rather than 92 % background
-5. fp16 instead of int8, as the fallback that changes the latency budget
+| | |
+|---|---|
+| val split as a whole | 2 582 / 2 823 background = **91.46 %** |
+| the 200 actually used | 149 background + 51 positive = **74.5 % background** |
+| their provenance | 51 legacy, 149 negatives, **zero Open Images frames** |
+
+So the real defect is not the background ratio. It is that the calibration set is drawn
+by filename order, sees **no Open Images frame at all**, and therefore calibrates
+activation ranges on a subset that does not resemble the data the model is scored on.
+`first_lexicographic` is kept as a reproducible strategy precisely so this can be
+measured rather than asserted.
+
+**A second mismatch, in the same function.** The calibration reader **stretches** to
+`(imgsz, imgsz)`, while `model.val()` and the inference service both **letterbox** –
+aspect preserved, padded with 114-grey. The ranges were calibrated on a geometry that
+never occurs at inference, and never on the grey bars that cover a third of a real frame.
+
+### Data partitioning – the part that makes the answer usable
+
+**Calibration draws from `train` only. Every variant is scored on `val`. `test` is
+touched exactly once**, at the end, on the locked winner and the fp32 ONNX control.
+
+This is not pedantry. Selecting a winner on `test` and then reporting that winner's
+`test` score as ship-gate evidence turns the test split into a tuning set, and the gate
+into a number that was tuned against. The one exception is the historical reproduction
+below, which must use the historical calibration list – `val`'s first 200 – because
+reproducing what happened is the whole point of it, and it is never a candidate.
+
+### The three drops, reported separately
+
+The fp32 ONNX control is necessary – the 0.7524 came from PyTorch on a GPU and the 0.025
+from onnxruntime on a CPU, so precision is not the only thing that changed between them.
+But it **must not become the denominator**, or a lossy fp32 export would lower the
+reference and let a bad int8 graph appear to pass:
+
+```
+export drop        = PyTorch fp32  −  ONNX fp32
+quantisation drop  = ONNX fp32     −  ONNX int8
+total served drop  = PyTorch fp32  −  ONNX int8      ← the only one the gate reads
+```
+
+Shipping requires `0.7524389678079388 − final_int8_test_map50 ≤ 0.02`. `check_gates`
+already computes exactly this, provided `map50_fp32` in the sidecar holds the **frozen
+PyTorch value**; a re-export that recomputed a friendlier reference would silently
+redefine the gate, so it is pinned by a test.
+
+### Method
+
+**Gate 0 – reproduce before remedying.** Download `v1/validator-v1.onnx` and hash it.
+Pin `ultralytics==8.4.121` (the version recorded inside `best.pt`) and record the
+resolved `onnx` and `onnxruntime` versions. Re-export and re-quantise with the historical
+settings and the historical calibration list, and compare SHA256. Dependencies in this
+repo are lower-bounded rather than pinned and the Hub holds no fp32 ONNX, so a byte
+mismatch is a **toolchain confound to record**, not a failure – but the *metric* must
+reproduce. **If it does not land near 0.025, stop.** Every remedy below is meaningless
+against a baseline that does not reproduce.
+
+Then two axes, one variable at a time, from a single reference **R** – the shipped
+settings calibrated on a seeded stratified 200 from `train`. All scored on `val`:
+
+| Axis | Variants |
+|---|---|
+| numeric format | **S8S8** · **U8S8 + `reduce_range`** · **U8U8** · per-tensor · head (`/model.23/`) left in fp32 |
+| calibration | historical first-200-of-`val` · **R**, stratified from `train` · positive-enriched 100/100 · letterboxed rather than stretched |
+| informational only | fp32 ONNX control · fp16 |
+
+If the best of each axis is a different knob, one combined confirmation run, also on
+`val`. Every row carries a p50/p95 from the same instrument `bench_latency` uses, and
+**every row records the ordered calibration list and its SHA256** – the exact 200 files
+that produced a number are part of the number.
+
+**A failed load is a valid result.** Each row requires either a metric or an **error**,
+never a number invented to fill a column.
+
+### The winner is chosen by a rule, not by inspection
+
+Eligible = `val` mAP within 0.02 of the PyTorch fp32 **`val`** mAP, measured in the same
+kernel. Among eligible variants: highest `val` mAP; if two are within **0.005**, the
+lower p50; if those are within **1 ms**, the *simpler, fully-int8* configuration – fewest
+departures from the default, and no head left in fp32. Stated here so that "adopt the one
+that passes" cannot become "adopt the one I like the look of".
+
+**fp16 is informational and may not decide shipping.** onnxruntime's CPU runtime does not
+broadly support fp16 operations – it is a GPU optimisation – so an fp16 row measures a
+configuration this service cannot serve. It is reported because it bounds what the
+weights are capable of, not because it is an option.
 
 **Decision rule, stated in advance.**
 
 | Outcome | Action |
 |---|---|
-| any int8 variant is within **0.02** of fp32 | adopt it; pin the export settings in `validator.yaml` with the run that produced it |
-| best int8 is 0.02–0.10 below fp32 | the gate is missed but the model is real. **Do not loosen the gate** - report it, and decide the trade explicitly against the latency the alternative costs |
-| only fp16 is acceptable | **the latency budget is reopened**, because docs/05's arithmetic assumes int8. Re-measure the frame on the 2-vCPU bench before anything ships |
-| nothing recovers it | the architecture or the head is unsuitable for quantised serving, and P5 reopens with a new question |
+| a variant's **total served drop** on `test` is within **0.02** | adopt it; pin the export settings in `validator.yaml` with the run that produced it |
+| the best is 0.02–0.10 | the gate is missed but the model is real. **Do not loosen the gate** - report it, and decide the trade explicitly against the latency the alternative costs |
+| nothing recovers it | validator v1's weights cannot yield a shippable **post-training** int8 export. That points at quantisation-aware training or a different head, and P5 reopens with that question |
 
-**What must not happen.** `export.gates.max_accuracy_drop` is 0.02 and it stays
-0.02. It was added on 2026-08-16 because int8 accuracy had no owner and
-`may_ship` was unreachable; it fired on the first real run and caught a model
-that would have served noise. **A gate that is widened the first time it fires
-was never a gate.**
+**What must not happen.** `export.gates.max_accuracy_drop` is 0.02 and it stays 0.02. It
+was added on 2026-08-16 because int8 accuracy had no owner and `may_ship` was
+unreachable; it fired on the first real run and caught a model that would have served
+noise. **A gate that is widened the first time it fires was never a gate.**
 
-**Cost.** One CPU kernel, minutes. No GPU, no retraining.
+**Cost.** One CPU kernel. An earlier version of this section said "minutes"; that was
+wrong – the run pulls the 2.2 GB pool, rebuilds the tree, and scores roughly fourteen
+passes over `val` plus two over `test`. Estimate **3–5 hours**, inside Kaggle's 12 h CPU
+limit and still free. No GPU, no retraining.
 
-**Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export
-settings · the third of docs/07 phase 2's remaining blockers.
+**Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export settings · the
+third of docs/07 phase 2's remaining blockers.
 
 ---
 
