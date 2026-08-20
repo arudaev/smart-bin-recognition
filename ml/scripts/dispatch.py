@@ -40,6 +40,7 @@ KERNELS = {
     "negatives": "build_negatives",      # the corpus A is mostly trained on
     "bench": "bench_latency",            # the ship gate's measuring instrument
     "probe": "probe_latency",            # docs/12 P4 and P5 – no model needed
+    "quant": "probe_quantisation",       # docs/12 P9 - why int8 destroys the validator
     # The smoke ladder. On 2026-08-16 the validator and the bench both ended
     # with status ERROR, an empty log and an empty failure message, while the
     # probe completed – so there is no diagnostic to read and the only way to
@@ -61,6 +62,7 @@ CONFIGS = {
     "negatives": "open_images",
     "bench": "validator",
     "probe": "validator",
+    "quant": "validator",
     "smoke-bare": "validator",
     "smoke-plain": "validator",
     "smoke-secrets": "validator",
