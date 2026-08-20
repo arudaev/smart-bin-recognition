@@ -208,8 +208,15 @@ def kernel_log(kernel: str, tail: int) -> None:
     except (json.JSONDecodeError, TypeError, AttributeError):
         lines = str(log).splitlines()
 
+    # A Kaggle log carries whatever the kernel printed - ultralytics progress
+    # bars, box-drawing characters, the lot - and a Windows console defaults to
+    # cp1252, which cannot encode most of it. Losing the whole log to a
+    # UnicodeEncodeError while reading it is a poor joke, so unrepresentable
+    # characters are replaced rather than raised on.
+    encoding = sys.stdout.encoding or "utf-8"
     for line in lines[-tail:] if tail else lines:
-        print(line.rstrip())
+        text = line.rstrip()
+        print(text.encode(encoding, errors="replace").decode(encoding))
 
 
 def _kaggle_api(path: str) -> dict:

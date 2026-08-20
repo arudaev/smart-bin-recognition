@@ -1,0 +1,901 @@
+{
+  "probe": "P9",
+  "role": "validator",
+  "source_version": 1,
+  "hardware": {
+    "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+    "where": "Kaggle CPU kernel",
+    "cpu": "AMD EPYC 7B12",
+    "cores": 4,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.29.0",
+    "representative": false
+  },
+  "toolchain": {
+    "ultralytics": "8.4.121",
+    "onnx": "1.22.0",
+    "onnxruntime": "1.29.0",
+    "torch": "2.10.0+cpu",
+    "numpy": "2.0.2"
+  },
+  "dataset": {
+    "repo_id": "arudaev/smart-bin-detect",
+    "revision": "main",
+    "composition": {
+      "per_split": {
+        "test": 2866,
+        "train": 13265,
+        "val": 2823
+      },
+      "per_pool": {
+        "legacy": 370,
+        "negatives": 17474,
+        "open_images": 1110
+      },
+      "background_per_split": {
+        "test": 2662,
+        "train": 12230,
+        "val": 2582
+      },
+      "positives": 1480,
+      "background_images": 17474,
+      "negative_ratio": 11.8,
+      "classes": [
+        "bin"
+      ]
+    }
+  },
+  "reference": {
+    "pytorch_fp32_test_map50": 0.7524389678079388,
+    "fp32_onnx_val_map50": 0.7747597310659724,
+    "fp32_onnx_val_error": null,
+    "shipped_int8_sha256": "a8c0b541683dc72f7f0f2bcae9f085e8ca6c600e31cc127383110350cc649a90",
+    "max_accuracy_drop": 0.02
+  },
+  "partitioning": {
+    "calibration": "train (except 00-historical-baseline, which reproduces v1's val list)",
+    "selection": "val",
+    "confirmation": "test, once, on the locked winner and the fp32 control"
+  },
+  "winner": null,
+  "rows": [
+    {
+      "variant": "00-historical-baseline",
+      "note": "v1 settings and v1's own calibration list, scored on test to reproduce 0.025",
+      "split": "test",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "first_lexicographic",
+        "split": "val",
+        "seed": 42,
+        "count": 200,
+        "positives": 51,
+        "background": 149,
+        "background_fraction": 0.745,
+        "sources": {
+          "legacy": 51,
+          "negatives": 149
+        },
+        "sha256": "2bc605baad203fb55efd178b4023f982b9f7efe2f64af34cc85c4f7dce7f6686",
+        "first": [
+          "legacy__00abb652_img_5316.jpg",
+          "legacy__0403538b_img_5584.jpg",
+          "legacy__04d86128_img_20250514_111813.jpg",
+          "legacy__11c885c5_img_4618.jpg",
+          "legacy__12ff749e_img_20250603_163830.jpg"
+        ]
+      },
+      "sha256": "e764bc49f688afb6050856c455e21d38a6f48006c2a041464c6bbaf127693051",
+      "size_bytes": 3147798,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 14.9,
+      "metric": 0.015,
+      "latency": {
+        "median_latency_ms": 19.901,
+        "p95_latency_ms": 20.908,
+        "mean_latency_ms": 19.677,
+        "min_latency_ms": 18.434,
+        "max_latency_ms": 21.419,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      },
+      "reproduces_shipped_sha": false,
+      "shipped_sha256": "a8c0b541683dc72f7f0f2bcae9f085e8ca6c600e31cc127383110350cc649a90",
+      "tensor_error": {
+        "frames": 8,
+        "tensors_compared": 330,
+        "worst": [
+          {
+            "tensor": "/model.23/Div_1_output_0",
+            "qdq_error": 390.53206500228384,
+            "xmodel_error": 43.03972225610516
+          },
+          {
+            "tensor": "/model.23/dfl/Reshape_output_0",
+            "qdq_error": 388.27592525070486,
+            "xmodel_error": 21.70915977138523
+          },
+          {
+            "tensor": "/model.23/dfl/Transpose_output_0",
+            "qdq_error": 388.2759060983715,
+            "xmodel_error": 21.70916453409729
+          },
+          {
+            "tensor": "/model.23/Reshape_output_0",
+            "qdq_error": 386.2979295651028,
+            "xmodel_error": 20.372490847899982
+          },
+          {
+            "tensor": "/model.2/Split_output_0",
+            "qdq_error": 385.1398103180219,
+            "xmodel_error": 18.002336432065064
+          },
+          {
+            "tensor": "/model.9/Concat_output_0",
+            "qdq_error": 384.5166323169992,
+            "xmodel_error": 29.98608767325944
+          },
+          {
+            "tensor": "/model.23/Reshape_1_output_0",
+            "qdq_error": 382.2914025089705,
+            "xmodel_error": 25.39189601477706
+          },
+          {
+            "tensor": "/model.2/Split_output_1",
+            "qdq_error": 381.2590106572658,
+            "xmodel_error": 16.240548486509287
+          },
+          {
+            "tensor": "/model.23/Reshape_3_output_0",
+            "qdq_error": 380.92054877482184,
+            "xmodel_error": 30.180997885702787
+          },
+          {
+            "tensor": "/model.9/m_2/MaxPool_output_0",
+            "qdq_error": 379.7440663617098,
+            "xmodel_error": 30.809461465267844
+          },
+          {
+            "tensor": "/model.23/dfl/Reshape_1_output_0",
+            "qdq_error": 379.2898972804108,
+            "xmodel_error": 23.89573826962826
+          },
+          {
+            "tensor": "/model.9/m_1/MaxPool_output_0",
+            "qdq_error": 379.2527814783474,
+            "xmodel_error": 30.51602373218079
+          },
+          {
+            "tensor": "/model.23/Reshape_2_output_0",
+            "qdq_error": 378.85457089636054,
+            "xmodel_error": 31.766119022504796
+          },
+          {
+            "tensor": "/model.9/m/MaxPool_output_0",
+            "qdq_error": 378.2818259952062,
+            "xmodel_error": 29.87234236870264
+          },
+          {
+            "tensor": "/model.23/Slice_1_output_0",
+            "qdq_error": 376.4617804451046,
+            "xmodel_error": 23.481819930883336
+          }
+        ]
+      }
+    },
+    {
+      "variant": "01-fp32-onnx-control",
+      "note": "CONTROL: the fp32 ONNX graph, unquantised. Separates export loss from quantisation loss - it is NOT the gate's denominator",
+      "split": "val",
+      "settings": null,
+      "calibration": null,
+      "sha256": "0740f60779fa2d9913541a9b97c5b7e15ce6691f62602c69059fb4c2050b2e83",
+      "size_bytes": 10518371,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 0,
+        "total_nodes": 318
+      },
+      "build_seconds": 0.0,
+      "metric": 0.7747597310659724,
+      "latency": {
+        "median_latency_ms": 32.347,
+        "p95_latency_ms": 34.2,
+        "mean_latency_ms": 32.207,
+        "min_latency_ms": 25.682,
+        "max_latency_ms": 34.9,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "02-fp16-informational",
+      "note": "INFORMATIONAL ONLY: the CPU execution provider does not broadly support fp16 ops, so this cannot be a shipping option however it scores",
+      "split": "val",
+      "settings": null,
+      "calibration": null,
+      "sha256": "0b0108f9f25744d3e6340f58b3ba29d249434cded4a84269d9c7ca7883913c1d",
+      "size_bytes": 5313515,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 0,
+        "total_nodes": 324
+      },
+      "build_seconds": 0.1,
+      "error": "score: Fail: [ONNXRuntimeError] : 1 : FAIL : Load model from /kaggle/working/artifacts/02-fp16-informational.onnx failed:Type Error: Type (tensor(float)) of output arg (/model.11/Resize_output_0) of node (/model.11/Resize_output_cast0) does not match expected type (tensor(float16)).",
+      "latency_error": "Fail: [ONNXRuntimeError] : 1 : FAIL : Load model from /kaggle/working/artifacts/02-fp16-informational.onnx failed:Type Error: Type (tensor(float)) of output arg (/model.11/Resize_output_0) of node (/model.11/Resize_output_cast0) does not match expected type (tensor(float16))."
+    },
+    {
+      "variant": "10-reference-u8s8",
+      "note": "R: v1 settings, calibrated stratified from train",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "9e66f74bff10afc0fae2c561d29b5d69dee27467736408015e0d07a595554b0e",
+      "size_bytes": 3147793,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 14.5,
+      "metric": 0.025,
+      "latency": {
+        "median_latency_ms": 21.026,
+        "p95_latency_ms": 22.85,
+        "mean_latency_ms": 21.145,
+        "min_latency_ms": 19.768,
+        "max_latency_ms": 23.027,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "11-s8s8",
+      "note": "S8S8 - onnxruntime's normal CPU choice",
+      "split": "val",
+      "settings": {
+        "activation_type": "s8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "c3f523105f853117566d6928827b2b4cf2642b92364aafd99a11092aa931635c",
+      "size_bytes": 3149782,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 17.5,
+      "metric": 0.015,
+      "latency": {
+        "median_latency_ms": 61.508,
+        "p95_latency_ms": 66.214,
+        "mean_latency_ms": 61.523,
+        "min_latency_ms": 47.778,
+        "max_latency_ms": 79.23,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "12-u8s8-reduce-range",
+      "note": "U8S8 with reduce_range - the documented saturation remedy",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": true,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "9e2594b7968446c58a9082c9bbd4c56f1b924d8c40dbaed869a96d2085ae3c54",
+      "size_bytes": 3147793,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 18.2,
+      "metric": 0.025,
+      "latency": {
+        "median_latency_ms": 20.418,
+        "p95_latency_ms": 21.317,
+        "mean_latency_ms": 20.189,
+        "min_latency_ms": 18.227,
+        "max_latency_ms": 22.467,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "13-u8u8",
+      "note": "U8U8 - the other documented saturation remedy",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "u8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "51c37b56ede6f0553f1b8082f8d7a73ff24250cb99e7afe2559e26d472275f03",
+      "size_bytes": 3155757,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 18.1,
+      "metric": 0.02388888888888889,
+      "latency": {
+        "median_latency_ms": 25.919,
+        "p95_latency_ms": 32.405,
+        "mean_latency_ms": 26.737,
+        "min_latency_ms": 25.033,
+        "max_latency_ms": 36.423,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "14-per-tensor",
+      "note": "per-tensor weights instead of per-channel",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": false,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "0cd7f9a08b3d57caa4a86f2e1df300c546cc8d662715d37e46a1a8d6b61f45eb",
+      "size_bytes": 3042801,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 13.5,
+      "metric": 0.015,
+      "latency": {
+        "median_latency_ms": 20.218,
+        "p95_latency_ms": 21.342,
+        "mean_latency_ms": 20.177,
+        "min_latency_ms": 18.3,
+        "max_latency_ms": 22.408,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "15-head-fp32",
+      "note": "the detection head left in fp32 - wide-range box regression",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": true,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "164e2ee15f325f1ad223d1b6509bfcfd37204fd7763c1fba7494eb200c144819",
+      "size_bytes": 4365875,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 619,
+        "total_nodes": 937
+      },
+      "build_seconds": 13.9,
+      "metric": 0.7471069030086752,
+      "latency": {
+        "median_latency_ms": 25.305,
+        "p95_latency_ms": 26.873,
+        "mean_latency_ms": 25.462,
+        "min_latency_ms": 23.309,
+        "max_latency_ms": 27.045,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "16-preprocessed",
+      "note": "onnxruntime's quant_pre_process before quantising",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": true,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "bd10139612cde31fabf45adba65cca194ec43b66333355eaf2c5a8c13ddc9b0b",
+      "size_bytes": 3127249,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 13.7,
+      "metric": 0.025,
+      "latency": {
+        "median_latency_ms": 20.237,
+        "p95_latency_ms": 26.46,
+        "mean_latency_ms": 20.73,
+        "min_latency_ms": 18.665,
+        "max_latency_ms": 27.92,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "20-positive-enriched",
+      "note": "half the calibration frames hold a bin",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "positive_enriched",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 100,
+        "background": 100,
+        "background_fraction": 0.5,
+        "sources": {
+          "legacy": 32,
+          "negatives": 100,
+          "open_images": 68
+        },
+        "sha256": "7177991056fce843d1974c9d2e6fa2194c77dd2ff46dc255da0a0e7c64643d0b",
+        "first": [
+          "legacy__05cf677a_img_5298.jpg",
+          "legacy__1f7aedc9_img_20250506_121425.jpg",
+          "legacy__2fbd9e2b_img_20250603_164010.jpg",
+          "legacy__31446479_img_20250521_174105.jpg",
+          "legacy__39a418d4_img_20250603_164946.jpg"
+        ]
+      },
+      "sha256": "9f9093ebf2f6c3374e40cfade9213b6841f36296a7889f5b01735b2fa8061d5e",
+      "size_bytes": 3147795,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 18.6,
+      "metric": 0.015,
+      "latency": {
+        "median_latency_ms": 19.933,
+        "p95_latency_ms": 21.007,
+        "mean_latency_ms": 19.917,
+        "min_latency_ms": 18.246,
+        "max_latency_ms": 21.369,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "21-letterboxed",
+      "note": "calibration letterboxed, as model.val() and the service do",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "letterbox",
+        "exclude_head": false,
+        "head_prefix": "/model.23/"
+      },
+      "calibration": {
+        "strategy": "stratified",
+        "split": "train",
+        "seed": 42,
+        "count": 200,
+        "positives": 16,
+        "background": 184,
+        "background_fraction": 0.92,
+        "sources": {
+          "legacy": 4,
+          "negatives": 184,
+          "open_images": 12
+        },
+        "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+        "first": [
+          "legacy__0b79c94d_img_20250521_155219.jpg",
+          "legacy__3ff9b3b6_img_5585.jpg",
+          "legacy__788aea20_img_5588.jpg",
+          "legacy__88448572_img_20250603_165413.jpg",
+          "negatives__0007e4ace390f6ee.jpg"
+        ]
+      },
+      "sha256": "943f97369499cf47d5a472e3c68f43038bcd354b5e8cee5d40bd046c8a8ee36e",
+      "size_bytes": 3147790,
+      "boundary": {
+        "qdq_nodes_in_head": 168,
+        "qdq_nodes_outside_head": 670,
+        "total_nodes": 1156
+      },
+      "build_seconds": 13.8,
+      "metric": 0.08472222222222223,
+      "latency": {
+        "median_latency_ms": 20.282,
+        "p95_latency_ms": 21.319,
+        "mean_latency_ms": 20.303,
+        "min_latency_ms": 18.713,
+        "max_latency_ms": 21.763,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    }
+  ]
+}

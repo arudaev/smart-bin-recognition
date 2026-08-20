@@ -60,6 +60,17 @@ NAME = "p9-quantisation"
 #: the output is one JSON and a handful of ONNX files.
 SCRATCH = pathlib.Path("/tmp/sbr")
 
+#: What v1's int8 graph scored on test, as published in its sidecar. The probe
+#: has to reproduce this COLLAPSE before any remedy means anything - though not
+#: necessarily the exact figure: run 1 got 0.0150 against it, on a graph whose
+#: SHA256 also differed, which is a toolchain confound and is recorded as one.
+PUBLISHED_INT8_TEST_MAP50 = 0.025
+
+#: Above this, the baseline is not the failure being explained and the probe
+#: stops. Well clear of both 0.025 and the 0.0150 run 1 measured, and nowhere
+#: near the ~0.75 a working graph scores.
+COLLAPSE_CEILING = 0.15
+
 #: The frozen reference. Measured on the test split by the 2026-08-18 training
 #: run, PyTorch fp32 on a T4, and recorded in v1/history.json. Every drop this
 #: kernel reports is against THIS number, never against one it recomputed.
@@ -294,24 +305,32 @@ def main() -> None:
         )
 
     reproduced = baseline.get("metric")
-    if reproduced is None or abs(reproduced - 0.025) > 0.05:
-        raise SystemExit(
-            f"the historical baseline did not reproduce: got {reproduced}, expected "
-            "about 0.025. Every remedy below would be measured against a baseline "
-            "that is not the one being explained, so this stops here. Resolve the "
-            f"toolchain confound first - versions were {json.dumps(versions)}"
-        )
-    log(f"baseline reproduces at {reproduced:.4f}; proceeding to the variants")
-
-    # Which TENSOR loses the signal, from onnxruntime's own QDQ debugger. Nine
-    # variants can show that something helps without ever saying what was wrong;
-    # this runs the float and quantised graphs over the same frames and ranks
-    # activations by quantisation error, so the write-up can name the layer.
-    baseline["tensor_error"] = quantisation_error(
-        fp32, artifacts / "00-historical-baseline.onnx", historical, export_imgsz
+    baseline["published_map50"] = PUBLISHED_INT8_TEST_MAP50
+    baseline["reproduction_delta"] = (
+        None if reproduced is None else round(reproduced - PUBLISHED_INT8_TEST_MAP50, 4)
     )
-    log(f"worst tensors: {json.dumps(baseline['tensor_error'], indent=2)}")
 
+    # What has to reproduce is the COLLAPSE, not the digit. An earlier version
+    # accepted anything within 0.05 of 0.025 and then printed "reproduces",
+    # which against a published value of 0.025 accepts every collapsed number
+    # there is and would have called -0.02 a reproduction. The honest test is
+    # whether this graph is still catastrophically broken; the exact figure is
+    # then reported with its discrepancy rather than smoothed over.
+    if reproduced is None or reproduced > COLLAPSE_CEILING:
+        raise SystemExit(
+            f"the historical baseline did not reproduce the collapse: got {reproduced}, "
+            f"and anything above {COLLAPSE_CEILING} is not the failure this probe "
+            "exists to explain. Every remedy below would be measured against the "
+            f"wrong baseline, so this stops here. Versions: {json.dumps(versions)}"
+        )
+    if abs(reproduced - PUBLISHED_INT8_TEST_MAP50) > 0.005:
+        log(
+            f"NOTE: the collapse reproduces but the FIGURE does not - {reproduced:.4f} "
+            f"here against a published {PUBLISHED_INT8_TEST_MAP50}. Both are collapse "
+            "and the conclusion is unaffected, but the two graphs are not the same "
+            "graph and this delta is part of the record, not a rounding artefact."
+        )
+    log(f"collapse reproduced at {reproduced:.4f}; proceeding to the variants")
     # ---------------------------------------------------------------------- #
     # The controls, on val - what the graph is worth before quantisation
     # ---------------------------------------------------------------------- #
