@@ -204,7 +204,42 @@ roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
 end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
 Probe P4 measures the curve.
 
-### Gate status: the latency half passes. The concurrency half is UNRESOLVED, and was wrongly recorded as answered.
+### Gate status, 2026-08-21: BOTH LATENCY HALVES PASS. THE CONCURRENCY HALF FAILS AT 5 AGAINST 10.
+
+| half | budget | measured | verdict |
+|---|---|---|---|
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50 | **PASS**, 63 % headroom |
+| identifier @ 320 per crop | ≤ 25 ms | **9.9 ms** p50 | **PASS**, 60 % headroom |
+| **concurrent scanners @ 1 bin** | **≥ 10** | **5** | **FAIL** |
+| concurrent scanners @ 6 bins | – | **2** | the PRD's normal input |
+
+**Measured on a controlled host, `representative: true`** — GCE
+`n2-standard-4`, `europe-west3-a`, CPU platform pinned, the service on CPUs 0–1
+and the load-test client on 2–3, three repeats agreeing to within ~3 ms.
+Created for the measurement and destroyed after.
+[P12](research/probes/P12-the-controlled-host.md).
+
+**This is the first admissible absolute concurrency figure the project has had**,
+and it replaces the withdrawn 4 and 1 of 2026-08-17. Those were not wildly
+wrong — P4's corrected arithmetic predicted 4.3–5.1 and 1.8–2.2, and the
+measurements land at 5 and 2, inside both ranges. They were simply not
+reproducible, which is what [P8](research/probes/P8-recovery-measurements.md)
+actually established.
+
+**What it would take.** The frame costs 49 ms and would have to cost ~25.
+Validator 18.3, identifier 9.9, and ~21 ms of decode, letterbox, colour and
+wire. P8b's shared onnxruntime thread pool — the one recovery ever shown to
+work — was **already active**, so 5 is the figure with it applied. Of the two
+still unmeasured, 384 px takes at best ~6 ms off 49, and capping crops does
+nothing at one bin per frame, which is the level the gate is stated at.
+**The gate fails on compute rather than on tuning.**
+
+**Whether that kills the free-tier thesis is the maintainer's call**, and the
+kill criterion below is deliberately left as it stands rather than being
+declared fired by the probe that produced the number.
+
+### The history, kept because the reasoning still holds
+
 
 > **Revised 2026-08-18.** This section read *"ANSWERED … the kill criterion
 > fires"* on the strength of the concurrency row below. [Probe
@@ -531,6 +566,21 @@ Stated in advance, so they are not rationalised away later:
   and then 4 within one evening. **What the criterion now waits on is a
   controlled 2-vCPU x86 host**, not another idea. Do not quietly restate the
   gate as four, or as eight.
+  **THE HOST RAN, 2026-08-21 ([P12](research/probes/P12-the-controlled-host.md)),
+  and the gate FAILS at 5 against 10** — 2 at the six-bin frame the PRD calls
+  normal. `representative: true`, three repeats within ~3 ms, on a box created
+  for the measurement and destroyed after. The first half of the criterion is
+  now established on evidence that can be quoted.
+  **The second half — *cannot be recovered* — is NOT declared here.** What P12
+  establishes is narrower and worth stating exactly: the frame costs 49 ms and
+  would need ~25; P8b's shared thread pool was already applied; and of the two
+  remaining recoveries on docs/05 § 7's list, 384 px is worth at best ~6 ms and
+  capping crops is worth nothing at one bin per frame. **So the gate is not
+  recoverable by anything currently on the list**, which is a statement about
+  the list rather than about the thesis. Whether to fire this criterion — and
+  therefore whether to cost a paid tier, shrink the validator, or revise the
+  gate — is the maintainer's decision, and is deliberately left open rather than
+  taken by the probe that produced the number.
 - **Novelty precision stays below 0.5** → the validator/identifier disagreement
   is not a usable signal and the improvement loop does not close. That is the
   load-bearing assumption of the whole design.
