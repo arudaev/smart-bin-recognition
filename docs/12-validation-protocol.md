@@ -812,6 +812,13 @@ settings · the last of docs/07 phase 2's model blockers.
 
 ## P11 – What int8 costs the identifier
 
+> **RAN 2026-08-21 — [result](research/probes/P11-identifier-int8.md).** The
+> first row fires, **on the first variant**: the shipped defaults cost
+> **0.0000** top-1 on `val` and on `test`, so the sweep never ran. Consistent
+> with P9's diagnosis and not proof of it — the task is saturated, and on 56
+> `val` crops the measurement's resolution (0.018) is about the size of the gate
+> (0.020). The accuracy gate passes; latency is the only blocker left.
+
 *Pre-registered 2026-08-21, **before model B was trained**. B does not exist
 yet; this exists so that whatever it scores is judged by a rule nobody could
 have chosen with the number in front of them.*

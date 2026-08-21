@@ -1,0 +1,118 @@
+{
+  "role": "identifier",
+  "version": 1,
+  "ran": "2026-08-21",
+  "kernel": "hlexnc/sbr-train-identifier",
+  "hardware": "Kaggle T4",
+  "dataset": {
+    "repo_id": "arudaev/smart-bin-identify",
+    "revision": "cda374c9a55dccb7e05c2fb6b4929077f8174d6a"
+  },
+  "arch": "yolo11s-cls @ 320, 100 epochs",
+  "classes_trained": [
+    "wheelie_small",
+    "wheelie_large",
+    "igloo"
+  ],
+  "served_class_order": [
+    "igloo",
+    "wheelie_large",
+    "wheelie_small"
+  ],
+  "served_class_order_note": "ALPHABETICAL, read back from model.names and written to the sidecar. Ultralytics indexes a classification head by sorted directory name, so this is not the config's order and must never be assumed to be. The service reads the sidecar.",
+  "split_composition": {
+    "train": {
+      "crops": {
+        "igloo": 29,
+        "wheelie_large": 84,
+        "wheelie_small": 186
+      },
+      "clusters": {
+        "igloo": 13,
+        "wheelie_large": 43,
+        "wheelie_small": 47
+      },
+      "n": 299
+    },
+    "val": {
+      "crops": {
+        "igloo": 8,
+        "wheelie_large": 12,
+        "wheelie_small": 36
+      },
+      "clusters": {
+        "igloo": 2,
+        "wheelie_large": 5,
+        "wheelie_small": 9
+      },
+      "n": 56
+    },
+    "test": {
+      "crops": {
+        "igloo": 3,
+        "wheelie_large": 19,
+        "wheelie_small": 25
+      },
+      "clusters": {
+        "igloo": 2,
+        "wheelie_large": 8,
+        "wheelie_small": 9
+      },
+      "n": 47
+    }
+  },
+  "partitioning": {
+    "calibration": "train",
+    "selection": "val",
+    "confirmation": "test, once"
+  },
+  "val": {
+    "top1_fp32": 0.9821428656578064,
+    "top1_int8": 0.9821428656578064,
+    "drop": 0.0,
+    "n": 56
+  },
+  "test": {
+    "top1_fp32": 1.0,
+    "top1_int8": 1.0,
+    "drop": 0.0,
+    "n": 47
+  },
+  "winner": "10-reference",
+  "winner_note": "the SHIPPED DEFAULTS - U8S8, per-channel, minmax, stretched calibration. It was eligible on the first variant, so the pre-registered sweep never ran and no other configuration was tried",
+  "excluded_by_class_list": {
+    "street_basket": 1
+  },
+  "classes_without_data": [
+    "underground",
+    "textile_bank",
+    "sack",
+    "crate",
+    "wall_unit",
+    "container_bank"
+  ],
+  "not_gates": {
+    "top5": "meaningless at three classes",
+    "unknown_rate": 0.0,
+    "accuracy_when_answering": 1.0,
+    "unknown_threshold": 0.55,
+    "unknown_note": "0.55 is an uncalibrated guess and max-softmax is a baseline, not a principled score. An unknown rate of 0.0 over 47 in-distribution crops is a property of that guess as much as of the model. docs/12 P2 replaces it"
+  },
+  "resolution": {
+    "note": "the splits are small enough that the accuracy gate's RESOLUTION is about the size of the gate. This is a fact about the measurement, not about the model",
+    "one_val_crop_is": 0.0179,
+    "one_test_crop_is": 0.0213,
+    "max_accuracy_drop_gate": 0.02,
+    "means": "on 56 val crops a single extra misclassification is 0.018, so this measurement can only distinguish 'int8 and fp32 differ by at most one crop' from 'they differ by two or more'"
+  },
+  "confidence": {
+    "note": "47/47 is not 1.000 with certainty. Rule of three, 95 %",
+    "test_accuracy_lower_bound_95": 0.936,
+    "igloo_in_test": "3 crops from 2 capture clusters - says essentially nothing"
+  },
+  "gate_result": {
+    "accuracy": "PASS - int8 drop 0.0000 against a budget of 0.02",
+    "latency": "UNMEASURED - the bench has not run",
+    "may_ship": false
+  }
+}
