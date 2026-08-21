@@ -348,3 +348,41 @@ def test_the_diagnostic_reports_the_lowest_sqnr_not_the_highest(monkeypatch):
     )
     assert worst_first[-1] == "/model.23/dfl/Reshape"
     assert "higher is better" in result["units"]
+
+
+def test_arbitrary_module_prefixes_can_be_excluded(tmp_path):
+    """docs/12 P10 sweeps modules the head-fp32 graph still quantises.
+
+    P9 showed the head causes the collapse. It did not show nothing else
+    matters: that graph still carries 619 QDQ nodes and still loses 0.0252.
+    """
+    from sbr.export.onnx_export import nodes_matching
+
+    path = tmp_path / "m.onnx"
+    onnx.save(
+        _graph(
+            "/model.9/conv/Conv",
+            "/model.10/m.0/attn/qkv/conv/Conv",
+            "/model.10/m.0/proj/Conv",
+            "/model.23/cv2.0/conv/Conv",
+        ),
+        str(path),
+    )
+    assert nodes_matching(path, ("/model.10/",)) == [
+        "/model.10/m.0/attn/qkv/conv/Conv",
+        "/model.10/m.0/proj/Conv",
+    ]
+    assert len(nodes_matching(path, ("/model.10/", "/model.23/"))) == 3
+
+
+def test_a_prefix_matching_nothing_is_refused(tmp_path):
+    # A variant labelled "model.10 in fp32" that excluded nothing would measure
+    # the wrong graph under the right name - the same failure head_node_names
+    # already guards, generalised.
+    from sbr.export.onnx_export import nodes_matching
+
+    path = tmp_path / "m.onnx"
+    onnx.save(_graph("/model.9/conv/Conv", "/model.23/cv2.0/conv/Conv"), str(path))
+
+    with pytest.raises(ValueError, match="matches no node"):
+        nodes_matching(path, ("/model.10/",))

@@ -27,7 +27,10 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
-CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency", "probe_quantisation")
+CPU_KERNELS = (
+    "build_negatives", "bench_latency", "probe_latency",
+    "probe_quantisation", "probe_residual",
+)
 
 #: The diagnostic ladder from docs/07 phase 2. Each rung changes exactly one
 #: thing from the one before it, which is the only way to find a boundary when
@@ -53,7 +56,9 @@ ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
 #: token it never uses would be cargo cult rather than configuration.
 #: ``probe_quantisation`` IS one - it reads ``v1/best.pt`` - even though it
 #: uploads nothing.
-HUB_KERNELS = (*KERNELS, "build_negatives", "bench_latency", "probe_quantisation")
+HUB_KERNELS = (
+    *KERNELS, "build_negatives", "bench_latency", "probe_quantisation", "probe_residual",
+)
 
 
 def source(kernel: str) -> str:
@@ -737,3 +742,34 @@ def test_the_quantisation_probe_records_the_test_runs_it_actually_made():
     text = source("probe_quantisation")
     assert 'r["variant"] for r in rows if r["split"] == "test"' in text
     assert "what ran, not what was planned" in text
+
+
+def test_the_residual_probe_tests_its_standing_hypothesis_regardless():
+    """docs/12 P10: an untested hypothesis makes the result unfalsifiable.
+
+    /model.10/ is a suspect only because a local smoke test reported a 1517x
+    weight-scale increase on its attention QKV conv. If the probe only swept
+    what the SQNR ranking pointed at and the ranking missed it, "we found no
+    other culprit" would be unfalsifiable rather than measured.
+    """
+    text = source("probe_residual")
+    assert 'STANDING_SUSPECT = "/model.10/"' in text
+    assert "STANDING_SUSPECT]" in text
+    assert "regardless" in text
+
+
+def test_the_residual_probe_reproduces_p9s_anchor_first():
+    # Everything it does is an attempt to attribute head-fp32's residual, so
+    # head-fp32 has to be the same graph P9 measured before that means anything.
+    text = source("probe_residual")
+    assert "P9_HEAD_FP32_VAL_MAP50" in text
+    assert "did not reproduce" in text
+    assert "raise SystemExit" in text
+
+
+def test_the_residual_probe_reads_sqnr_lowest_first():
+    # qdq_err is SQNR in dB: higher is better. P9's first pass sorted descending
+    # and named the eight best-preserved tensors as suspects.
+    text = source("probe_residual")
+    assert "lowest_sqnr_db" in text
+    assert "higher is better" in text

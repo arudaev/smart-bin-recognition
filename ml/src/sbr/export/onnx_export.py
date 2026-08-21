@@ -383,6 +383,14 @@ class QuantSettings:
     #: quantisation and loses its boxes.
     exclude_head: bool = False
     head_prefix: str = DEFAULT_HEAD_PREFIX
+    #: Further module prefixes to leave in fp32, for docs/12 P10. P9 showed the
+    #: head causes the collapse; it did not show nothing else matters, and the
+    #: head-fp32 graph still carries 619 QDQ nodes and still loses 0.0252. Each
+    #: prefix must match at least one node or the export refuses - a variant
+    #: named "model.10 in fp32" that excluded nothing would measure the wrong
+    #: thing under the right label, which is the failure `head_node_names`
+    #: already exists to prevent.
+    exclude_prefixes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for field_name, allowed in (
@@ -642,6 +650,33 @@ def head_node_names(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> list[
     return names
 
 
+def nodes_matching(onnx_path: Path, prefixes: tuple[str, ...]) -> list[str]:
+    """Every node under any of ``prefixes``. Refuses a prefix that matches none.
+
+    The same discipline as :func:`head_node_names` and for the same reason: an
+    exclusion list that silently comes back empty produces a graph quantised
+    everywhere, reported under the name of the thing it did not exclude.
+    """
+    import onnx
+
+    model = onnx.load(str(onnx_path))
+    names: list[str] = []
+    for prefix in prefixes:
+        matched = [node.name for node in model.graph.node if prefix in node.name]
+        if not matched:
+            present = sorted(
+                {match.group(0) for node in model.graph.node
+                 if (match := re.match(r"/model\.\d+/", node.name))},
+                key=lambda item: int(item.split(".")[1].rstrip("/")),
+            )
+            raise ValueError(
+                f"prefix {prefix!r} matches no node in {onnx_path.name}, so excluding "
+                f"it would exclude nothing. Prefixes this graph carries: {present}"
+            )
+        names.extend(matched)
+    return sorted(set(names))
+
+
 def quant_boundary(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> dict[str, int]:
     """Where the QDQ pairs actually landed, counted inside and outside the head.
 
@@ -765,8 +800,15 @@ def quantise(
         logger.info("pre-processed the graph before quantising")
 
     exclude = head_node_names(source, settings.head_prefix) if settings.exclude_head else []
+    if settings.exclude_prefixes:
+        exclude = sorted(set(exclude) | set(nodes_matching(source, settings.exclude_prefixes)))
     if exclude:
-        logger.info("leaving %d head nodes (%s) in fp32", len(exclude), settings.head_prefix)
+        logger.info(
+            "leaving %d nodes in fp32 (head=%s, prefixes=%s)",
+            len(exclude),
+            settings.head_prefix if settings.exclude_head else None,
+            list(settings.exclude_prefixes) or None,
+        )
 
     quantize_static(
         model_input=str(source),
