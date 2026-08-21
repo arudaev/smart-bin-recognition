@@ -137,6 +137,7 @@ def main() -> None:
     from sbr.export.onnx_export import (
         ExportReport,
         Gates,
+        calibration_frames,
         check_gates,
         evaluate_int8,
         export_onnx,
@@ -243,13 +244,23 @@ def main() -> None:
     fp32 = export_onnx(
         best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"], role=ROLE
     )
-    calibration = tree / "val"
+    # A classification tree carries no label files, so the positive/background
+    # split a detection calibration reports is not a thing here - every crop is
+    # a bin. `stratified` still matters: it samples across the class
+    # directories rather than taking whichever class sorts first.
+    calibration = calibration_frames(
+        tree,
+        "val",
+        config["export"]["calibration_images"],
+        strategy="stratified",
+        seed=config["project"]["seed"],
+    )
+    log(f"calibration set: {json.dumps(calibration.as_dict())}")
     int8 = quantise(
         fp32,
         calibration,
         artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx",
         imgsz=config["export"]["imgsz"],
-        calibration_images=config["export"]["calibration_images"],
     )
 
     # Gate 3 is fp32-vs-int8, so int8 has to be scored on the SAME split the

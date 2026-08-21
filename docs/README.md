@@ -18,6 +18,16 @@ Read in order on a first pass. After that, use the "read it when" column.
 | 11 | [Phase 2 results](11-phase2-results.md) | quoting a number about a model |
 | 12 | [Validation protocol](12-validation-protocol.md) | **before hard-coding anything that is still a theory** |
 
+## Business
+
+[`business/`](business/) separates the public user from the institutional
+customer hypothesis and owns market segments, the free/paid boundary, Economic
+Value to the Customer, go-to-market, business validation, and naming. Start
+with its [`README`](business/README.md). Business research follows the same
+evidence discipline as the technical work: customer rankings, value,
+willingness to pay, and prices remain hypotheses until the named validation
+produces evidence.
+
 ## Research
 
 [`research/`](research/) holds the evidence behind the numbers here — what

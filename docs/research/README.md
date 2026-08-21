@@ -9,7 +9,7 @@ inside it.
 **Every note ends with "What this changes for us", naming the doc and section it
 feeds.** A note that changes nothing is deleted rather than kept for interest.
 This directory is not a reading list; it is the evidence trail behind the numbers
-in `docs/00`–`docs/12`.
+in `docs/00`–`docs/12` and [`docs/business/`](../business/).
 
 Notes are **dated and append-only**. A finding that turns out wrong gets a new
 dated section saying so – it is not edited into looking correct, because then the
@@ -28,6 +28,8 @@ decision it produced has no visible cause.
 | 06 | [Colour measurement](06-colour-measurement.md) | docs/02 § 1, docs/04 § 1 |
 | 07 | [Compliance and consent](07-compliance-and-consent.md) | docs/01 § 7, docs/03 § 4 |
 | 08 | [Video as the capture format](08-video-ingestion.md) | docs/04 § 3 § 5, docs/07 phases 2 and 6, `prepare.py` |
+| 09 | [Business and market audit](09-business-and-market-context.md) | docs/business market segments, EVC and go-to-market |
+| 10 | [Product-name screen](10-name-screen.md) | docs/business name and brand |
 
 Probe results live in [`probes/`](probes/) – one file per probe from
 [docs/12-validation-protocol.md](../12-validation-protocol.md).

@@ -33,7 +33,11 @@ jobs:
           cache: pip
 
       - name: Install
-        run: pip install -e ".[dev]"
+        # `export` as well as `dev`: without onnx and onnxruntime, every test
+        # that touches a real graph - the quantisation settings, the head
+        # boundary - silently has nothing to run against, which is how a
+        # quantisation defect reaches a GPU hour unchallenged.
+        run: pip install -e ".[dev,export]"
 
       - name: Lint
         # kaggle/ is included on purpose: those scripts cannot be imported, so

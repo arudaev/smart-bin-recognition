@@ -29,8 +29,11 @@ the 2-vCPU bench has spoken.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
+import random
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -331,30 +334,410 @@ def export_onnx(weights: Path, out_dir: Path, imgsz: int, opset: int, role: str)
     return target
 
 
+# --------------------------------------------------------------------------- #
+# Quantisation - the knobs onnxruntime's own guidance actually turns
+# --------------------------------------------------------------------------- #
+
+#: Where the detection head starts in a YOLO11 ONNX graph. Node names look like
+#: ``/model.23/cv2.0/cv2.0.0/conv/Conv``. It is a *setting* rather than a
+#: constant because it is architecture-specific and must be verified against the
+#: graph in hand - see :func:`head_node_names`, which refuses to guess.
+DEFAULT_HEAD_PREFIX = "/model.23/"
+
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
+
+
+@dataclass(frozen=True)
+class QuantSettings:
+    """How a graph is quantised. **The defaults are what shipped v1.**
+
+    Every field here corresponds to something onnxruntime's quantisation
+    guidance says to turn when accuracy collapses, and the reason they exist as
+    settings rather than as literals is docs/12 P9: the v1 validator lost 0.727
+    mAP to int8 and the cause could not be isolated without moving one of them
+    at a time.
+
+    Two are worth calling out because they are the documented first suspects on
+    x86 CPU. ``activation_type``/``weight_type`` default to **U8S8**, which is
+    what v1 used; onnxruntime names **S8S8 the normal CPU choice** and describes
+    a large U8S8 loss as a symptom of *activation saturation* on x86, whose
+    remedies are ``reduce_range`` or U8U8.
+    """
+
+    activation_type: str = "u8"
+    weight_type: str = "s8"
+    reduce_range: bool = False
+    per_channel: bool = True
+    calibrate_method: str = "minmax"
+    #: onnxruntime's ``quant_pre_process`` - symbolic shape inference and
+    #: constant folding before quantisation. Off in v1, and its guidance says
+    #: this alone can account for accuracy loss.
+    preprocess: bool = False
+    #: How a calibration image is fitted to the square input. **v1 stretched.**
+    #: ``model.val()`` and ``service/pipeline.py`` both *letterbox*, so a
+    #: stretched calibration set measures ranges on a geometry that never occurs
+    #: at inference, and never on the 114-grey bars a real frame carries.
+    calibration_fit: str = "stretch"
+    #: Leave the detection head in fp32. Box regression outputs are wide-range
+    #: and are the standard suspect when a detector survives classification
+    #: quantisation and loses its boxes.
+    exclude_head: bool = False
+    head_prefix: str = DEFAULT_HEAD_PREFIX
+
+    def __post_init__(self) -> None:
+        for field_name, allowed in (
+            ("activation_type", {"u8", "s8"}),
+            ("weight_type", {"u8", "s8"}),
+            ("calibrate_method", {"minmax", "entropy", "percentile"}),
+            ("calibration_fit", {"stretch", "letterbox"}),
+        ):
+            value = getattr(self, field_name)
+            if value not in allowed:
+                raise ValueError(f"{field_name}={value!r}; expected one of {sorted(allowed)}")
+
+    @property
+    def format(self) -> str:
+        """``"u8s8"`` and friends - the pair onnxruntime's guidance talks about."""
+        return f"{self.activation_type}{self.weight_type}"
+
+    @property
+    def departures(self) -> tuple[str, ...]:
+        """Which fields differ from the shipped defaults.
+
+        docs/12 P9's tie-break prefers the *simpler* configuration when two
+        variants are within measurement noise, and "simpler" has to mean
+        something countable rather than something argued.
+        """
+        default = QuantSettings()
+        return tuple(
+            name for name in self.__dataclass_fields__
+            if getattr(self, name) != getattr(default, name)
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+
+
+@dataclass(frozen=True)
+class CalibrationSet:
+    """The exact images a quantisation was calibrated on, and their fingerprint.
+
+    Recorded rather than described because describing it is how docs/12 P9 came
+    to assert the wrong thing twice. The set was written up as "``val``, which is
+    92 % background"; ``val`` is 91.46 % background but the 200 files
+    :func:`quantise` actually saw were **149 background and 51 positive, all of
+    them legacy or negatives, with no Open Images frame at all** - because the
+    selection was ``sorted(...)[:200]`` over names of the form ``<pool>__<file>``
+    and ``open_images__`` sorts after ``negatives__``.
+
+    So the ordered list and its hash travel with every number derived from it.
+    """
+
+    images: tuple[Path, ...]
+    strategy: str
+    split: str
+    seed: int
+    #: ``None`` where the layout carries no labels - a classification tree has
+    #: no background frames to count, and reporting 0 would be a claim rather
+    #: than an absence.
+    positives: int | None
+    background: int | None
+    sources: dict[str, int]
+
+    @property
+    def sha256(self) -> str:
+        """Fingerprint of the ordered *names*, not the pixels.
+
+        Names, because the question this answers is "was this the same set of
+        frames in the same order", and the pixels behind a pinned dataset
+        revision cannot change without the pin changing.
+        """
+        joined = "\n".join(path.name for path in self.images)
+        return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "strategy": self.strategy,
+            "split": self.split,
+            "seed": self.seed,
+            "count": len(self.images),
+            "positives": self.positives,
+            "background": self.background,
+            "background_fraction": (
+                round(self.background / len(self.images), 4)
+                if self.background is not None and self.images else None
+            ),
+            "sources": dict(sorted(self.sources.items())),
+            "sha256": self.sha256,
+        }
+
+    def manifest(self) -> dict[str, Any]:
+        """The summary **and the complete ordered list**.
+
+        Separate from :meth:`as_dict` so a result file can carry each set once
+        and have every row reference it by hash, rather than repeating 200
+        filenames a dozen times. The list itself is not optional: docs/12 P9
+        promises that the exact frames behind a number are recorded, and an
+        earlier version kept only the hash and the first five names - which
+        fingerprints a set without ever saying what is in it.
+        """
+        return self.as_dict() | {"images": [path.name for path in self.images]}
+
+
+def _source_of(image: Path) -> str:
+    """Which pool a tree filename came from. ``prepare._qualified`` writes
+    ``<pool>__<file>``, and that prefix is the only provenance the flat tree
+    carries."""
+    name = image.name
+    return name.split("__", 1)[0] if "__" in name else "unknown"
+
+
+def _is_positive(labels_dir: Path, image: Path) -> bool:
+    """A frame with at least one box. An empty label file is a background frame
+    on purpose - the negative corpus ships them empty rather than absent, because
+    YOLO drops an image whose label file is missing."""
+    label = labels_dir / f"{image.stem}.txt"
+    return label.exists() and bool(label.read_text(encoding="utf-8").strip())
+
+
+def calibration_frames(
+    tree: Path,
+    split: str,
+    limit: int,
+    *,
+    strategy: str = "first_lexicographic",
+    seed: int = 42,
+) -> CalibrationSet:
+    """Choose the images a static quantisation calibrates on.
+
+    Three strategies, and the first is a bug that is kept deliberately:
+
+    ``first_lexicographic``
+        What v1 did - ``sorted(...)[:limit]``. Systematic, not random: on the
+        pinned tree it yields 51 legacy frames, 149 negatives and **zero Open
+        Images frames**. It is retained so docs/12 P9 can *reproduce* the failure
+        rather than assert a cause for it.
+    ``stratified``
+        Proportional across pools, sampled with ``seed``. The representative
+        sample the first one was mistaken for.
+    ``positive_enriched``
+        Half frames with boxes, half without. Whether the activation ranges want
+        to see more bins than the corpus contains is a question, not an answer.
+    """
+    # The two roles have two tree shapes and the layout is read off disk rather
+    # than assumed: the validator gets `images/<split>` beside `labels/<split>`
+    # from `build_yolo_tree`, the identifier a flat `<split>/<class>/` from
+    # `build_classification_tree`, which carries no label files at all.
+    images_dir, labels_dir = tree / "images" / split, tree / "labels" / split
+    if not images_dir.is_dir():
+        images_dir, labels_dir = tree / split, None
+    if not images_dir.is_dir():
+        raise FileNotFoundError(f"no {split} split under {tree}")
+
+    frames = sorted(p for p in images_dir.rglob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
+    if not frames:
+        raise FileNotFoundError(f"no calibration images in {images_dir}")
+
+    rng = random.Random(seed)
+    if strategy == "first_lexicographic":
+        chosen = frames[:limit]
+    elif strategy == "stratified":
+        chosen = _stratified(frames, limit, rng)
+    elif strategy == "positive_enriched":
+        if labels_dir is None:
+            raise ValueError(
+                "positive_enriched needs label files to know which frames hold a "
+                f"box, and {tree}/{split} carries none"
+            )
+        chosen = _positive_enriched(frames, labels_dir, limit, rng)
+    else:
+        raise ValueError(
+            f"unknown calibration strategy {strategy!r}; expected one of "
+            "first_lexicographic, stratified, positive_enriched"
+        )
+
+    positives = (
+        sum(1 for image in chosen if _is_positive(labels_dir, image))
+        if labels_dir is not None else None
+    )
+    sources: dict[str, int] = {}
+    for image in chosen:
+        sources[_source_of(image)] = sources.get(_source_of(image), 0) + 1
+
+    return CalibrationSet(
+        images=tuple(chosen),
+        strategy=strategy,
+        split=split,
+        seed=seed,
+        positives=positives,
+        background=None if positives is None else len(chosen) - positives,
+        sources=sources,
+    )
+
+
+def _stratified(frames: list[Path], limit: int, rng: random.Random) -> list[Path]:
+    """Proportional across pools, largest-remainder, then sorted for stability."""
+    groups: dict[str, list[Path]] = {}
+    for frame in frames:
+        groups.setdefault(_source_of(frame), []).append(frame)
+
+    total = len(frames)
+    exact = {name: len(members) * limit / total for name, members in groups.items()}
+    quota = {name: int(value) for name, value in exact.items()}
+    # Hand the rounding remainder to the largest fractions, deterministically.
+    remainder = limit - sum(quota.values())
+    for name, _ in sorted(exact.items(), key=lambda item: (-(item[1] % 1), item[0]))[:remainder]:
+        quota[name] += 1
+
+    chosen: list[Path] = []
+    for name in sorted(groups):
+        members = sorted(groups[name])
+        take = min(quota.get(name, 0), len(members))
+        chosen.extend(rng.sample(members, take))
+    return sorted(chosen)
+
+
+def _positive_enriched(
+    frames: list[Path], labels_dir: Path, limit: int, rng: random.Random
+) -> list[Path]:
+    """Half with boxes, half without - or as close as the split allows."""
+    positives = sorted(f for f in frames if _is_positive(labels_dir, f))
+    background = sorted(f for f in frames if f not in set(positives))
+
+    want = limit // 2
+    take_positive = min(want, len(positives))
+    take_background = min(limit - take_positive, len(background))
+    chosen = rng.sample(positives, take_positive) + rng.sample(background, take_background)
+    return sorted(chosen)
+
+
+def head_node_names(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> list[str]:
+    """Nodes belonging to the detection head, by an **explicitly given** prefix.
+
+    Deliberately not inferred. An earlier draft of this took "every node whose
+    name does not match ``/model.<i>/``" to be head plumbing; on the real v1
+    graph that sweeps in a large number of generated nodes that have nothing to
+    do with the head, and the resulting variant would have been reported as
+    "head excluded" while excluding something else entirely.
+
+    Raises rather than returning an empty list, so ``exclude_head=True`` can
+    never quietly quantise the whole graph and report itself as the head-excluded
+    variant. The error names the prefixes the graph *does* carry.
+    """
+    import onnx
+
+    model = onnx.load(str(onnx_path))
+    names = [node.name for node in model.graph.node if prefix in node.name]
+    if not names:
+        present = sorted(
+            {match.group(0) for node in model.graph.node
+             if (match := re.match(r"/model\.\d+/", node.name))},
+            key=lambda item: int(item.split(".")[1].rstrip("/")),
+        )
+        raise ValueError(
+            f"no node in {onnx_path.name} carries the prefix {prefix!r}, so "
+            "'leave the head in fp32' would have quantised everything and said "
+            f"otherwise. Prefixes this graph does carry: {present[-4:] or 'none'}"
+        )
+    return names
+
+
+def quant_boundary(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> dict[str, int]:
+    """Where the QDQ pairs actually landed, counted inside and outside the head.
+
+    The point of an exclusion list is a *boundary*, and a boundary that is
+    assumed rather than looked at is how a variant comes to measure something
+    other than its name. Reported beside every quantised row.
+    """
+    import onnx
+
+    model = onnx.load(str(onnx_path))
+    inside = outside = 0
+    for node in model.graph.node:
+        if node.op_type not in {"QuantizeLinear", "DequantizeLinear"}:
+            continue
+        if prefix in node.name:
+            inside += 1
+        else:
+            outside += 1
+    return {
+        "qdq_nodes_in_head": inside,
+        "qdq_nodes_outside_head": outside,
+        "total_nodes": len(model.graph.node),
+    }
+
+
+def _quant_type(name: str) -> Any:
+    from onnxruntime.quantization import QuantType
+
+    return {"u8": QuantType.QUInt8, "s8": QuantType.QInt8}[name]
+
+
+def _calibrate_method(name: str) -> Any:
+    from onnxruntime.quantization import CalibrationMethod
+
+    return {
+        "minmax": CalibrationMethod.MinMax,
+        "entropy": CalibrationMethod.Entropy,
+        "percentile": CalibrationMethod.Percentile,
+    }[name]
+
+
+def _fit(handle: Any, imgsz: int, how: str) -> Any:
+    """Fit one calibration image to the square input, stretched or letterboxed.
+
+    The letterbox arm mirrors ``service/pipeline.py:letterbox`` - aspect
+    preserved, padded with the usual YOLO 114-grey - because the ranges being
+    measured are the ranges the service will actually feed the graph.
+    """
+    import numpy as np
+    from PIL import Image
+
+    frame = handle.convert("RGB")
+    if how == "stretch":
+        return np.asarray(frame.resize((imgsz, imgsz), Image.Resampling.BILINEAR), dtype=np.uint8)
+
+    width, height = frame.size
+    scale = min(imgsz / width, imgsz / height)
+    new_w, new_h = max(1, round(width * scale)), max(1, round(height * scale))
+    resized = np.asarray(frame.resize((new_w, new_h), Image.Resampling.BILINEAR), dtype=np.uint8)
+    canvas = np.full((imgsz, imgsz, 3), 114, dtype=np.uint8)
+    pad_x, pad_y = (imgsz - new_w) // 2, (imgsz - new_h) // 2
+    canvas[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
+    return canvas
+
+
 def quantise(
     fp32_path: Path,
-    calibration_dir: Path,
+    calibration: CalibrationSet,
     out_path: Path,
     imgsz: int,
-    calibration_images: int,
+    settings: QuantSettings | None = None,
 ) -> Path:
-    """Static int8 quantisation, calibrated on real images.
+    """Static int8 quantisation, calibrated on a **named, hashed** set of images.
 
     Static, not dynamic: dynamic quantisation is measurably worse on
     convolutional backbones because the activation ranges vary enormously
     between the backbone and the head.
+
+    ``calibration`` is a :class:`CalibrationSet` rather than a directory, so the
+    caller states which frames it chose and the choice travels into the sidecar
+    and the probe record. A directory plus a limit is what produced v1's
+    silently unrepresentative sample.
     """
     import numpy as np
-    from onnxruntime.quantization import CalibrationDataReader, QuantFormat, QuantType, quantize_static
+    from onnxruntime.quantization import CalibrationDataReader, QuantFormat, quantize_static
     from PIL import Image
 
-    images = sorted(
-        p for p in calibration_dir.rglob("*")
-        if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
-    )[:calibration_images]
+    settings = settings or QuantSettings()
+    images = list(calibration.images)
     if not images:
-        raise FileNotFoundError(f"no calibration images in {calibration_dir}")
-    logger.info("calibrating on %d images from %s", len(images), calibration_dir)
+        raise FileNotFoundError("the calibration set is empty")
+    logger.info(
+        "calibrating on %d images (%s, %s, %d positive / %d background, sha %s)",
+        len(images), calibration.strategy, calibration.split,
+        calibration.positives, calibration.background, calibration.sha256[:12],
+    )
 
     class _Reader(CalibrationDataReader):
         def __init__(self) -> None:
@@ -367,26 +750,195 @@ def quantise(
             # Not rebound onto the `with` target: that is an ImageFile, and
             # convert() returns an Image, so reusing the name is a type error.
             with Image.open(path) as handle:
-                frame = handle.convert("RGB").resize((imgsz, imgsz), Image.Resampling.BILINEAR)
-                array = np.asarray(frame, dtype=np.float32).transpose(2, 0, 1) / 255.0
+                frame = _fit(handle, imgsz, settings.calibration_fit)
+            array = np.asarray(frame, dtype=np.float32).transpose(2, 0, 1) / 255.0
             return {"images": array[None, ...]}
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    source = fp32_path
+    if settings.preprocess:
+        from onnxruntime.quantization.shape_inference import quant_pre_process
+
+        source = out_path.parent / f"{fp32_path.stem}-preprocessed.onnx"
+        quant_pre_process(str(fp32_path), str(source))
+        logger.info("pre-processed the graph before quantising")
+
+    exclude = head_node_names(source, settings.head_prefix) if settings.exclude_head else []
+    if exclude:
+        logger.info("leaving %d head nodes (%s) in fp32", len(exclude), settings.head_prefix)
+
     quantize_static(
-        model_input=str(fp32_path),
+        model_input=str(source),
         model_output=str(out_path),
         calibration_data_reader=_Reader(),
         quant_format=QuantFormat.QDQ,
-        activation_type=QuantType.QUInt8,
-        weight_type=QuantType.QInt8,
-        per_channel=True,
+        activation_type=_quant_type(settings.activation_type),
+        weight_type=_quant_type(settings.weight_type),
+        per_channel=settings.per_channel,
+        reduce_range=settings.reduce_range,
+        calibrate_method=_calibrate_method(settings.calibrate_method),
+        nodes_to_exclude=exclude or None,
     )
     logger.info(
-        "quantised: %.2f MB -> %.2f MB",
-        fp32_path.stat().st_size / 1e6,
-        out_path.stat().st_size / 1e6,
+        "quantised %s: %.2f MB -> %.2f MB",
+        settings.format, fp32_path.stat().st_size / 1e6, out_path.stat().st_size / 1e6,
     )
     return out_path
+
+
+def quantisation_error(
+    fp32_path: Path,
+    int8_path: Path,
+    calibration: CalibrationSet,
+    imgsz: int,
+    *,
+    fit: str = "stretch",
+    frames: int = 8,
+    lowest: int = 15,
+) -> dict[str, Any]:
+    """Which *tensor* loses the signal, using onnxruntime's own QDQ debugger.
+
+    Nine variants can say that something helps without ever saying what was
+    wrong. onnxruntime ships the tool for that - it runs the float and the
+    quantised graph over the same inputs, matches their activations, and scores
+    each one.
+
+    **The score is SQNR in decibels, and higher is better.** onnxruntime computes
+    ``20 * log10(||x|| / ||x - y||)``: a tensor the quantisation preserved has a
+    large ratio and therefore a large number, and the damaged ones are at the
+    *bottom*. This is worth stating twice because the first version of this
+    function sorted descending and reported the result as "the worst tensors",
+    which named the eight best-preserved tensors in the graph as the suspects.
+    The rows below are sorted **ascending**, and the key is ``lowest_sqnr_db``
+    rather than anything that could be read as an error magnitude.
+
+    Best effort by construction: it returns an ``error`` key rather than raising
+    if the debug API is unavailable or the graphs will not match up. A probe that
+    died in its diagnostics would lose the measurements it had already made.
+    """
+    try:
+        import numpy as np
+        from onnxruntime.quantization import CalibrationDataReader
+        from onnxruntime.quantization.qdq_loss_debug import (
+            collect_activations,
+            compute_activation_error,
+            create_activation_matching,
+            modify_model_output_intermediate_tensors,
+        )
+        from PIL import Image
+    except Exception as error:  # noqa: BLE001 - an absent debug API is a fact
+        return {"error": f"qdq_loss_debug unavailable: {type(error).__name__}: {error}"}
+
+    images = list(calibration.images)[:frames]
+
+    # A real CalibrationDataReader subclass: collect_activations iterates the
+    # reader, and the base class provides __iter__/__next__ on top of get_next.
+    class _Reader(CalibrationDataReader):
+        def __init__(self) -> None:
+            self._iter = iter(images)
+
+        def get_next(self) -> dict | None:
+            path = next(self._iter, None)
+            if path is None:
+                return None
+            with Image.open(path) as handle:
+                frame = _fit(handle, imgsz, fit)
+            array = np.asarray(frame, dtype=np.float32).transpose(2, 0, 1) / 255.0
+            return {"images": array[None, ...]}
+
+    try:
+        augmented = int8_path.parent / f"{fp32_path.stem}-augmented.onnx"
+        modify_model_output_intermediate_tensors(str(fp32_path), str(augmented))
+        float_activations = collect_activations(str(augmented), _Reader())
+
+        augmented_int8 = int8_path.parent / f"{int8_path.stem}-augmented.onnx"
+        modify_model_output_intermediate_tensors(str(int8_path), str(augmented_int8))
+        int8_activations = collect_activations(str(augmented_int8), _Reader())
+
+        matched = create_activation_matching(int8_activations, float_activations)
+        errors = compute_activation_error(matched)
+    except Exception as error:  # noqa: BLE001 - a diagnostic must not sink the probe
+        return {"error": f"{type(error).__name__}: {error}"}
+
+    ranked = sorted(
+        (
+            {
+                "tensor": name,
+                # onnxruntime's own names, kept verbatim so a reader can go back
+                # to the source. Both are SQNR in dB: HIGHER IS BETTER.
+                "qdq_sqnr_db": float(value["qdq_err"]),
+                "xmodel_sqnr_db": float(value.get("xmodel_err", float("nan"))),
+            }
+            for name, value in errors.items()
+        ),
+        key=lambda row: row["qdq_sqnr_db"],
+    )
+    return {
+        "frames": len(images),
+        "tensors_compared": len(ranked),
+        "units": "SQNR in dB, higher is better; these are the LOWEST",
+        "lowest_sqnr_db": ranked[:lowest],
+    }
+
+
+def convert_fp16(fp32_path: Path, out_path: Path) -> Path:
+    """Half precision, **for information only**.
+
+    onnxruntime's CPU runtime does not broadly support fp16 operations - it is a
+    GPU optimisation, and on CPU the ops are wrapped in casts or fall back
+    entirely. This service runs on CPU, so an fp16 graph is not a shipping
+    option here however it scores; it bounds what the weights are capable of,
+    which is worth knowing when the int8 rows are bad.
+
+    ``keep_io_types`` leaves the graph's inputs and outputs fp32, so the same
+    harness can score it without knowing it is different.
+    """
+    import onnx
+    from onnxconverter_common import float16
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    converted = float16.convert_float_to_float16(onnx.load(str(fp32_path)), keep_io_types=True)
+    onnx.save(converted, str(out_path))
+    logger.info(
+        "fp16: %.2f MB -> %.2f MB (INFORMATIONAL - the CPU EP does not broadly support fp16)",
+        fp32_path.stat().st_size / 1e6, out_path.stat().st_size / 1e6,
+    )
+    return out_path
+
+
+def score_onnx(
+    onnx_path: Path,
+    *,
+    role: str,
+    data: Path | str,
+    imgsz: int,
+    split: str = "test",
+) -> tuple[float | None, str | None]:
+    """Score any ONNX graph and return ``(value, error)`` - never both.
+
+    Split out from :func:`evaluate_int8` because docs/12 P9 runs a dozen graphs
+    and needs to know *why* one of them produced no number. A failed load is a
+    valid diagnostic result; a row that reports a number it did not measure is
+    not. Exactly one of the two is ever non-``None``.
+
+    Scored through ultralytics deliberately: the fp32 reference came from
+    ``model.val()``, and two metrics computed by two implementations are not
+    comparable to two decimal places, which is the resolution the 0.02 gate
+    needs.
+    """
+    from ultralytics import YOLO
+
+    task = "classify" if role == "identifier" else "detect"
+    try:
+        metrics = YOLO(str(onnx_path), task=task).val(
+            data=str(data), imgsz=imgsz, split=split, verbose=False
+        )
+    except Exception as error:  # noqa: BLE001 - any failure here means "unmeasured"
+        return None, f"{type(error).__name__}: {error}"
+
+    value = float(metrics.top1) if task == "classify" else float(metrics.box.map50)
+    return value, None
 
 
 def evaluate_int8(
@@ -404,31 +956,17 @@ def evaluate_int8(
     only place that holds both the artefact and the split the fp32 number came
     from, and a drop computed against a *different* split is not a drop.
 
-    Scored through ultralytics for the same reason – the fp32 number came from
-    ``model.val()``, and two metrics computed by two implementations are not
-    comparable to two decimal places, which is the resolution the 0.02 gate
-    needs.
-
     Returns ``None`` if the quantised graph could not be scored, which leaves
     the gate **unmeasured** rather than passed. That is the honest verdict and
     :class:`GateResult` already distinguishes it from a failure.
     """
-    from ultralytics import YOLO
-
-    task = "classify" if role == "identifier" else "detect"
-    try:
-        metrics = YOLO(str(onnx_path), task=task).val(
-            data=str(data), imgsz=imgsz, split=split, verbose=False
-        )
-    except Exception as error:  # noqa: BLE001 – any failure here means "unmeasured"
+    value, error = score_onnx(onnx_path, role=role, data=data, imgsz=imgsz, split=split)
+    if error is not None:
         logger.error(
-            "could not score the int8 graph (%s: %s). The int8 accuracy gate "
-            "stays UNMEASURED, so this artefact cannot ship until it is scored.",
-            type(error).__name__, error,
+            "could not score the int8 graph (%s). The int8 accuracy gate stays "
+            "UNMEASURED, so this artefact cannot ship until it is scored.", error,
         )
         return None
-
-    value = float(metrics.top1) if task == "classify" else float(metrics.box.map50)
     logger.info("int8 %s on %s = %.4f", ACCURACY_METRIC[role], split, value)
     return value
 
@@ -497,7 +1035,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--role", choices=ROLES, required=True)
     parser.add_argument("--weights", type=Path, required=True)
-    parser.add_argument("--calibration", type=Path, required=True)
+    parser.add_argument("--tree", type=Path, required=True, help="the split tree to calibrate from")
+    parser.add_argument("--calibration-split", default="train")
+    parser.add_argument(
+        "--calibration-strategy",
+        choices=["first_lexicographic", "stratified", "positive_enriched"],
+        default="stratified",
+    )
     parser.add_argument("--out", type=Path, default=Path("artifacts"))
     parser.add_argument("--version", type=int, required=True)
     parser.add_argument("--map50-fp32", type=float, default=None)
@@ -515,12 +1059,18 @@ def main() -> None:
     fp32 = export_onnx(
         args.weights, args.out, imgsz=imgsz, opset=int(config["export"]["opset"]), role=args.role
     )
+    calibration = calibration_frames(
+        args.tree,
+        args.calibration_split,
+        int(config["export"]["calibration_images"]),
+        strategy=args.calibration_strategy,
+        seed=int(config["project"]["seed"]),
+    )
     int8 = quantise(
         fp32,
-        args.calibration,
+        calibration,
         args.out / f"{args.role}-v{args.version}.onnx",
         imgsz=imgsz,
-        calibration_images=int(config["export"]["calibration_images"]),
     )
 
     classes = ["bin"] if args.role == "validator" else load_taxonomy().detector_classes

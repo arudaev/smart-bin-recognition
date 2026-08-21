@@ -59,8 +59,22 @@ needs the 403-crop human pass, and the validator **trained on 2026-08-18 and
 cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
 2 662 background frames — and **int8 quantisation costs it 0.727 mAP against a
 0.02 budget**, collapsing it to 0.025. The service serves int8 by construction,
-so `may_ship: false` stands and the refusal is correct. Fixing the quantisation
-is the next blocker and it is not yet diagnosed ([docs/12 P9](docs/12-validation-protocol.md)).
+so `may_ship: false` stands and the refusal is correct.
+
+**That is now diagnosed and still not cleared** ([P9](docs/research/probes/P9-int8-quantisation.md),
+2026-08-21). **Quantising the detection head is what collapses it**: leaving
+`/model.23/` in fp32 takes the model from 0.015 to **0.7481** on `val` — a
+50-fold recovery — for +5.7 ms on a Kaggle x86 proxy and +1.2 MB. It does *not*
+follow that nothing outside the head matters: that graph is still quantised
+everywhere else and still loses 0.0252, and the residual is unattributed. The
+three remedies onnxruntime names for this failure mode (S8S8, `reduce_range`,
+U8U8) all stay at collapse, as does per-tensor, so this is not the x86 saturation
+case it resembled, and the pre-registered combined run made things worse. **The best configuration is 0.0252 below the PyTorch fp32 reference
+against a 0.02 budget — missed by 0.0052, and the gate does not move.** Whether to
+take a 0.025 trade is a product decision; it would need a `test` measurement,
+and there deliberately is none, because nothing was eligible and the split was
+left unspent. Post-training int8 over the whole graph is not viable for this
+architecture: any future YOLO11 export here starts from `exclude_head=True`.
 
 Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
 because deploying a graph that scores 0.025 would make the product confidently
@@ -176,6 +190,8 @@ service/                 FastAPI + ONNX inference service (Cloud Run)
 ├── loadtest/                   the concurrency measurement – a client, not in the image
 └── deploy/                     cloudrun.sh, cloudbuild.yaml, and the runbook
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
+├── business/                   market, model, EVC, go-to-market, validation, naming
+└── research/                   dated evidence notes and probe results
 handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two prompts
 ```
 
@@ -194,6 +210,7 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 | [08-legacy-audit](docs/08-legacy-audit.md) | wondering why something is the way it is |
 | [11-phase2-results](docs/11-phase2-results.md) | quoting a number about a model |
 | [12-validation-protocol](docs/12-validation-protocol.md) | **before hard-coding anything still theoretical** |
+| [docs/business/](docs/business/README.md) | deciding who uses, buys, pays, how value is measured, how the product goes to market, or what it is called |
 | [docs/research/](docs/research/README.md) | the evidence behind the numbers, and the 2026-08-16 hardening register |
 | [web/CONVENTIONS](web/CONVENTIONS.md) | **any UI work – read this first** |
 | [handoff/DESIGN-FOUNDATION](handoff/DESIGN-FOUNDATION.md) + [handoff/DECISIONS](handoff/DECISIONS.md) + [handoff/FLOW-NOTES](handoff/FLOW-NOTES.md) | why the UI is the way it is |

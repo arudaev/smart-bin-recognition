@@ -27,7 +27,7 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
-CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency")
+CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency", "probe_quantisation")
 
 #: The diagnostic ladder from docs/07 phase 2. Each rung changes exactly one
 #: thing from the one before it, which is the only way to find a boundary when
@@ -51,7 +51,9 @@ ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
 #: secrets dataset carries. ``probe_latency`` is deliberately not one: it builds
 #: its own untrained artefacts and reports through the kernel log, so attaching a
 #: token it never uses would be cargo cult rather than configuration.
-HUB_KERNELS = (*KERNELS, "build_negatives", "bench_latency")
+#: ``probe_quantisation`` IS one - it reads ``v1/best.pt`` - even though it
+#: uploads nothing.
+HUB_KERNELS = (*KERNELS, "build_negatives", "bench_latency", "probe_quantisation")
 
 
 def source(kernel: str) -> str:
@@ -535,3 +537,203 @@ def test_there_are_no_notebooks_anywhere_in_ml():
     # "The predecessor's central artefact was a notebook that could not
     # reproduce its own model." Logic lives in src/ or scripts/.
     assert list(ML_ROOT.rglob("*.ipynb")) == []
+
+
+# --------------------------------------------------------------------------- #
+# P9 - the quantisation probe, and the ways it could measure the wrong thing
+# --------------------------------------------------------------------------- #
+
+
+def test_the_quantisation_probe_never_calibrates_on_val_or_test():
+    """Calibration draws from `train`. The one exception is named as one.
+
+    The whole probe turns on a clean partition: calibrate on `train`, select on
+    `val`, confirm once on `test`. Calibrating on the split a variant is scored
+    on would make every comparison flattering, and the historical baseline is
+    allowed to use `val` only because reproducing exactly what v1 did is the
+    entire point of that row.
+
+    Read with `ast` rather than a regex: the calls span several lines and a
+    pattern that has to match whitespace is a pattern that quietly matches
+    nothing the day somebody reformats the file.
+    """
+    import ast
+
+    tree = ast.parse(source("probe_quantisation"))
+    splits = [
+        node.args[1].value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "id", None) == "calibration_frames"
+        and len(node.args) >= 2
+        and isinstance(node.args[1], ast.Constant)
+    ]
+
+    assert splits, "no calibration_frames call found - has the probe stopped calibrating?"
+    assert "test" not in splits, "the test split must never calibrate anything"
+    assert splits.count("val") == 1, (
+        f"expected exactly one val calibration - the historical baseline - got {splits}"
+    )
+    assert set(splits) <= {"train", "val"}, splits
+
+
+def test_the_quantisation_probe_selects_on_val_and_confirms_on_test():
+    # A winner chosen on `test` and then reported as ship-gate evidence is a
+    # number tuned against its own gate. Note the claim is "no candidate is
+    # SELECTED on test", not "test is touched once" - test is scored three
+    # times and each one is named.
+    text = source("probe_quantisation")
+    assert 'split="val"' in text
+    assert "only ship-gate number in this file" in text
+    assert "no candidate is ever selected on ``test``" in text
+    # Asserted on the LIVE claim rather than on the presence of a phrase: the
+    # docstring also records that it once said "touched exactly once" and that
+    # this was false, and a test that forbade the phrase outright would forbid
+    # keeping the correction visible.
+    import ast
+
+    docstring = ast.get_docstring(ast.parse(text)) or ""
+    named = [line for line in docstring.splitlines() if "touched exactly once" in line]
+    assert all("was simply false" in line or "said" in line for line in named), (
+        "the docstring still claims test is touched exactly once; it is scored three times"
+    )
+
+
+def test_the_quantisation_probe_uses_the_tested_selection_rule():
+    """The winner rule must be importable, or it is a rule nothing tests.
+
+    It decides whether an artefact reaches the ship gate. The first version
+    lived inline in this kernel and ranked candidates by rounding mAP and
+    latency into buckets, which is not the same as the protocol's sequential
+    "within 0.005, then within 1 ms" and picks a different winner near an edge.
+    """
+    text = source("probe_quantisation")
+    assert "from sbr.export.selection import Candidate, choose_winner" in text
+    assert "choose_winner(" in text
+    # The bucketing that used to stand in for the rule.
+    assert "NOISE_MAP50" not in text
+    assert "round(latency / NOISE_MS)" not in text
+
+
+def test_the_quantisation_probe_judges_against_the_pytorch_reference():
+    """Eligibility reads the PyTorch fp32 val score, not the fp32 ONNX one.
+
+    A lossy ONNX export would otherwise lower the bar its own candidates are
+    measured against - the same failure the three-drop accounting prevents, one
+    split further up. An earlier version measured the ONNX score and called it
+    "PyTorch-equivalent", which is not the same thing.
+    """
+    text = source("probe_quantisation")
+    assert "pytorch_val" in text
+    assert "reference_map50=pytorch_val" in text
+    # The ONNX score is still measured - it is what separates export loss from
+    # quantisation loss - but it must not be what eligibility reads.
+    assert "reference_map50=fp32_val" not in text
+
+
+def test_the_quantisation_probe_runs_the_combined_variant():
+    """docs/12 P9 promises one when the two axes disagree.
+
+    Without it the probe could conclude that post-training quantisation cannot
+    recover the model when two remedies are jointly necessary and neither is
+    sufficient alone.
+    """
+    text = source("probe_quantisation")
+    assert "30-combined" in text
+    assert "best_format" in text and "best_calibration" in text
+
+
+def test_the_quantisation_probe_records_the_whole_calibration_list():
+    # The hash fingerprints a set without saying what is in it. Both are needed,
+    # and the manifests are written once and referenced by hash from each row.
+    text = source("probe_quantisation")
+    assert "calibration_sets" in text
+    assert ".manifest()" in text
+
+
+def test_the_quantisation_probe_reproduces_the_baseline_before_remedying_it():
+    """A remedy measured against a baseline that does not reproduce is noise.
+
+    The kernel must stop rather than continue, because every later row would be
+    compared to something other than the 0.025 the probe exists to explain.
+    """
+    text = source("probe_quantisation")
+    assert "00-historical-baseline" in text
+    assert "first_lexicographic" in text
+    assert "did not reproduce" in text
+    assert "raise SystemExit" in text
+
+
+def test_the_quantisation_probe_keeps_the_frozen_pytorch_reference():
+    # A re-derived fp32 reference would let a lossy export lower the gate's own
+    # denominator. The gate reads the total served drop and nothing else.
+    text = source("probe_quantisation")
+    assert "PYTORCH_FP32_TEST_MAP50 = 0.7524389678079388" in text
+    assert "TOTAL SERVED DROP" in text
+
+
+def test_the_quantisation_probe_treats_fp16_as_informational():
+    # onnxruntime's CPU execution provider does not broadly support fp16 ops, so
+    # an fp16 row measures something this service cannot serve.
+    text = source("probe_quantisation")
+    assert "INFORMATIONAL ONLY" in text
+    assert '!= "02-fp16-informational"' in text
+
+
+def test_the_quantisation_probe_records_an_error_rather_than_inventing_a_number():
+    # "either metric or error, never both" - a failed load is a valid result.
+    text = source("probe_quantisation")
+    assert 'row["error"]' in text
+    assert 'row["metric"] = value' in text
+
+
+def test_the_quantisation_probe_builds_its_tree_outside_the_kernel_output():
+    """Everything under /kaggle/working is kernel output.
+
+    The pinned pool is 37 913 files, which is why `kaggle kernels output` on a
+    training run tries to download all of them. This probe's output has to stay
+    small enough to fetch.
+    """
+    text = source("probe_quantisation")
+    assert 'SCRATCH = pathlib.Path("/tmp/sbr")' in text
+    assert "local_dir=SCRATCH" in text
+    assert 'tree = SCRATCH / "dataset"' in text
+    assert 'tree = WORKING' not in text
+
+
+def test_the_quantisation_probe_uploads_nothing():
+    # It is a diagnostic. Promotion is a separate, gated step in gate.py.
+    assert "upload_artifacts" not in source("probe_quantisation")
+
+
+def test_the_quantisation_probe_pins_the_ultralytics_that_produced_v1():
+    # Everything in this repo is lower-bounded rather than pinned, and the
+    # baseline being reproduced was produced by 8.4.121. A newer ultralytics is
+    # a live confound on the one measurement the probe is anchored to.
+    text = source("probe_quantisation")
+    assert "ultralytics==8.4.121" in text
+
+
+def test_the_quantisation_probe_covers_the_formats_onnxruntime_names():
+    """S8S8, U8S8+reduce_range and U8U8 are the documented remedies.
+
+    onnxruntime names S8S8 the normal CPU choice and describes a large U8S8 loss
+    as an x86 activation-saturation symptom. v1 shipped U8S8 without reduced
+    range, so a probe omitting these rows could not explain the failure.
+    """
+    text = source("probe_quantisation")
+    for variant in ("11-s8s8", "12-u8s8-reduce-range", "13-u8u8", "14-per-tensor",
+                    "15-head-fp32", "21-letterboxed"):
+        assert variant in text, variant
+
+
+def test_the_quantisation_probe_records_the_test_runs_it_actually_made():
+    """The record must not declare evaluations that never happened.
+
+    Run 2 was eligible for none, so only the historical baseline touched `test` -
+    while the record still listed a locked winner and an fp32 control, because
+    the list was a hard-coded plan rather than a reading of the rows.
+    """
+    text = source("probe_quantisation")
+    assert 'r["variant"] for r in rows if r["split"] == "test"' in text
+    assert "what ran, not what was planned" in text

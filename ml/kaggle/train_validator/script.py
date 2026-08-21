@@ -188,6 +188,7 @@ def main() -> None:
     from sbr.export.onnx_export import (
         ExportReport,
         Gates,
+        calibration_frames,
         check_gates,
         evaluate_int8,
         export_onnx,
@@ -340,12 +341,24 @@ def main() -> None:
     fp32 = export_onnx(
         best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"], role=ROLE
     )
+    # Named rather than implied. `first_lexicographic` over `val` is exactly
+    # what v1 did - sorted()[:200], which took 51 legacy frames and 149
+    # negatives and no Open Images frame at all - and it stays until docs/12 P9
+    # says what to replace it with. Spelling it out is the point: the strategy
+    # is now a decision somebody made, not a side effect of sorted().
+    calibration = calibration_frames(
+        tree,
+        "val",
+        config["export"]["calibration_images"],
+        strategy="first_lexicographic",
+        seed=config["project"]["seed"],
+    )
+    log(f"calibration set: {json.dumps(calibration.as_dict())}")
     int8 = quantise(
         fp32,
-        tree / "images" / "val",
+        calibration,
         artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx",
         imgsz=config["export"]["imgsz"],
-        calibration_images=config["export"]["calibration_images"],
     )
 
     # Gate 3 is fp32-vs-int8, so int8 has to be scored on the SAME split the

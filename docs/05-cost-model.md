@@ -344,7 +344,7 @@ Ordered by cost, cheapest first. None needed for a pilot.
 | Sustained saturation, Cloud Run | Raise `--cpu` and `--max-instances` | **usage-based; there is no monthly figure** – see below |
 | Sustained, predictable load | Move service to Fly.io / Hetzner CPU box | ~€5–15/mo |
 | Real scale | GPU inference, batch frames across users | ~€50+/mo |
-| Any of the above | **Municipal sponsorship** – geolocated bin data with staleness tracking is genuinely useful to a waste operator | the intended answer |
+| Any of the above | Institution-funded operation, but only after a buyer and contract are validated; see the [business model](business/02-business-model.md) | customer-funded; amount unknown |
 
 Three corrections to that table, made 2026-08-17, because the previous version
 was wrong in ways that would have made an upgrade decision on bad numbers.

@@ -119,28 +119,28 @@ and every metric's evaluation distribution.
 The public PWA should build in demo mode without access to a private repository.
 Use a versioned WebSocket/HTTP boundary to the private inference service. Do not
 compile private weights into browser JavaScript or WASM, and do not make a
-private Git submodule mandatory for public contributors. A project-specific
-GitHub Sponsors tier can grant read access to an organization-owned private core
-for individual self-hosters; SaaS billing and API limits remain separate.
+private Git submodule mandatory for public contributors. The boundary between
+public and private work is a product and licensing decision, not a revenue
+model. GitHub sponsorship is not customer validation.
 
 ## Product classification and final direction
 
-Smart Bin Recognition has a **B2C entry surface** and a **B2G/B2B2C scale
-model**. The citizen-facing PWA is a free public-good application. The durable
-platform is the municipality registry, verified region-pack system, inference
-service, contribution workflow, and later deployment/support surface.
+Smart Bin Recognition has a free resident-facing surface and an **unvalidated
+institution-funded operation hypothesis**. The market is crowded, the project
+has no customer yet, and broad labels such as B2G or B2B2C conceal more than
+they explain. The first commercial test is one managed residence, not a city.
 
 It is not primarily a consumer subscription SaaS and it is not a generic
-photograph-your-trash classifier. If it develops revenue, the credible buyers
-are municipalities, waste operators, campuses, housing providers, and mobility
-or city-service platforms. They may pay for onboarding, verified data
-maintenance, integrations, analytics, deployment, or support while resident
-access remains free.
+photograph-your-trash classifier. Two routes merit testing: a fixed-scope
+managed-site service, and—after proof—a licensed integration for a municipal-app
+vendor. Municipalities, waste operators, campuses and housing providers are
+actors, not buyers, until a named person commits budget or signs a contract.
+The current evidence and validation sequence live in the
+[business audit](business/README.md).
 
 The competition transition is:
 
-> coursework waste classifier -> city-aware bin recognition application ->
-> multilingual municipal disposal decision infrastructure
+> coursework waste classifier -> verified local bin-context capability
 
 ## 2027 competition route
 
