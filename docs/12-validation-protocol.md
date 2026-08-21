@@ -687,7 +687,11 @@ third of docs/07 phase 2's remaining blockers.
 
 ## P10 – Where the residual 0.0252 lives
 
-*Pre-registered 2026-08-21, before the probe ran.*
+*Pre-registered 2026-08-21, before the probe ran.* **RAN 2026-08-21 —
+[result](research/probes/P10-where-the-residual-lives.md). Two rows fired: the
+0.02–0.10 miss, and the ranking-versus-sweep disagreement. No module outside the
+detection head accounts for the residual by a distinguishable amount; the best
+configuration misses the gate by 0.0054 and the gate did not move.**
 
 **Question.** [P9](research/probes/P9-int8-quantisation.md) established that
 quantising the detection head is what collapses the validator: excluding

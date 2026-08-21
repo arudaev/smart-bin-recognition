@@ -363,6 +363,49 @@ confound, recorded rather than smoothed. And anything below ~0.1 in that table i
 **one number, not several**: across two runs the collapsed rows swap places
 freely, while every row that means something replicates to within 0.001.
 
+### And the residual has now been hunted and not found — P10, 2026-08-21
+
+[P10](research/probes/P10-where-the-residual-lives.md) asked where the remaining
+0.0252 lives. It ran the corrected SQNR diagnostic — which P9 never executed,
+because `quantisation_error` only fires on a winner and P9 had none — and then
+swept the modules it named, plus `/model.10/` regardless of the ranking.
+
+| variant | val mAP@0.5 | drop vs 0.7733835 | QDQ nodes outside head |
+|---|---:|---:|---:|
+| head-fp32 anchor (P9's best, re-measured) | 0.747107 | 0.026277 | 619 |
+| **head + `/model.10/` in fp32** | **0.748021** | **0.025363** | 544 |
+| head + `/model.1/` | 0.746465 | 0.026918 | 613 |
+| head + `/model.2/` | 0.745748 | 0.027636 | 581 |
+
+**The diagnostic and the standing hypothesis agreed, and the sweep contradicted
+both.** The single most damaged tensor in the graph is
+`/model.10/m/m.0/attn/Softmax_output_0` at **23.90 dB SQNR**, 1.65 dB clear of
+the next — the same C2PSA attention block a 1517× weight-scale anomaly had
+pointed at. Excluding `/model.10/` removes **75 QDQ nodes, 12 % of everything
+still quantised**, including that tensor — and buys **+0.000914 mAP**, which is
+below the `MAP_NOISE = 0.005` this project uses for "the same candidate". The
+other two modules made it slightly worse.
+
+So: **no module outside the detection head accounts for the residual by a
+distinguishable amount.** A low-SQNR activation does not imply a task-metric
+cost. That is a stronger statement than P9's "not attributed" — it is evidence
+against the obvious hypothesis rather than absence of evidence — and it means the
+0.0254 is spread across the remaining 544 QDQ nodes rather than sitting in one
+findable place.
+
+**The gate is unmoved and the artefact still may not ship.** Best known
+configuration on `val`, proxy hardware: **0.7480 against 0.7734, missing by
+0.0054**. `test` was not touched and stays unspent. The remaining route to a
+post-training-free int8 graph is quantisation-aware training, which is the
+maintainer's decision and was **not attempted**.
+
+**One number in P9's table above should not be compared with P10's.** The
+identical head-fp32 graph measured **36.6 ms** on a Kaggle Xeon and **25.36 ms**
+on a Kaggle EPYC — 31 % apart on the same bytes and the same onnxruntime,
+entirely from which machine the platform allocated. Both are
+`representative: false`. It is the plainest evidence in this document for why the
+latency half of the gate is not closed by a proxy.
+
 ### Recall by bins per frame
 
 docs/04 § 5 commits to this so a model that only works on one big centred bin

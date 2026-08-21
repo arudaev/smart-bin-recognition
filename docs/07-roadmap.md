@@ -101,6 +101,22 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       the probe's to make. There is deliberately **no `test` measurement** of that
       configuration: nothing was eligible, so nothing was confirmed, and the test
       split is unspent. [P9](research/probes/P9-int8-quantisation.md).
+- [x] **Probe P10 — where the residual lives. ANSWERED 2026-08-21, and the
+      answer is "nowhere findable".** The corrected SQNR diagnostic ran for the
+      first time and named `/model.10/m/m.0/attn/Softmax_output_0` at 23.90 dB,
+      the worst tensor in the graph by 1.65 dB — the same C2PSA block a 1517×
+      weight-scale anomaly had independently pointed at. **Excluding it removes
+      75 QDQ nodes, 12 % of everything still quantised, and buys +0.000914 mAP**,
+      which is below the 0.005 this project treats as noise. The other two ranked
+      modules made it worse. So the ranking and the sweep disagreed, the
+      pre-registered rule says believe the sweep, and the conclusion is that **no
+      module outside the detection head accounts for the residual by a
+      distinguishable amount** — the 0.0254 is spread across the remaining 544
+      QDQ nodes. Best configuration on `val`: **0.7480 against 0.7734, missing
+      the gate by 0.0054.** `test` untouched, gate unmoved, no v2 published.
+      Quantisation-aware training is the only remaining route and is the
+      maintainer's decision, not attempted.
+      [P10](research/probes/P10-where-the-residual-lives.md).
       *The original failure, for the record:*
       The kernel pulled the pinned pool, built the dataset (18 954 images, split
       13 265/2 823/2 866) and started Ultralytics, then ended with status
