@@ -171,7 +171,8 @@ API-pushed kernel.
 
 **4. `bench_latency`'s failure was correct behaviour misread as a symptom.** It
 ends with `raise SystemExit("no artefacts at v1 to measure - train something
-first")`, and no model exists, so it refuses — exactly as designed. Re-pushed on
+first")`, and at that date no model existed, so it refused — exactly as
+designed. Re-pushed on
 2026-08-17 it errored again, **with an empty log**, on an account that had
 returned full tracebacks minutes earlier. So *"errored with no log"* is how a
 deliberate `SystemExit` surfaces through the Kaggle API; it is not evidence of

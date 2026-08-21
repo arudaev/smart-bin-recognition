@@ -209,9 +209,12 @@ So: **the gate has an answer; the phase has a remaining task.** Do not read
       at all is exactly what the probe tests.
 - [x] **Load-test the service: how many concurrent scanners before degradation?**
       Built and run 2026-08-17, and the instrument outlived its first answer.
-      It reported **4 at one bin per frame, 1 at six**; P8 later showed the
-      host cannot hold that figure still, so the absolute number is
-      **unresolved** and the harness now compares configurations in pairs.
+      It reported **4 at one bin per frame, 1 at six**; P8 then showed the host
+      could not hold that figure still, and the harness now compares
+      configurations in pairs. **Settled 2026-08-21 on a controlled host
+      ([P12](research/probes/P12-the-controlled-host.md)): 5 and 2.** The
+      instrument was right about the shape and the laptop was wrong about the
+      level.
       Its lasting finding stands: the degradation ladder had never been
       reachable in production — inference blocked the event loop, so the load
       shedder never saw a queue and no rung ever fired.
