@@ -32,7 +32,8 @@ this is a free x86 proxy, not the service container. Latency may be compared
 
 **Nothing is eligible.** The best configuration leaves the detection head in fp32
 and lands **0.0252 below** the reference, against a budget of 0.02. It misses by
-**0.0052**.
+**0.0052**, and where that remaining 0.0052 lives is **not established** — the
+head-fp32 graph is still quantised everywhere else.
 
 Per the rule: the gate is missed, the model is real, and **the gate does not
 move**. What the trade costs is set out at the bottom; taking it is not this
@@ -51,8 +52,9 @@ The three drops decompose cleanly, on `val`:
 | **quantisation drop** | 0.0267 |
 | **total served drop** | **0.0252** |
 
-**The export is innocent.** Every point lost is lost to quantisation, and
-essentially all of it is lost in the detection head.
+**The export is innocent.** Every point lost is lost to quantisation. Almost all
+of it is recovered by protecting the head; the remaining 0.0252 is not
+attributed to anywhere.
 
 ## The table
 
@@ -75,19 +77,28 @@ All rows scored on `val`. `test` was never spent on a candidate.
 
 ## Four findings, in order of how much they change
 
-**1. It is the detection head, and only the head.** Excluding `/model.23/` from
-quantisation moves the model from noise to 0.7481 — a **50-fold** recovery. The
+**1. Quantising the detection head is what causes the collapse.** Excluding
+`/model.23/` moves the model from noise to 0.7481 — a **50-fold** recovery. The
 boundary is verified rather than assumed: `qdq_nodes_in_head: 0`,
-`qdq_nodes_outside_head: 619`. Nothing else in the graph needs protecting.
+`qdq_nodes_outside_head: 619`.
 
-**2. Every documented format remedy fails, and that is a real result.**
-onnxruntime names S8S8 the normal CPU choice and identifies large U8S8 loss on
-x86 as activation saturation, with `reduce_range` and U8U8 as the remedies. This
-was the best-supported hypothesis going in. **All three do nothing here** — every
-one stays at collapse — and S8S8 is additionally **2.5× slower** (76.3 ms against
-30.3 ms), which would have missed the latency budget on its own. Per-channel
-versus per-tensor makes no difference either. The failure is not a saturation
-problem.
+**What this does *not* establish is that nothing outside the head matters.** The
+head-fp32 graph still has 619 QDQ nodes in it and still loses **0.0252**, and
+that residual is **unattributed**: it may sit in the backbone or the neck, and
+this probe did not test that. "The head, and only the head" would be the claim
+that the remaining 0.0052 cannot be recovered elsewhere, and no row here supports
+it. The collapse is explained; the miss is not.
+
+**2. The three remedies onnxruntime names for this failure mode all fail.**
+Its guidance names S8S8 as the normal CPU choice and identifies large U8S8 loss
+on x86 as activation saturation, with `reduce_range` and U8U8 as the remedies.
+That was the best-supported hypothesis going in. **All three do nothing here** —
+each stays at collapse — and S8S8 is additionally **2.5× slower** (76.3 ms
+against 30.3 ms), which would have missed the latency budget on its own.
+Per-channel versus per-tensor makes no difference either. **This is not the x86
+saturation case it resembled.** Narrower than "every remedy onnxruntime names":
+these four plus `quant_pre_process` are what was tested, and the guidance also
+describes options — QAT among them — that this probe did not touch.
 
 **3. The combined variant made it worse — which is why it was pre-registered.**
 docs/12 promised a combined run when the two axes disagree, and they did:
@@ -135,6 +146,20 @@ agreement between a broken diagnostic and a correct experiment is a coincidence,
 not corroboration. Fixed, and pinned by a test asserting the direction against
 onnxruntime's own function.
 
+**The raw record over-declares its own test evaluations.** In
+`P9-int8-quantisation.json`, `partitioning.test_evaluations` lists three entries —
+the baseline, a locked winner and an fp32 control. **Only the first ran.**
+`winner` in the same file is `null`, and no `90-` or `91-` row exists, because
+nothing was eligible. The list was a hard-coded plan rather than a reading of the
+rows, so it described what the kernel *would* do rather than what it did.
+
+The JSON is left exactly as the kernel wrote it — it is the raw record, and
+editing it after the fact would cost the one property that makes it worth
+keeping. The defect is fixed in the kernel (`test_evaluations` is now derived
+from the rows and labelled *what ran, not what was planned*) and noted here, so
+anyone reading that file sees the correction beside it. **The row data itself is
+unaffected**; only that summary field was wrong.
+
 **The collapsed rows are noise and must not be read as a ranking.** Across the two
 runs the collapsed variants swap places freely — `10-reference` was 0.0250 then
 0.0150; `11-s8s8` was 0.0150 then 0.0250; `14-per-tensor` likewise. **Only the
@@ -153,16 +178,22 @@ not broadly support fp16.
 
 Leaving the head in fp32 is **cheap in every way except the gate**:
 
-| | int8 everywhere | head in fp32 | budget |
+| | int8 everywhere | head in fp32 | gate |
 |---|---|---|---|
 | val mAP@0.5 | 0.0150 | **0.7481** | — |
-| drop vs PyTorch fp32 | 0.7584 | **0.0252** | ≤ 0.02 |
-| p50, 2-vCPU x86 proxy | 30.9 ms | **36.6 ms** | ≤ 50 ms |
-| p95 | — | 37.3 ms | — |
-| artefact size | 3.19 MB | 4.37 MB | not gated |
+| drop vs PyTorch fp32 | 0.7584 | **0.0252** | ≤ 0.02 (**missed by 0.0052**) |
+| p50, Kaggle 2-thread x86 proxy | 30.9 ms | **36.6 ms** | 50 ms, but stated on *service* CPU |
+| p95, same proxy | — | 37.3 ms | — |
+| artefact size | 3.19 MB | 4.37 MB | **not gated** |
 
-It costs **5.7 ms** and **1.2 MB**, both comfortably inside budget, and misses the
-accuracy gate by **0.0052**.
+Leaving the head in fp32 costs **+5.7 ms on the Kaggle proxy** and **+1.2 MB**.
+
+Neither of those is a budget clearance and neither may be written up as one. The
+latency budget is stated **on service CPU**, and this measurement carries
+`representative: false` — 36.6 ms on a Kaggle Xeon is *encouraging* against a
+50 ms service budget and **does not close the latency gate**, which only
+`ml/scripts/gate.py` against a real bench can do. Size is not gated at all, so
+"+1.2 MB, within budget" names a budget that does not exist.
 
 **There is no `test` measurement of this configuration, deliberately.** Nothing was
 eligible, so nothing was confirmed, so the test split is unspent. Quoting 0.0252 as
@@ -173,11 +204,14 @@ is taken, spending the test split on it is a separate, deliberate act.
 
 - **docs/04 § 6 and `validator.yaml`**: post-training int8 over the whole graph is
   not viable for this architecture. Any future export of a YOLO11 detector here
-  starts from `exclude_head=True`.
+  starts from `exclude_head=True` — which is necessary and, on this evidence, not
+  sufficient.
 - **docs/07 phase 2**: the int8 blocker is *diagnosed* and *not cleared*. v1 still
   cannot ship, and the reason is now specific rather than mysterious.
-- **docs/12**: P9 is answered. What it does **not** answer is whether a model
-  *trained* to be quantised would clear the gate — that is quantisation-aware
+- **docs/12**: P9 is answered. Two things it does **not** answer: where the
+  residual 0.0252 lives, given that the head-fp32 graph is still quantised
+  everywhere else; and whether a model *trained* to be quantised would clear the
+  gate — that is quantisation-aware
   training, and it is a new probe with its own pre-registration, not a continuation
   of this one. Inventing further variants after seeing these results is exactly
   what the protocol forbids.

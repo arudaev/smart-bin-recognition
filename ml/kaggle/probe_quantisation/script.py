@@ -13,10 +13,13 @@ is scored on ``val`` and the winner is chosen there. Selecting on ``test`` and
 then reporting that same number as ship-gate evidence would make the gate a
 number that was tuned against, which is not a gate.
 
-``test`` is scored three times and each one is named: the historical baseline
+``test`` is scored **at most** three times: the historical baseline always
 (which must use ``test``, because 0.025 was measured there and reproducing it is
-the point), and then the locked winner and the fp32 control. An earlier version
-of this docstring said "touched exactly once", which was simply false.
+the point), and then the locked winner and the fp32 control **only if a candidate
+is eligible**. When nothing qualifies there is nothing to confirm and the split is
+spent once. Two earlier versions of this docstring asserted a fixed count - first
+one, then three - and both were wrong the same way: the count is conditional. What
+is invariant is that nothing is ever *selected* on ``test``.
 
 **Three drops, not one.** The 0.7524 came from PyTorch on a GPU and the 0.025
 from onnxruntime on a CPU, so precision is not the only thing that changed
@@ -558,11 +561,12 @@ def main() -> None:
         "partitioning": {
             "calibration": "train (except 00-historical-baseline, which reproduces v1's val list)",
             "selection": "val - no candidate is ever selected on test",
-            "test_evaluations": [
-                "00-historical-baseline (reproduces the published 0.025, which was measured on test)",
-                "90-confirm-<winner> (the locked winner)",
-                "91-confirm-fp32-control (so the three drops can be separated)",
-            ],
+            # What actually ran, read off the rows. An earlier version listed
+            # three planned evaluations unconditionally, so a run where nothing
+            # was eligible - and only the baseline touched test - still declared
+            # a locked winner and an fp32 control that never existed.
+            "test_evaluations": [r["variant"] for r in rows if r["split"] == "test"],
+            "test_evaluations_are": "what ran, not what was planned",
         },
         "winner": winner["variant"] if winner else None,
         "calibration_sets": calibration_sets,

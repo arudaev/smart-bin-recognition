@@ -17,7 +17,17 @@ protocol says.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+
+#: Slack for binary floating point, and nothing more. A candidate exactly at the
+#: budget must pass, and without this it does not: against the real reference
+#: 0.7733835153437881, a score exactly 0.02 lower subtracts to
+#: 0.020000000000000018, which is greater than 0.02. The gate would then reject
+#: an artefact that sits precisely on the line it was written to allow. This is
+#: representation error, an order of magnitude smaller than the fourth decimal
+#: any of these metrics is quoted to - it is not a widened gate.
+FLOAT_SLACK = 1e-9
 
 #: docs/12 P9. Two candidates closer than this in mAP are the same candidate as
 #: far as accuracy goes, and the next criterion decides.
@@ -56,8 +66,13 @@ def eligible(
     """
     return [
         candidate for candidate in candidates
-        if candidate.shippable and (reference_map50 - candidate.map50) <= max_drop
+        if candidate.shippable and _within(reference_map50 - candidate.map50, max_drop)
     ]
+
+
+def _within(drop: float, budget: float) -> bool:
+    """``drop <= budget``, with the boundary actually inside the budget."""
+    return drop <= budget or math.isclose(drop, budget, rel_tol=0.0, abs_tol=FLOAT_SLACK)
 
 
 def choose_winner(

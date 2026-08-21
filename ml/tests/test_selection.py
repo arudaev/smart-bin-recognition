@@ -160,3 +160,40 @@ def test_sequential_filtering_beats_bucketing_at_a_boundary():
         "if this ever equals 'quick' the boundary case has moved and this test "
         "has stopped demonstrating the difference it exists to demonstrate"
     )
+
+
+# --------------------------------------------------------------------------- #
+# The boundary itself
+# --------------------------------------------------------------------------- #
+
+
+def test_a_candidate_exactly_at_the_budget_is_eligible():
+    """`<=` in binary floating point is not `<=` in decimal.
+
+    Against the real reference, a score exactly 0.02 lower subtracts to
+    0.020000000000000018 - greater than 0.02 - so a naive comparison rejects an
+    artefact sitting precisely on the line the gate was written to allow. The
+    slack is 1e-9, four orders of magnitude below the resolution any of these
+    metrics is quoted to; it is representation error, not a widened gate.
+    """
+    exactly_at_budget = candidate("on-the-line", REFERENCE - MAX_DROP)
+    assert (REFERENCE - exactly_at_budget.map50) > MAX_DROP, (
+        "if this ever stops being true the arithmetic has changed and this test "
+        "no longer demonstrates the case it exists for"
+    )
+    assert eligible([exactly_at_budget], REFERENCE, MAX_DROP) == [exactly_at_budget]
+
+
+def test_the_slack_does_not_admit_a_candidate_that_actually_misses():
+    # 0.0201 is over budget by a hundred thousand times the slack.
+    just_over = candidate("just-over", REFERENCE - 0.0201)
+    assert eligible([just_over], REFERENCE, MAX_DROP) == []
+
+
+def test_the_slack_does_not_admit_the_result_p9_actually_measured():
+    # head-fp32 at 0.0252 must stay ineligible. The fix is arithmetic, not a
+    # loosened gate, and this is what says so.
+    head_fp32 = candidate("15-head-fp32", 0.7481, latency_ms=36.6)
+    assert choose_winner(
+        [head_fp32], reference_map50=0.7733835153437881, max_drop=MAX_DROP
+    ) is None

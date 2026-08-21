@@ -725,3 +725,15 @@ def test_the_quantisation_probe_covers_the_formats_onnxruntime_names():
     for variant in ("11-s8s8", "12-u8s8-reduce-range", "13-u8u8", "14-per-tensor",
                     "15-head-fp32", "21-letterboxed"):
         assert variant in text, variant
+
+
+def test_the_quantisation_probe_records_the_test_runs_it_actually_made():
+    """The record must not declare evaluations that never happened.
+
+    Run 2 was eligible for none, so only the historical baseline touched `test` -
+    while the record still listed a locked winner and an fp32 control, because
+    the list was a hard-coded plan rather than a reading of the rows.
+    """
+    text = source("probe_quantisation")
+    assert 'r["variant"] for r in rows if r["split"] == "test"' in text
+    assert "what ran, not what was planned" in text

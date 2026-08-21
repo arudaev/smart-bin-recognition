@@ -324,7 +324,7 @@ caught a model that would otherwise have shipped as a working detector and
 answered noise.** That is the single best argument for the gate apparatus this
 project has produced.
 
-### Diagnosed 2026-08-21: it is the detection head, and only the head
+### Diagnosed 2026-08-21: quantising the detection head is what collapses it
 
 [P9](research/probes/P9-int8-quantisation.md) measured eleven export
 configurations off the same `best.pt`, calibrating from `train` and scoring on
@@ -339,10 +339,14 @@ configurations off the same `best.pt`, calibrating from `train` and scoring on
 | S8S8 · `reduce_range` · U8U8 · per-tensor · positive-enriched | 0.024–0.025 | ≈ +0.749 |
 | as shipped | 0.015 | +0.7584 |
 
-Excluding `/model.23/` is a **50-fold** recovery and costs 5.7 ms and 1.2 MB,
-both well inside budget. **Every remedy onnxruntime's guidance names — S8S8,
-`reduce_range`, U8U8 — does nothing**, and S8S8 is 2.5× slower besides; this is
-not the x86 saturation case it looked like. The calibration hypotheses were both
+Excluding `/model.23/` is a **50-fold** recovery, for +5.7 ms on the Kaggle
+proxy and +1.2 MB — neither of which closes a gate: the latency budget is stated
+on *service* CPU and this measurement is `representative: false`, and size is not
+gated at all. It also does not follow that nothing outside the head matters; that
+graph still carries 619 QDQ nodes and still loses 0.0252, and **where that
+residual lives was not tested**. **The three remedies onnxruntime's guidance names for this
+failure mode — S8S8, `reduce_range`, U8U8 — all do nothing**, and S8S8 is 2.5×
+slower besides; this is not the x86 saturation case it looked like. The calibration hypotheses were both
 wrong too: enriching positives changes nothing, and letterboxing helps a
 collapsed graph while *hurting* a working one.
 

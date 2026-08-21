@@ -449,15 +449,17 @@ because the measurement it would fail on is not admissible. What it waits on is
 
 ## P9 – Why int8 destroys the validator
 
-> **ANSWERED 2026-08-21.** It is the detection head, and only the head:
-> excluding `/model.23/` from quantisation moves the model from 0.015 to
-> **0.7481** on `val`. Nothing else helps — every format remedy onnxruntime
-> documents (S8S8, `reduce_range`, U8U8, per-tensor) stays at collapse, and the
-> pre-registered combined run made things *worse*. The best configuration is
-> **0.0252 below** the PyTorch fp32 reference against a 0.02 budget, so the
-> middle row of the rule below fires: **the gate is missed, the model is real,
-> and the gate does not move.** Full result, including two things this probe got
-> wrong before it got them right:
+> **ANSWERED 2026-08-21.** Quantising the detection head is what causes the
+> collapse: excluding `/model.23/` moves the model from 0.015 to **0.7481** on
+> `val`. Nothing else helps — the three remedies onnxruntime names for this
+> failure mode (S8S8, `reduce_range`, U8U8) stay at collapse, as does
+> per-tensor, and the pre-registered combined run made things *worse*. The best
+> configuration is **0.0252 below** the PyTorch fp32 reference against a 0.02
+> budget, so the middle row of the rule below fires: **the gate is missed, the
+> model is real, and the gate does not move.** Where that residual 0.0252 lives
+> is **not** established — the head-fp32 graph is still quantised everywhere
+> else. Full result, including three things this probe got wrong before it got
+> them right:
 > [probes/P9-int8-quantisation.md](research/probes/P9-int8-quantisation.md).
 
 **Question.** The first completed validator scores **mAP@0.5 = 0.7524389678079388 in
@@ -505,12 +507,15 @@ This is not pedantry. Selecting a winner on `test` and then reporting that winne
 `test` score as ship-gate evidence turns the test split into a tuning set, and the gate
 into a number that was tuned against.
 
-`test` is *scored* three times, and each is named so the count cannot drift: the
-**historical reproduction** (which must use `test`, because the published 0.025 was
-measured there), the **locked winner**, and the **fp32 control**. An earlier version of
-this section said `test` was "touched exactly once", which was false - three evaluations
-that select nothing is the honest description, and it is the *selecting* the split has to
-be protected from. That historical row is also the only one calibrated from `val` - v1's
+`test` is scored **at most** three times, and each is named so the count cannot drift:
+the **historical reproduction** (which must use `test`, because the published 0.025 was
+measured there) — always; then the **locked winner** and the **fp32 control** — *only if
+a candidate is eligible*. When nothing qualifies there is nothing to confirm and the
+split is spent once, which is what happened on 2026-08-21. An earlier version of this
+section said `test` was "touched exactly once", and then said it was scored three times;
+both were wrong in the same way — asserting a fixed count for something conditional. What
+is invariant is that **nothing is ever selected on `test`**, and that is the property the
+split has to be protected for. That historical row is also the only one calibrated from `val` - v1's
 own first-200 list - because reproducing what happened is the whole point of it, and it
 is never a candidate.
 
