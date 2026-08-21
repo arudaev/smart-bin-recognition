@@ -171,7 +171,7 @@ def out_of_fold(features, labels, groups):
             "train_clusters": int(len(set(groups[train]))),
             "test_clusters": int(len(set(groups[test]))),
             "test_class_counts": {
-                str(k): int(v) for k, v in zip(*np.unique(labels[test], return_counts=True))
+                str(k): int(v) for k, v in zip(*np.unique(labels[test], return_counts=True), strict=True)
             },
         })
     return predictions.astype(str), folds
@@ -197,7 +197,7 @@ def score(truth, predicted, classes):
         "balanced_accuracy": float(balanced_accuracy_score(truth, predicted)),
         "majority_class_baseline": float(counts.max() / counts.sum()),
         "support": {
-            str(k): int(v) for k, v in zip(*np.unique(truth, return_counts=True))
+            str(k): int(v) for k, v in zip(*np.unique(truth, return_counts=True), strict=True)
         },
         # Rows are truth, columns are prediction, both in `classes` order.
         "confusion": matrix.tolist(),
@@ -278,7 +278,7 @@ def main() -> None:
     areas = np.asarray(areas, dtype=np.float32).reshape(-1, 1)
     log(
         f"{len(paths)} adjudicated crops over {len(set(groups))} capture clusters: "
-        f"{json.dumps({str(k): int(v) for k, v in zip(*np.unique(labels, return_counts=True))})}"
+        f"{json.dumps({str(k): int(v) for k, v in zip(*np.unique(labels, return_counts=True), strict=True)})}"
     )
 
     # `street_basket` is n=1 in one cluster: it cannot appear in a train fold and
@@ -298,7 +298,6 @@ def main() -> None:
     # ---------------------------------------------------------------------- #
     # Embeddings
     # ---------------------------------------------------------------------- #
-    import torch
     from transformers import AutoImageProcessor, AutoModel
 
     processor = AutoImageProcessor.from_pretrained(DINOV2)
@@ -388,7 +387,7 @@ def main() -> None:
             "crops": len(paths),
             "clusters": int(len(set(groups))),
             "class_counts": {
-                str(k): int(v) for k, v in zip(*np.unique(labels, return_counts=True))
+                str(k): int(v) for k, v in zip(*np.unique(labels, return_counts=True), strict=True)
             },
             "cluster_counts": {
                 str(c): int(len(set(groups[labels == c]))) for c in sorted(set(labels))
