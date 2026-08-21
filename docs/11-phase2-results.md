@@ -437,9 +437,15 @@ crops the human pass produced, run blind by reviewer `alex`. yolo11s-cls @ 320,
 | accuracy when answering | test | 1.0 — **not a gate** |
 | `min_formfactor_acc_heldout_city` | — | **unmeasurable** — no second city |
 
-**The accuracy gate passes and the artefact does not ship**, because latency
-was unmeasured at the time of writing; `may_ship: false` with `unmeasured`
-naming the bench. That is the correct verdict, not a failure.
+**Every gate now passes.** Accuracy: int8 drop 0.0000 against 0.02. Latency:
+9.9 ms per crop against 25 ms, measured on `representative: true` hardware by
+[P12](research/probes/P12-the-controlled-host.md). `gate.py` returns *all ship
+gates passed*.
+
+**The published sidecar still reads `may_ship: false`.** Pushing the verdict to
+the model repo is a deliberate act and the maintainer's; it has not been taken.
+The accurate statement is that the identifier **is eligible to ship**, not that
+it ships.
 
 **`1.0000` must never be quoted without its denominator.** The test split is
 **47 crops**: 25 `wheelie_small` over 9 capture clusters, 19 `wheelie_large`

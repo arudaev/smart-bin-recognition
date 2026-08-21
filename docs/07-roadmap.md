@@ -40,7 +40,19 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ---
 
-## Phase 2 – Vision spike *(highest risk – in progress)*
+## Phase 2 – Vision spike *(the gate is closed, with a fail. The phase is not.)*
+
+**Status, 2026-08-21.** Every model, dataset and probe item in this phase is
+done. **The gate is closed and it did not pass**: latency passes on
+representative hardware, concurrency fails at 5 against 10. What keeps the phase
+open is **one unchecked item — colour extraction (P3)** — and this session made
+it more important rather than less: a working two-model pipeline answers
+`unknown` for every wheelie in Deggendorf, because the pack's wheelie rules
+match on `lid_color` and nothing measures a lid.
+
+So: **the gate has an answer; the phase has a remaining task.** Do not read
+"phase 2 closed" as "phase 2 complete".
+
 
 - [x] `legacy_import.py` → resized dataset with provenance on HF Hub, pinned by
       revision. **370 usable frames, not 466**: the published archive is a
@@ -179,7 +191,17 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
-- [ ] Colour extraction, validated against **hand-labelled body/lid colours**
+- [ ] **Colour extraction — THE ONE ITEM LEFT IN THIS PHASE, and it went up in
+      priority on 2026-08-21.** Both models exist and a real Deggendorf frame
+      returns a form factor; glass resolves to `glass_mixed` / "Glascontainer"
+      and **every wheelie resolves to `unknown`**, because all four wheelie
+      rules match on `lid_color` and the service measures body colour only. One
+      `Papier` bin came back with `body_color: blue` — the exact colour the
+      paper rule wants — and still answered `unknown`. `igloo` is 40 crops and
+      resolves; the wheelies are 362 crops and resolve to nothing. Lid-vs-body
+      separation was scoped *out* of P3 as a follow-on; it is now the binding
+      constraint on the product. Validated against **hand-labelled body/lid
+      colours**
       ([probe P3](12-validation-protocol.md#p3--colour-measurement)). The earlier
       wording here — "from SAM 2 masks, validated against the legacy class
       labels" — was wrong twice: legacy labels are waste *streams* and a stream

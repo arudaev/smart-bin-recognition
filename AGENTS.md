@@ -68,9 +68,16 @@ See [`docs/07-roadmap.md`](docs/07-roadmap.md).
   (`sbr.utils.gpu`) stays as the belt to those braces and runs **before the
   pool is pulled**, so a bad allocation does not pay for the download.
 
-**Both models now exist, and one of them ships.**
+**Both models now exist, and one of them passes every gate.**
 
-- **Identifier — `may_ship: true` as of 2026-08-21.** Three classes
+**Say it precisely, because the two halves differ.** The identifier passes all
+four ship gates when `gate.py` is run against P12's measurement, and the local
+sidecar reads `may_ship: true`. **The sidecar published in the model repo still
+reads `may_ship: false`**, with latency unmeasured — publishing that verdict is
+the maintainer's decision and was deliberately withheld. So the accurate claim
+is *"passes every gate and is eligible for publication"*, not *"ships"*.
+
+- **Identifier — passes every gate as of 2026-08-21.** Three classes
   (`wheelie_small`, `wheelie_large`, `igloo`), decided by the maintainer on
   [P1](docs/research/probes/P1-form-factor-separability.md)'s evidence. int8
   costs **0.0000** top-1 against a 0.02 budget, and 9.9 ms per crop against a

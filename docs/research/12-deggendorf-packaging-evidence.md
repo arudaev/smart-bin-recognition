@@ -14,7 +14,8 @@ instead, and left both in place because removing a disposal rule is the
 maintainer's call and because ZAW Donau-Wald covers a whole district, so a
 yellow sack might exist in *some* municipality within it.
 
-**That last possibility is now closed.**
+**That last possibility is now much narrower, though not formally closed** — see
+the caution at the end.
 
 ---
 
@@ -43,10 +44,11 @@ one town:
 Freyung-Grafenau and Passau, plus the city of Passau**
 (<https://www.awg.de/service-beratung/faq-haeufige-fragen/>, retrieved
 2026-08-21). The decision is the association's, so it binds the member
-municipalities — which answers the question the CONTRADICTED note left open:
-**the "some municipality in the district might still have a Gelber Sack"
-escape hatch does not survive an association-wide decision to collect LVP at
-recycling centres.**
+municipalities — which narrows the question the CONTRADICTED note left open:
+**an association-wide decision to collect LVP at recycling centres makes "some
+municipality in the district might still have a Gelber Sack" much weaker than
+it was.** It does not formally refute it; no source found addresses every
+municipality individually. See the caution at the end.
 
 ## What the municipality says
 
@@ -86,7 +88,7 @@ remove the reason the gap existed.
 
 | | |
 |---|---|
-| Is there a **Gelber Sack** in the ZAW Donau-Wald area? | **No source found says yes.** The operator's own packaging page does not mention one; the city does not mention one |
+| Is there a **Gelber Sack** in the ZAW Donau-Wald area? | **No source found says yes** — which is not the same as a source saying no. The operator's own page on this exact subject does not mention one, and neither does the city. Treat this as strong absence of evidence, not as a categorical denial |
 | Is there a **Gelbe Tonne**? | **Not today.** Possible **from 2028**, conditional on a decision |
 | Where does packaging go **now**? | **Recyclinghöfe / Recyclingzentren**, by association decision, until **end of 2027** |
 | Could a single municipality differ? | The decision is the **association's**, covering four districts and the city of Passau |
