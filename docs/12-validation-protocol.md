@@ -53,10 +53,71 @@ this is the signal resizing throws away.
 | not separable either way | **merge into `wheelie`**, and recover the distinction in the product with a clarifying question |
 | any other pair below 0.6 | record it; do not merge without the same analysis |
 
-**Cost.** One pilot adjudication (~20 min) + one Kaggle GPU kernel. No training.
+### Amended 2026-08-21, before the probe ran
+
+**The adjudication is finished — all 403 crops, not a 40-crop pilot** — and it
+produced a result the rule above cannot fire on. Every row says "proceed with ten
+classes" or "keep ten classes", and **ten classes is not available**:
+
+| form factor | crops | capture clusters |
+|---|---|---|
+| `wheelie_small` | 247 | 65 |
+| `wheelie_large` | 115 | 56 |
+| `igloo` | 40 | 17 |
+| `street_basket` | **1** | **1** |
+| `underground`, `textile_bank`, `sack`, `crate`, `wall_unit`, `container_bank` | **0** | — |
+
+docs/04 § 5 estimated "seven of ten have no data". Measured, it is **six at zero
+and a seventh at one**. The remaining legacy crops cannot help: all 403 are
+Glas/Biomüll/Papier/Restmüll, so the archive has no more form factors to give.
+
+Run blind (`adjudicate.py --blind`), every verdict `authored`, none rejected.
+That was necessary rather than fastidious: the pool's shipped proposals are a
+stream→shape mapping, and against the finished pass **they are wrong on 116 of
+403 crops — 28.8 %** — of which **111 are `wheelie_small` where the answer is
+`wheelie_large`**, precisely the pair this probe tests. Primed, P1 would have
+measured the mapping table and called the classes cleanly separable.
+
+**What the probe still decides** (DINOv2 embeddings + linear probe over the 403
+adjudicated crops, with and without relative box area):
+
+| Outcome | Action |
+|---|---|
+| `wheelie_small`/`wheelie_large` separable at ≥ 0.75 pairwise | **B is a three-class model**: `wheelie_small`, `wheelie_large`, `igloo` |
+| separable only *with* relative box area | three classes, and **box area is passed to the identifier as a feature** — a design change, not a tuning one. The crop alone is not enough and the service must send the box |
+| not separable either way | **B is a two-class model**: `wheelie`, `igloo`. Merging two published ids is a taxonomy change and is the maintainer's decision, not the probe's — bring the number, do not edit `waste-streams.json` |
+| `igloo` confuses with either wheelie below 0.6 | record it. `igloo` has 17 clusters, so a 70/15/15 group-aware split leaves ~2–3 in test and its per-class metrics will be noisy — say so wherever they are quoted, never quote them clean |
+
+**What the probe does NOT decide, and must not.**
+
+`street_basket` at **n=1 in one cluster** cannot be split across train/val/test at
+all, so it cannot be trained and cannot be evaluated. It is **dropped from B's
+class list and recorded as a known gap** — not silently omitted, and not merged
+into anything on the strength of one photograph.
+
+The **six form factors with no data keep their ids**. Ids are permanent; an id
+with no training data is a *coverage gap*, not a deletion. B's sidecar carries
+the classes it was actually trained on, the service reads the class list from the
+sidecar, and everything B has never seen resolves to `unknown` — which is a
+designed state with a real UI, and the honest answer.
+
+Whether that coverage gap is acceptable for a Deggendorf pilot is a **product
+decision and the maintainer's**: most bins there are wheelies and glass igloos,
+but `sack` and `textile_bank` both carry Deggendorf pack rules and would go
+unanswered. Bring the evidence; do not decide it.
+
+**Whether Open Images can close the gap is a separate question** and is worth
+asking before anyone labels anything again: the pinned dataset holds 1 110 Open
+Images bin frames carrying 1 936 boxes from global street scenes, and nobody has
+looked at what form factors are in them. Generate crops, sample, and **report
+what is visibly present** — establish whether a second adjudication pass would
+be worth a person's time before proposing one.
+
+**Cost.** The adjudication is done. One Kaggle GPU kernel for the embeddings and
+the probe. No training.
 
 **Resolves.** docs/02's form-factor list · docs/04 § 5's "seven of ten have no
-data" · the class list `adjudicate.py` presents.
+data", now measured · the class list `adjudicate.py` presents · **B's class list**.
 
 ---
 
@@ -621,6 +682,66 @@ limit and still free. No GPU, no retraining.
 
 **Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export settings · the
 third of docs/07 phase 2's remaining blockers.
+
+---
+
+## P10 – Where the residual 0.0252 lives
+
+*Pre-registered 2026-08-21, before the probe ran.*
+
+**Question.** [P9](research/probes/P9-int8-quantisation.md) established that
+quantising the detection head is what collapses the validator: excluding
+`/model.23/` recovers it from 0.015 to 0.7481 on `val`. It did **not** establish
+that nothing outside the head matters — that graph still carries **619 QDQ nodes**
+and still loses **0.0252** against a 0.02 budget. Where does the residual live,
+and can it be recovered for free?
+
+**Why it is a probe and not a fix.** The obvious suspect is not evidence. A local
+smoke test on a stock YOLO11n reported a **1517× weight-scale increase** on
+`model.10.m.0.attn.qkv.conv.weight` — the C2PSA attention block in the backbone —
+which is a hint and nothing more. onnxruntime's QDQ debugger can name the layer
+instead of leaving a sweep to imply one, and **it has never been run**:
+`quantisation_error` only fires on a winner and P9 had none, so `tensor_error` on
+the head-fp32 graph is empty.
+
+**The direction of that diagnostic is a trap and is written down here because it
+already caught someone.** `qdq_err` is **SQNR in decibels** —
+`20·log10(‖x‖/‖x−y‖)` — so **higher is better** and the damaged tensors are at the
+*bottom*. P9's first pass sorted descending, called the result "the worst
+tensors", and named the eight best-preserved tensors in the graph as suspects.
+
+**Method.** One CPU kernel, no GPU, no retraining, all exports from the existing
+`v1/best.pt`. Same partitioning as P9: calibrate from `train`, score on `val`,
+touch `test` only to confirm a locked winner.
+
+1. run the corrected SQNR diagnostic on the **head-fp32** graph and rank
+   activations by *lowest* SQNR;
+2. exclude, one at a time, the module the ranking actually points at — plus
+   `/model.10/` regardless, because it is the standing hypothesis and leaving it
+   untested would make the result unfalsifiable;
+3. a combined exclusion if two modules independently help.
+
+Every row carries its settings, its calibration hash, its QDQ boundary, its
+latency, and **either a metric or an error** — never a number that was not
+measured.
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| a configuration reaches **total served drop ≤ 0.02** on `val` | lock it, confirm **once** on `test`, pin the settings in `validator.yaml` with the run that produced them, publish as **v2**. v1 stays exactly as it is — it is the record docs/11 quotes |
+| best is 0.02–0.10 | the gate is missed and the model is real. **Do not move the gate.** Record what the alternative costs and **stop** — whether to attempt quantisation-aware training is the maintainer's decision |
+| nothing improves on head-fp32 | head-fp32 stands as the best known configuration, validator v1 cannot ship as a post-training int8 export, and P5 reopens with that question |
+| the SQNR ranking and the exclusion sweep disagree | **believe the sweep.** A ranking is a pointer; an exclusion that changes mAP is a measurement. Record the disagreement rather than resolving it quietly |
+
+**What must not happen.** `export.gates.max_accuracy_drop` is 0.02 and stays
+0.02. It has fired twice on this artefact and been right twice. No variant is
+invented after seeing results — a new question is a new probe.
+
+**Cost.** One free CPU kernel, no GPU, no retraining.
+
+**Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export
+settings · the last of docs/07 phase 2's model blockers.
 
 ---
 
