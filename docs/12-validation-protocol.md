@@ -810,6 +810,84 @@ settings · the last of docs/07 phase 2's model blockers.
 
 ---
 
+## P11 – What int8 costs the identifier
+
+*Pre-registered 2026-08-21, **before model B was trained**. B does not exist
+yet; this exists so that whatever it scores is judged by a rule nobody could
+have chosen with the number in front of them.*
+
+**Why it needs its own entry.** [P9](research/probes/P9-int8-quantisation.md)
+and [P10](research/probes/P10-where-the-residual-lives.md) diagnosed the
+*validator*. It is tempting to carry the diagnosis across — "quantise everything
+but the detection head" — and it does not transfer: **a `yolo11s-cls` has no DFL
+detection head to exclude.** There is no `/model.23/` box-regression branch,
+which is precisely the structure P9 identified as the cause. So the identifier's
+int8 behaviour is *unknown*, not *predicted*, and must be established.
+
+**Gates, unchanged.** int8 top-1 drop **≤ 0.02**, median **≤ 25 ms per crop** on
+service CPU. `export.gates.max_accuracy_drop` stays 0.02. A missed gate is
+reported; it is never widened.
+
+### The partitioning, which is the part that goes wrong quietly
+
+The kernel as written before this entry evaluated fp32 on `test`, calibrated on
+`val`, then evaluated int8 on `test` — so any sweep would have selected on the
+split it later reported. Corrected, and in this order:
+
+1. **calibrate from `train`**;
+2. score the fp32 baseline and **every** variant on **`val`**;
+3. lock exactly one candidate, by `sbr.export.selection.choose_winner`;
+4. score that candidate **once, on `test`**. That is the only ship-gate number.
+
+If nothing is eligible, **`test` is not touched at all** and the split stays
+unspent — as it did for P9 and P10.
+
+### The sweep, enumerated here rather than deferred
+
+If int8 costs more than 0.02 top-1 on `val`, these variants run — **this list and
+no other.** "The same sweep P9 used" is not a specification, and inventing an
+extra variant after seeing a result is the failure this whole document exists to
+prevent.
+
+| variant | what it changes |
+|---|---|
+| `10-reference` | the shipped defaults: U8S8, per-channel, minmax, stretched calibration |
+| `11-s8s8` | onnxruntime's named "normal CPU choice" |
+| `12-reduce-range` | its documented remedy for x86 activation saturation |
+| `13-u8u8` | the other documented remedy |
+| `14-per-tensor` | per-channel off |
+| `15-preprocessed` | `quant_pre_process` on |
+| `16-letterboxed` | calibration fitted the way inference fits |
+
+**`exclude_head` is deliberately absent.** There is no head to exclude. A variant
+named for a structure the graph does not have would measure the reference under
+a different label.
+
+### The decision rule, stated in advance
+
+| Outcome | Action |
+|---|---|
+| a variant is within **0.02** top-1 of the PyTorch fp32 reference on `val` | lock it, confirm **once** on `test`, pin the settings in `identifier.yaml` with the run that produced them |
+| best is **0.02–0.10** | the gate is missed and the model is real. **Do not move the gate.** Record it and stop; what to do instead is the maintainer's decision |
+| nothing improves on the reference | post-training int8 is not viable for this architecture either, and that is a finding about the export path rather than about B |
+
+### Two numbers that are not gates, and are labelled as such wherever quoted
+
+- **top-5 is meaningless at three classes.** It is reported because the harness
+  computes it, and it must never be read as accuracy.
+- **`unknown_threshold: 0.55` is provisional and uncalibrated.** It is a guess,
+  max-softmax is a baseline rather than a principled score, and P2 replaces it
+  with an operating point chosen at a stated novelty precision. Any `unknown`
+  rate B reports is a property of that guess as much as of the model.
+
+**Cost.** No extra kernel: the sweep runs inside the training kernel, on a graph
+it has already exported.
+
+**Resolves.** Whether model B can ship · docs/04 § 6's export settings for the
+classification path.
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
