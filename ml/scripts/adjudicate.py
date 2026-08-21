@@ -56,9 +56,24 @@ DECISIONS_FILE = "adjudication.json"
 class Review:
     """The crop queue and the decisions taken on it."""
 
-    def __init__(self, pool: Path, reviewer: str) -> None:
+    def __init__(self, pool: Path, reviewer: str, blind: bool = False) -> None:
         self.pool = pool
         self.reviewer = reviewer
+        #: Withhold the pre-filled proposal from the reviewer entirely.
+        #:
+        #: The proposals in the pool today are a stream -> form-factor mapping
+        #: (Biomuell/Papier/Restmuell -> wheelie_small, Glas -> igloo), which is
+        #: the mapping this module's own docstring says CANNOT close the gap -
+        #: the same Restmuell is a small wheelie bin outside a house and a large
+        #: one behind a block of flats. 359 of 403 crops are pre-filled
+        #: `wheelie_small`, and Enter confirms in one key.
+        #:
+        #: For ordinary adjudication that is a helpful prior. For **docs/12 P1**
+        #: it is fatal: the pilot exists to measure whether `wheelie_small` and
+        #: `wheelie_large` are separable at all, and a reviewer nudged toward
+        #: `wheelie_small` on nine crops in ten would measure the mapping table
+        #: instead of the question. The pilot must be run blind.
+        self.blind = blind
         self.manifest = json.loads((pool / "manifest.json").read_text(encoding="utf-8"))
         self.classes = load_taxonomy().detector_classes
 
@@ -92,6 +107,7 @@ class Review:
             "pool": str(self.pool),
             "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "reviewer": self.reviewer,
+            "blind": self.blind,
             "classes": self.classes,
             "decisions": list(self.decisions.values()),
         }
@@ -101,13 +117,18 @@ class Review:
         crop = next((c for c in self.queue if c["file"] == file), None)
         if crop is None:
             raise KeyError(file)
-        if verdict not in ("confirmed", "corrected", "rejected"):
+        if verdict not in ("confirmed", "corrected", "rejected", "authored"):
             raise ValueError(f"{verdict!r} is not a verdict")
         if verdict != "rejected" and form_factor not in self.classes:
             raise ValueError(f"{form_factor!r} is not a form factor")
 
-        proposed = crop.get("form_factor_proposed")
-        if verdict != "rejected":
+        proposed = None if self.blind else crop.get("form_factor_proposed")
+        if verdict != "rejected" and self.blind:
+            # Nothing was proposed, so nothing was confirmed. The reviewer chose
+            # this from the image, and the record has to be able to say so - a
+            # blind decision is evidence in a way a confirmation is not.
+            verdict = "authored"
+        elif verdict != "rejected":
             # Derived, not taken on trust. Whether the pre-fill was right is a
             # measurement - if most decisions turn out to be corrections the
             # proposal is not helping - and a caller must not be able to record
@@ -139,6 +160,7 @@ class Review:
         return {
             "classes": self.classes,
             "reviewer": self.reviewer,
+            "blind": self.blind,
             "total": len(self.queue),
             "done": len(self.decisions),
             "queue": [
@@ -147,8 +169,8 @@ class Review:
                     "frame": c["frame"],
                     "legacy_class": c["legacy_class"],
                     "stream": c.get("deggendorf_stream"),
-                    "candidates": c.get("form_factor_candidates", []),
-                    "proposed": c.get("form_factor_proposed"),
+                    "candidates": [] if self.blind else c.get("form_factor_candidates", []),
+                    "proposed": None if self.blind else c.get("form_factor_proposed"),
                     "note": c.get("adjudication_note", ""),
                     "cluster": c["_cluster"],
                     "annotator": c["_annotator"],
@@ -402,6 +424,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument(
+        "--blind",
+        action="store_true",
+        help="withhold the pre-filled proposal. REQUIRED for the docs/12 P1 pilot: "
+             "359 of 403 crops are pre-filled wheelie_small by a stream mapping, "
+             "and P1 exists to test wheelie_small vs wheelie_large.",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="fold adjudication.json back into the manifest and exit",
@@ -415,7 +444,11 @@ def main() -> None:
         print(json.dumps(summary, indent=2))
         return
 
-    serve(Review(args.pool, args.reviewer), args.port, open_browser=not args.no_browser)
+    serve(
+        Review(args.pool, args.reviewer, blind=args.blind),
+        args.port,
+        open_browser=not args.no_browser,
+    )
 
 
 if __name__ == "__main__":

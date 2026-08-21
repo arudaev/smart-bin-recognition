@@ -1,0 +1,4050 @@
+{
+  "pool": "data\\legacy\\pool",
+  "updated": "2026-08-21T07:42:31+00:00",
+  "reviewer": "alex",
+  "blind": true,
+  "classes": [
+    "wheelie_small",
+    "wheelie_large",
+    "igloo",
+    "underground",
+    "textile_bank",
+    "street_basket",
+    "sack",
+    "crate",
+    "wall_unit",
+    "container_bank"
+  ],
+  "decisions": [
+    {
+      "file": "27168d08_img_4659_0.jpg",
+      "frame": "27168d08_img_4659.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:18+00:00"
+    },
+    {
+      "file": "c024c6b7_img_4658_0.jpg",
+      "frame": "c024c6b7_img_4658.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:25+00:00"
+    },
+    {
+      "file": "c2af4287_img_4872_0.jpg",
+      "frame": "c2af4287_img_4872.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:30+00:00"
+    },
+    {
+      "file": "21f9ddd8_img_4877_0.jpg",
+      "frame": "21f9ddd8_img_4877.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:39+00:00"
+    },
+    {
+      "file": "47c95518_img_4879_0.jpg",
+      "frame": "47c95518_img_4879.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:46+00:00"
+    },
+    {
+      "file": "746ecad3_img_4874_0.jpg",
+      "frame": "746ecad3_img_4874.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:52+00:00"
+    },
+    {
+      "file": "2832dbc1_img_4925_0.jpg",
+      "frame": "2832dbc1_img_4925.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:04:58+00:00"
+    },
+    {
+      "file": "a3dea778_img_4929_0.jpg",
+      "frame": "a3dea778_img_4929.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:04+00:00"
+    },
+    {
+      "file": "70d1b0c0_img_20250521_155213_0.jpg",
+      "frame": "70d1b0c0_img_20250521_155213.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:09+00:00"
+    },
+    {
+      "file": "9c7b5548_img_20250521_154938_0.jpg",
+      "frame": "9c7b5548_img_20250521_154938.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:20+00:00"
+    },
+    {
+      "file": "190920d0_img_20250521_154945_0.jpg",
+      "frame": "190920d0_img_20250521_154945.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:27+00:00"
+    },
+    {
+      "file": "7457a9e9_img_20250521_155221_0.jpg",
+      "frame": "7457a9e9_img_20250521_155221.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:33+00:00"
+    },
+    {
+      "file": "9c7b5548_img_20250521_154938_1.jpg",
+      "frame": "9c7b5548_img_20250521_154938.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:38+00:00"
+    },
+    {
+      "file": "6773703c_img_20250521_155800_0.jpg",
+      "frame": "6773703c_img_20250521_155800.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:45+00:00"
+    },
+    {
+      "file": "805008d0_img_20250521_155927_0.jpg",
+      "frame": "805008d0_img_20250521_155927.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:53+00:00"
+    },
+    {
+      "file": "b31edd9f_img_20250521_155805_0.jpg",
+      "frame": "b31edd9f_img_20250521_155805.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:05:58+00:00"
+    },
+    {
+      "file": "b31edd9f_img_20250521_155805_1.jpg",
+      "frame": "b31edd9f_img_20250521_155805.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:11+00:00"
+    },
+    {
+      "file": "487c0eb4_img_20250521_155931_0.jpg",
+      "frame": "487c0eb4_img_20250521_155931.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:18+00:00"
+    },
+    {
+      "file": "6773703c_img_20250521_155800_1.jpg",
+      "frame": "6773703c_img_20250521_155800.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:26+00:00"
+    },
+    {
+      "file": "7622ec38_img_20250521_155758_0.jpg",
+      "frame": "7622ec38_img_20250521_155758.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:34+00:00"
+    },
+    {
+      "file": "a8584ef2_img_20250521_155925_0.jpg",
+      "frame": "a8584ef2_img_20250521_155925.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:46+00:00"
+    },
+    {
+      "file": "265c0ab1_img_20250521_160340_0.jpg",
+      "frame": "265c0ab1_img_20250521_160340.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:06:57+00:00"
+    },
+    {
+      "file": "5012ff48_img_20250521_160343_0.jpg",
+      "frame": "5012ff48_img_20250521_160343.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:02+00:00"
+    },
+    {
+      "file": "063f305c_img_20250521_172626_0.jpg",
+      "frame": "063f305c_img_20250521_172626.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:08+00:00"
+    },
+    {
+      "file": "a290259f_img_20250521_172726_0.jpg",
+      "frame": "a290259f_img_20250521_172726.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:18+00:00"
+    },
+    {
+      "file": "453eee2a_img_20250521_174252_0.jpg",
+      "frame": "453eee2a_img_20250521_174252.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:24+00:00"
+    },
+    {
+      "file": "31446479_img_20250521_174105_0.jpg",
+      "frame": "31446479_img_20250521_174105.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:31+00:00"
+    },
+    {
+      "file": "54828cf0_img_20250521_174225_0.jpg",
+      "frame": "54828cf0_img_20250521_174225.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:37+00:00"
+    },
+    {
+      "file": "560e632f_img_20250521_174041_0.jpg",
+      "frame": "560e632f_img_20250521_174041.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:07:54+00:00"
+    },
+    {
+      "file": "4582cd94_img_4531_0.jpg",
+      "frame": "4582cd94_img_4531.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:00+00:00"
+    },
+    {
+      "file": "d3a1e40b_img_4530_0.jpg",
+      "frame": "d3a1e40b_img_4530.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:07+00:00"
+    },
+    {
+      "file": "dd54be26_img_4526_0.jpg",
+      "frame": "dd54be26_img_4526.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:14+00:00"
+    },
+    {
+      "file": "99b9a220_img_4536_0.jpg",
+      "frame": "99b9a220_img_4536.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:19+00:00"
+    },
+    {
+      "file": "1231dcb7_img_4540_0.jpg",
+      "frame": "1231dcb7_img_4540.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:28+00:00"
+    },
+    {
+      "file": "607b4545_img_4545_0.jpg",
+      "frame": "607b4545_img_4545.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:33+00:00"
+    },
+    {
+      "file": "aa19bae5_img_4537_0.jpg",
+      "frame": "aa19bae5_img_4537.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:38+00:00"
+    },
+    {
+      "file": "17c86183_img_5278_0.jpg",
+      "frame": "17c86183_img_5278.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:49+00:00"
+    },
+    {
+      "file": "4069a33c_img_5307_0.jpg",
+      "frame": "4069a33c_img_5307.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:54+00:00"
+    },
+    {
+      "file": "752be4a1_img_5304_0.jpg",
+      "frame": "752be4a1_img_5304.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:08:59+00:00"
+    },
+    {
+      "file": "5330b92d_img_5320_0.jpg",
+      "frame": "5330b92d_img_5320.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:09:11+00:00"
+    },
+    {
+      "file": "a4c3ec28_img_5319_0.jpg",
+      "frame": "a4c3ec28_img_5319.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:21:25+00:00"
+    },
+    {
+      "file": "1698d93a_img_5326_0.jpg",
+      "frame": "1698d93a_img_5326.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:21:40+00:00"
+    },
+    {
+      "file": "98a7b087_img_5323_0.jpg",
+      "frame": "98a7b087_img_5323.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:21:42+00:00"
+    },
+    {
+      "file": "945b42df_img_5340_0.jpg",
+      "frame": "945b42df_img_5340.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:21:58+00:00"
+    },
+    {
+      "file": "951a93d7_img_5342_0.jpg",
+      "frame": "951a93d7_img_5342.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:21:58+00:00"
+    },
+    {
+      "file": "339a41f0_img_5343_0.jpg",
+      "frame": "339a41f0_img_5343.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:00+00:00"
+    },
+    {
+      "file": "a943252f_img_5339_0.jpg",
+      "frame": "a943252f_img_5339.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:01+00:00"
+    },
+    {
+      "file": "057209b0_img_5352_0.jpg",
+      "frame": "057209b0_img_5352.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:01+00:00"
+    },
+    {
+      "file": "921f860d_img_5355_0.jpg",
+      "frame": "921f860d_img_5355.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:02+00:00"
+    },
+    {
+      "file": "4938a27b_img_5360_0.jpg",
+      "frame": "4938a27b_img_5360.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:03+00:00"
+    },
+    {
+      "file": "c7e95c83_img_5365_0.jpg",
+      "frame": "c7e95c83_img_5365.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:03+00:00"
+    },
+    {
+      "file": "61870323_img_4603_0.jpg",
+      "frame": "61870323_img_4603.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:04+00:00"
+    },
+    {
+      "file": "3585dcf8_img_4612_0.jpg",
+      "frame": "3585dcf8_img_4612.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:05+00:00"
+    },
+    {
+      "file": "3641ff80_img_4602_0.jpg",
+      "frame": "3641ff80_img_4602.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:07+00:00"
+    },
+    {
+      "file": "376287ac_img_4615_0.jpg",
+      "frame": "376287ac_img_4615.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:08+00:00"
+    },
+    {
+      "file": "c9a24703_img_4624_0.jpg",
+      "frame": "c9a24703_img_4624.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:09+00:00"
+    },
+    {
+      "file": "b2127eea_img_5436_0.jpg",
+      "frame": "b2127eea_img_5436.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:10+00:00"
+    },
+    {
+      "file": "712c71a8_img_20250603_164427_0.jpg",
+      "frame": "712c71a8_img_20250603_164427.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:11+00:00"
+    },
+    {
+      "file": "5455656d_img_20250603_164502_0.jpg",
+      "frame": "5455656d_img_20250603_164502.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:30+00:00"
+    },
+    {
+      "file": "8667825c_img_20250603_164507_0.jpg",
+      "frame": "8667825c_img_20250603_164507.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:31+00:00"
+    },
+    {
+      "file": "b63f0f93_img_5586_0.jpg",
+      "frame": "b63f0f93_img_5586.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:32+00:00"
+    },
+    {
+      "file": "c59781e2_img_5589_0.jpg",
+      "frame": "c59781e2_img_5589.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:33+00:00"
+    },
+    {
+      "file": "dcb0c761_img_20250603_164504_0.jpg",
+      "frame": "dcb0c761_img_20250603_164504.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:34+00:00"
+    },
+    {
+      "file": "12ff749e_img_20250603_163830_0.jpg",
+      "frame": "12ff749e_img_20250603_163830.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:35+00:00"
+    },
+    {
+      "file": "3604d3e8_img_20250603_164332_0.jpg",
+      "frame": "3604d3e8_img_20250603_164332.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:36+00:00"
+    },
+    {
+      "file": "78b7c396_img_20250603_164041_0.jpg",
+      "frame": "78b7c396_img_20250603_164041.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:37+00:00"
+    },
+    {
+      "file": "a4f275c8_img_20250603_164038_1.jpg",
+      "frame": "a4f275c8_img_20250603_164038.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:38+00:00"
+    },
+    {
+      "file": "0403538b_img_5584_0.jpg",
+      "frame": "0403538b_img_5584.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:39+00:00"
+    },
+    {
+      "file": "31416163_img_5576_0.jpg",
+      "frame": "31416163_img_5576.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:42+00:00"
+    },
+    {
+      "file": "5403a202_img_20250603_164458_0.jpg",
+      "frame": "5403a202_img_20250603_164458.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:43+00:00"
+    },
+    {
+      "file": "866dbdb0_img_5581_0.jpg",
+      "frame": "866dbdb0_img_5581.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:43+00:00"
+    },
+    {
+      "file": "866dbdb0_img_5581_1.jpg",
+      "frame": "866dbdb0_img_5581.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:44+00:00"
+    },
+    {
+      "file": "866dbdb0_img_5581_2.jpg",
+      "frame": "866dbdb0_img_5581.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:44+00:00"
+    },
+    {
+      "file": "8cfea8c7_img_20250603_164432_0.jpg",
+      "frame": "8cfea8c7_img_20250603_164432.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:45+00:00"
+    },
+    {
+      "file": "96405291_img_20250603_164452_0.jpg",
+      "frame": "96405291_img_20250603_164452.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:46+00:00"
+    },
+    {
+      "file": "a404290d_img_20250603_164043_0.jpg",
+      "frame": "a404290d_img_20250603_164043.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:46+00:00"
+    },
+    {
+      "file": "a4f275c8_img_20250603_164038_0.jpg",
+      "frame": "a4f275c8_img_20250603_164038.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:47+00:00"
+    },
+    {
+      "file": "a508d76b_img_20250603_164455_0.jpg",
+      "frame": "a508d76b_img_20250603_164455.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:47+00:00"
+    },
+    {
+      "file": "023780c7_img_20250603_165154_0.jpg",
+      "frame": "023780c7_img_20250603_165154.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:48+00:00"
+    },
+    {
+      "file": "4922ef6d_img_20250603_165643_0.jpg",
+      "frame": "4922ef6d_img_20250603_165643.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:49+00:00"
+    },
+    {
+      "file": "86800d4c_img_20250603_165645_0.jpg",
+      "frame": "86800d4c_img_20250603_165645.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:50+00:00"
+    },
+    {
+      "file": "86800d4c_img_20250603_165645_1.jpg",
+      "frame": "86800d4c_img_20250603_165645.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:51+00:00"
+    },
+    {
+      "file": "926532b2_img_20250603_165544_0.jpg",
+      "frame": "926532b2_img_20250603_165544.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:51+00:00"
+    },
+    {
+      "file": "19ab7467_img_5595_0.jpg",
+      "frame": "19ab7467_img_5595.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:52+00:00"
+    },
+    {
+      "file": "30eb497b_img_20250603_165654_0.jpg",
+      "frame": "30eb497b_img_20250603_165654.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:53+00:00"
+    },
+    {
+      "file": "30eb497b_img_20250603_165654_1.jpg",
+      "frame": "30eb497b_img_20250603_165654.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:56+00:00"
+    },
+    {
+      "file": "515a2202_img_5598_0.jpg",
+      "frame": "515a2202_img_5598.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:56+00:00"
+    },
+    {
+      "file": "60a16039_img_5597_0.jpg",
+      "frame": "60a16039_img_5597.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:57+00:00"
+    },
+    {
+      "file": "86800d4c_img_20250603_165645_2.jpg",
+      "frame": "86800d4c_img_20250603_165645.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:22:59+00:00"
+    },
+    {
+      "file": "94cc71b4_img_20250603_165733_0.jpg",
+      "frame": "94cc71b4_img_20250603_165733.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:00+00:00"
+    },
+    {
+      "file": "9b0b9b29_img_20250603_164954_0.jpg",
+      "frame": "9b0b9b29_img_20250603_164954.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:01+00:00"
+    },
+    {
+      "file": "162ac23f_img_20250603_165155_0.jpg",
+      "frame": "162ac23f_img_20250603_165155.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:02+00:00"
+    },
+    {
+      "file": "6265951c_img_20250603_165658_0.jpg",
+      "frame": "6265951c_img_20250603_165658.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:06+00:00"
+    },
+    {
+      "file": "88448572_img_20250603_165413_0.jpg",
+      "frame": "88448572_img_20250603_165413.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:07+00:00"
+    },
+    {
+      "file": "47489532_img_20250603_170839_0.jpg",
+      "frame": "47489532_img_20250603_170839.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:08+00:00"
+    },
+    {
+      "file": "54b8e0c1_img_20250603_170900_0.jpg",
+      "frame": "54b8e0c1_img_20250603_170900.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:09+00:00"
+    },
+    {
+      "file": "84d4d8b3_img_20250603_170856_0.jpg",
+      "frame": "84d4d8b3_img_20250603_170856.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:10+00:00"
+    },
+    {
+      "file": "84d4d8b3_img_20250603_170856_1.jpg",
+      "frame": "84d4d8b3_img_20250603_170856.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:11+00:00"
+    },
+    {
+      "file": "495b0eb7_img_20250603_170548_0.jpg",
+      "frame": "495b0eb7_img_20250603_170548.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:13+00:00"
+    },
+    {
+      "file": "5348e6eb_img_20250603_171024_0.jpg",
+      "frame": "5348e6eb_img_20250603_171024.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:13+00:00"
+    },
+    {
+      "file": "962d5473_img_20250603_171018_0.jpg",
+      "frame": "962d5473_img_20250603_171018.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:14+00:00"
+    },
+    {
+      "file": "a13e9e69_img_20250603_170546_0.jpg",
+      "frame": "a13e9e69_img_20250603_170546.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:18+00:00"
+    },
+    {
+      "file": "bbdd5add_img_20250603_171834_0.jpg",
+      "frame": "bbdd5add_img_20250603_171834.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:19+00:00"
+    },
+    {
+      "file": "9d389745_img_20250603_171726_0.jpg",
+      "frame": "9d389745_img_20250603_171726.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:20+00:00"
+    },
+    {
+      "file": "b6f32afd_img_20250603_172925_0.jpg",
+      "frame": "b6f32afd_img_20250603_172925.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:20+00:00"
+    },
+    {
+      "file": "099212fb_img_20250603_172358_0.jpg",
+      "frame": "099212fb_img_20250603_172358.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:22+00:00"
+    },
+    {
+      "file": "8226befe_img_20250603_172634_0.jpg",
+      "frame": "8226befe_img_20250603_172634.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:24+00:00"
+    },
+    {
+      "file": "b83e3328_img_20250603_172644_0.jpg",
+      "frame": "b83e3328_img_20250603_172644.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:25+00:00"
+    },
+    {
+      "file": "b84cb495_img_20250603_172649_0.jpg",
+      "frame": "b84cb495_img_20250603_172649.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:25+00:00"
+    },
+    {
+      "file": "68a2a297_img_20250603_172909_0.jpg",
+      "frame": "68a2a297_img_20250603_172909.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:27+00:00"
+    },
+    {
+      "file": "641625cb_img_20250603_172927_0.jpg",
+      "frame": "641625cb_img_20250603_172927.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:28+00:00"
+    },
+    {
+      "file": "9a782339_img_20250506_115957_0.jpg",
+      "frame": "9a782339_img_20250506_115957.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:29+00:00"
+    },
+    {
+      "file": "00c1fc43_img_20250506_120651_0.jpg",
+      "frame": "00c1fc43_img_20250506_120651.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:30+00:00"
+    },
+    {
+      "file": "1f7aedc9_img_20250506_121425_0.jpg",
+      "frame": "1f7aedc9_img_20250506_121425.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:31+00:00"
+    },
+    {
+      "file": "4fa57435_img_20250506_121214_0.jpg",
+      "frame": "4fa57435_img_20250506_121214.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:32+00:00"
+    },
+    {
+      "file": "6f86513a_img_20250506_121204_0.jpg",
+      "frame": "6f86513a_img_20250506_121204.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:33+00:00"
+    },
+    {
+      "file": "2a73f7ce_img_20250506_121929_0.jpg",
+      "frame": "2a73f7ce_img_20250506_121929.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:35+00:00"
+    },
+    {
+      "file": "39f2d122_img_20250506_121200_0.jpg",
+      "frame": "39f2d122_img_20250506_121200.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:36+00:00"
+    },
+    {
+      "file": "4d915e23_img_20250506_121559_0.jpg",
+      "frame": "4d915e23_img_20250506_121559.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:37+00:00"
+    },
+    {
+      "file": "77f61916_img_20250506_121725_0.jpg",
+      "frame": "77f61916_img_20250506_121725.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:37+00:00"
+    },
+    {
+      "file": "9a7fede0_img_20250506_121421_0.jpg",
+      "frame": "9a7fede0_img_20250506_121421.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:38+00:00"
+    },
+    {
+      "file": "1a0bf68f_img_20250514_111158_0.jpg",
+      "frame": "1a0bf68f_img_20250514_111158.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:39+00:00"
+    },
+    {
+      "file": "2fc92b3d_img_20250514_111427_0.jpg",
+      "frame": "2fc92b3d_img_20250514_111427.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:40+00:00"
+    },
+    {
+      "file": "45db4dcc_img_20250514_111347_0.jpg",
+      "frame": "45db4dcc_img_20250514_111347.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:41+00:00"
+    },
+    {
+      "file": "7b3b2416_img_20250514_111156_0.jpg",
+      "frame": "7b3b2416_img_20250514_111156.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:41+00:00"
+    },
+    {
+      "file": "5d756930_img_20250514_111805_0.jpg",
+      "frame": "5d756930_img_20250514_111805.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:42+00:00"
+    },
+    {
+      "file": "8bd88504_img_20250514_111549_0.jpg",
+      "frame": "8bd88504_img_20250514_111549.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:43+00:00"
+    },
+    {
+      "file": "04d86128_img_20250514_111813_0.jpg",
+      "frame": "04d86128_img_20250514_111813.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:44+00:00"
+    },
+    {
+      "file": "5ee9a850_img_20250514_111230_0.jpg",
+      "frame": "5ee9a850_img_20250514_111230.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:44+00:00"
+    },
+    {
+      "file": "6eab4886_img_20250514_111726_0.jpg",
+      "frame": "6eab4886_img_20250514_111726.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:45+00:00"
+    },
+    {
+      "file": "6d30e191_img_20250514_112412_0.jpg",
+      "frame": "6d30e191_img_20250514_112412.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:46+00:00"
+    },
+    {
+      "file": "3f73e381_img_20250514_112721_0.jpg",
+      "frame": "3f73e381_img_20250514_112721.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:47+00:00"
+    },
+    {
+      "file": "7d3551a9_img_4654_0.jpg",
+      "frame": "7d3551a9_img_4654.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:48+00:00"
+    },
+    {
+      "file": "12db554d_img_4660_0.jpg",
+      "frame": "12db554d_img_4660.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:49+00:00"
+    },
+    {
+      "file": "7e78855a_img_4876_0.jpg",
+      "frame": "7e78855a_img_4876.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:51+00:00"
+    },
+    {
+      "file": "1d0b74fa_img_4907_0.jpg",
+      "frame": "1d0b74fa_img_4907.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:52+00:00"
+    },
+    {
+      "file": "5ad9280d_img_4908_0.jpg",
+      "frame": "5ad9280d_img_4908.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:53+00:00"
+    },
+    {
+      "file": "0019e51c_img_4926_0.jpg",
+      "frame": "0019e51c_img_4926.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:54+00:00"
+    },
+    {
+      "file": "15c6ead2_img_4928_0.jpg",
+      "frame": "15c6ead2_img_4928.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:55+00:00"
+    },
+    {
+      "file": "0a8f1c09_img_4945_0.jpg",
+      "frame": "0a8f1c09_img_4945.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:56+00:00"
+    },
+    {
+      "file": "64fee930_img_4947_0.jpg",
+      "frame": "64fee930_img_4947.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:56+00:00"
+    },
+    {
+      "file": "6cde3725_img_20250521_154042_0.jpg",
+      "frame": "6cde3725_img_20250521_154042.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:57+00:00"
+    },
+    {
+      "file": "7e0162d0_img_20250521_155218_0.jpg",
+      "frame": "7e0162d0_img_20250521_155218.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:23:58+00:00"
+    },
+    {
+      "file": "0a76dbea_img_20250521_155059_0.jpg",
+      "frame": "0a76dbea_img_20250521_155059.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "street_basket",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:16+00:00"
+    },
+    {
+      "file": "0b79c94d_img_20250521_155219_0.jpg",
+      "frame": "0b79c94d_img_20250521_155219.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:17+00:00"
+    },
+    {
+      "file": "6aeb17ac_img_20250521_154942_0.jpg",
+      "frame": "6aeb17ac_img_20250521_154942.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:18+00:00"
+    },
+    {
+      "file": "71d51bed_img_20250521_155802_0.jpg",
+      "frame": "71d51bed_img_20250521_155802.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:18+00:00"
+    },
+    {
+      "file": "71d51bed_img_20250521_155802_2.jpg",
+      "frame": "71d51bed_img_20250521_155802.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:19+00:00"
+    },
+    {
+      "file": "00d305ba_img_20250521_155810_0.jpg",
+      "frame": "00d305ba_img_20250521_155810.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:20+00:00"
+    },
+    {
+      "file": "3fe8c941_img_20250521_155656_0.jpg",
+      "frame": "3fe8c941_img_20250521_155656.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:21+00:00"
+    },
+    {
+      "file": "4a4c961d_img_20250521_155659_0.jpg",
+      "frame": "4a4c961d_img_20250521_155659.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:22+00:00"
+    },
+    {
+      "file": "71d51bed_img_20250521_155802_1.jpg",
+      "frame": "71d51bed_img_20250521_155802.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:22+00:00"
+    },
+    {
+      "file": "12cb6b35_img_20250521_160137_0.jpg",
+      "frame": "12cb6b35_img_20250521_160137.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:23+00:00"
+    },
+    {
+      "file": "23df1589_img_20250521_160310_0.jpg",
+      "frame": "23df1589_img_20250521_160310.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:24+00:00"
+    },
+    {
+      "file": "5c4519a7_img_20250521_160319_0.jpg",
+      "frame": "5c4519a7_img_20250521_160319.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:25+00:00"
+    },
+    {
+      "file": "12cb6b35_img_20250521_160137_1.jpg",
+      "frame": "12cb6b35_img_20250521_160137.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:27+00:00"
+    },
+    {
+      "file": "40b399a0_img_20250521_161220_0.jpg",
+      "frame": "40b399a0_img_20250521_161220.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:28+00:00"
+    },
+    {
+      "file": "2aa1963a_img_20250521_173021_2.jpg",
+      "frame": "2aa1963a_img_20250521_173021.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:29+00:00"
+    },
+    {
+      "file": "60ebb113_img_20250521_173019_0.jpg",
+      "frame": "60ebb113_img_20250521_173019.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:30+00:00"
+    },
+    {
+      "file": "5a6ab248_img_20250521_172843_0.jpg",
+      "frame": "5a6ab248_img_20250521_172843.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:32+00:00"
+    },
+    {
+      "file": "2aa1963a_img_20250521_173021_0.jpg",
+      "frame": "2aa1963a_img_20250521_173021.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:33+00:00"
+    },
+    {
+      "file": "2aa1963a_img_20250521_173021_1.jpg",
+      "frame": "2aa1963a_img_20250521_173021.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:33+00:00"
+    },
+    {
+      "file": "3b8a9353_img_20250521_172457_0.jpg",
+      "frame": "3b8a9353_img_20250521_172457.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:34+00:00"
+    },
+    {
+      "file": "5fd1cec1_img_20250521_172728_0.jpg",
+      "frame": "5fd1cec1_img_20250521_172728.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:36+00:00"
+    },
+    {
+      "file": "60ebb113_img_20250521_173019_1.jpg",
+      "frame": "60ebb113_img_20250521_173019.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:38+00:00"
+    },
+    {
+      "file": "4c1360b4_img_20250521_174256_0.jpg",
+      "frame": "4c1360b4_img_20250521_174256.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:40+00:00"
+    },
+    {
+      "file": "4d8e09a2_img_20250521_174250_0.jpg",
+      "frame": "4d8e09a2_img_20250521_174250.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:40+00:00"
+    },
+    {
+      "file": "5a2ef938_img_20250521_174118_0.jpg",
+      "frame": "5a2ef938_img_20250521_174118.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:41+00:00"
+    },
+    {
+      "file": "9c2f3859_img_20250521_174414_0.jpg",
+      "frame": "9c2f3859_img_20250521_174414.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:42+00:00"
+    },
+    {
+      "file": "3e0a1a7a_img_20250521_173858_0.jpg",
+      "frame": "3e0a1a7a_img_20250521_173858.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:42+00:00"
+    },
+    {
+      "file": "3fbf1e85_img_20250521_173759_0.jpg",
+      "frame": "3fbf1e85_img_20250521_173759.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:45+00:00"
+    },
+    {
+      "file": "04d6255e_img_4529_0.jpg",
+      "frame": "04d6255e_img_4529.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:46+00:00"
+    },
+    {
+      "file": "7ddf67b4_img_4532_0.jpg",
+      "frame": "7ddf67b4_img_4532.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:46+00:00"
+    },
+    {
+      "file": "1d048bd9_img_4542_0.jpg",
+      "frame": "1d048bd9_img_4542.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:58+00:00"
+    },
+    {
+      "file": "81d24214_img_4543_0.jpg",
+      "frame": "81d24214_img_4543.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:58+00:00"
+    },
+    {
+      "file": "5a7b9af5_img_4541_0.jpg",
+      "frame": "5a7b9af5_img_4541.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:24:59+00:00"
+    },
+    {
+      "file": "05cf677a_img_5298_0.jpg",
+      "frame": "05cf677a_img_5298.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:02+00:00"
+    },
+    {
+      "file": "15bb9684_img_5302_0.jpg",
+      "frame": "15bb9684_img_5302.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:03+00:00"
+    },
+    {
+      "file": "1bb212c9_img_5299_0.jpg",
+      "frame": "1bb212c9_img_5299.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:05+00:00"
+    },
+    {
+      "file": "20c2fcae_img_5297_0.jpg",
+      "frame": "20c2fcae_img_5297.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:06+00:00"
+    },
+    {
+      "file": "29d68435_img_5300_0.jpg",
+      "frame": "29d68435_img_5300.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:06+00:00"
+    },
+    {
+      "file": "51fb07c7_img_5303_0.jpg",
+      "frame": "51fb07c7_img_5303.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:07+00:00"
+    },
+    {
+      "file": "00abb652_img_5316_0.jpg",
+      "frame": "00abb652_img_5316.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:10+00:00"
+    },
+    {
+      "file": "2a114471_img_5317_0.jpg",
+      "frame": "2a114471_img_5317.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:10+00:00"
+    },
+    {
+      "file": "3b321ac7_img_5318_0.jpg",
+      "frame": "3b321ac7_img_5318.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:11+00:00"
+    },
+    {
+      "file": "5fa23c81_img_5321_0.jpg",
+      "frame": "5fa23c81_img_5321.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:12+00:00"
+    },
+    {
+      "file": "36fed1a6_img_5341_0.jpg",
+      "frame": "36fed1a6_img_5341.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:13+00:00"
+    },
+    {
+      "file": "2cf8e178_img_5345_0.jpg",
+      "frame": "2cf8e178_img_5345.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:14+00:00"
+    },
+    {
+      "file": "3ee61b75_img_5347_0.jpg",
+      "frame": "3ee61b75_img_5347.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:25:15+00:00"
+    },
+    {
+      "file": "42eeada2_img_5348_0.jpg",
+      "frame": "42eeada2_img_5348.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:45+00:00"
+    },
+    {
+      "file": "4e51de2e_img_5351_0.jpg",
+      "frame": "4e51de2e_img_5351.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:46+00:00"
+    },
+    {
+      "file": "52ec62c0_img_5337_0.jpg",
+      "frame": "52ec62c0_img_5337.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:47+00:00"
+    },
+    {
+      "file": "62f886ff_img_5354_0.jpg",
+      "frame": "62f886ff_img_5354.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:48+00:00"
+    },
+    {
+      "file": "6f8b2a5f_img_5353_0.jpg",
+      "frame": "6f8b2a5f_img_5353.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:48+00:00"
+    },
+    {
+      "file": "7df76983_img_5349_0.jpg",
+      "frame": "7df76983_img_5349.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:49+00:00"
+    },
+    {
+      "file": "95b89bff_img_5350_0.jpg",
+      "frame": "95b89bff_img_5350.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:49+00:00"
+    },
+    {
+      "file": "4f6450a3_img_5358_0.jpg",
+      "frame": "4f6450a3_img_5358.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:50+00:00"
+    },
+    {
+      "file": "6c397dc7_img_5357_0.jpg",
+      "frame": "6c397dc7_img_5357.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:50+00:00"
+    },
+    {
+      "file": "6d975f4c_img_5356_0.jpg",
+      "frame": "6d975f4c_img_5356.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:51+00:00"
+    },
+    {
+      "file": "8c000318_img_5361_0.jpg",
+      "frame": "8c000318_img_5361.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:51+00:00"
+    },
+    {
+      "file": "75ae52fc_img_5366_0.jpg",
+      "frame": "75ae52fc_img_5366.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:52+00:00"
+    },
+    {
+      "file": "61a70b63_img_4599_0.jpg",
+      "frame": "61a70b63_img_4599.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:53+00:00"
+    },
+    {
+      "file": "6b20f25d_img_4608_0.jpg",
+      "frame": "6b20f25d_img_4608.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:53+00:00"
+    },
+    {
+      "file": "8c482a25_img_4600_0.jpg",
+      "frame": "8c482a25_img_4600.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:54+00:00"
+    },
+    {
+      "file": "3fca21e5_img_4614_0.jpg",
+      "frame": "3fca21e5_img_4614.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:55+00:00"
+    },
+    {
+      "file": "11c885c5_img_4618_0.jpg",
+      "frame": "11c885c5_img_4618.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:55+00:00"
+    },
+    {
+      "file": "29d70299_img_5435_0.jpg",
+      "frame": "29d70299_img_5435.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:56+00:00"
+    },
+    {
+      "file": "4ea10a6e_img_5434_0.jpg",
+      "frame": "4ea10a6e_img_5434.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:57+00:00"
+    },
+    {
+      "file": "2dd18a9d_img_5575_0.jpg",
+      "frame": "2dd18a9d_img_5575.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:58+00:00"
+    },
+    {
+      "file": "2fbd9e2b_img_20250603_164010_0.jpg",
+      "frame": "2fbd9e2b_img_20250603_164010.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:38:59+00:00"
+    },
+    {
+      "file": "1bb638f1_img_20250603_164047_0.jpg",
+      "frame": "1bb638f1_img_20250603_164047.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:00+00:00"
+    },
+    {
+      "file": "8ac57c29_img_5577_0.jpg",
+      "frame": "8ac57c29_img_5577.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:01+00:00"
+    },
+    {
+      "file": "7fea1fac_img_5578_0.jpg",
+      "frame": "7fea1fac_img_5578.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:02+00:00"
+    },
+    {
+      "file": "3ff9b3b6_img_5585_0.jpg",
+      "frame": "3ff9b3b6_img_5585.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:04+00:00"
+    },
+    {
+      "file": "51a61ef9_img_20250603_164511_0.jpg",
+      "frame": "51a61ef9_img_20250603_164511.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:05+00:00"
+    },
+    {
+      "file": "788aea20_img_5588_0.jpg",
+      "frame": "788aea20_img_5588.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:05+00:00"
+    },
+    {
+      "file": "9adca2ff_img_5587_0.jpg",
+      "frame": "9adca2ff_img_5587.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:06+00:00"
+    },
+    {
+      "file": "1c64fee5_img_5583_0.jpg",
+      "frame": "1c64fee5_img_5583.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:08+00:00"
+    },
+    {
+      "file": "48aa7dda_img_5582_0.jpg",
+      "frame": "48aa7dda_img_5582.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:09+00:00"
+    },
+    {
+      "file": "6d4b5d5e_img_5580_0.jpg",
+      "frame": "6d4b5d5e_img_5580.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:11+00:00"
+    },
+    {
+      "file": "6d4b5d5e_img_5580_1.jpg",
+      "frame": "6d4b5d5e_img_5580.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:11+00:00"
+    },
+    {
+      "file": "6f6fb82f_img_20250603_164437_0.jpg",
+      "frame": "6f6fb82f_img_20250603_164437.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:12+00:00"
+    },
+    {
+      "file": "6f6fb82f_img_20250603_164437_1.jpg",
+      "frame": "6f6fb82f_img_20250603_164437.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:12+00:00"
+    },
+    {
+      "file": "39a418d4_img_20250603_164946_0.jpg",
+      "frame": "39a418d4_img_20250603_164946.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:13+00:00"
+    },
+    {
+      "file": "2ecf5026_img_5594_0.jpg",
+      "frame": "2ecf5026_img_5594.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:14+00:00"
+    },
+    {
+      "file": "3e56e882_img_5596_0.jpg",
+      "frame": "3e56e882_img_5596.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:15+00:00"
+    },
+    {
+      "file": "4a01c869_img_20250603_164949_0.jpg",
+      "frame": "4a01c869_img_20250603_164949.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:16+00:00"
+    },
+    {
+      "file": "23fefa17_img_20250603_165738_0.jpg",
+      "frame": "23fefa17_img_20250603_165738.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:16+00:00"
+    },
+    {
+      "file": "23fefa17_img_20250603_165738_1.jpg",
+      "frame": "23fefa17_img_20250603_165738.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:18+00:00"
+    },
+    {
+      "file": "33d4c59a_img_20250603_165415_0.jpg",
+      "frame": "33d4c59a_img_20250603_165415.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:19+00:00"
+    },
+    {
+      "file": "2f3a1b1b_img_20250603_165417_0.jpg",
+      "frame": "2f3a1b1b_img_20250603_165417.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:22+00:00"
+    },
+    {
+      "file": "4cfda599_img_20250603_165552_0.jpg",
+      "frame": "4cfda599_img_20250603_165552.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:23+00:00"
+    },
+    {
+      "file": "7c52939a_img_20250603_165759_0.jpg",
+      "frame": "7c52939a_img_20250603_165759.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:24+00:00"
+    },
+    {
+      "file": "8b9817de_img_20250603_165734_0.jpg",
+      "frame": "8b9817de_img_20250603_165734.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:25+00:00"
+    },
+    {
+      "file": "5f8fec9d_img_20250603_165540_0.jpg",
+      "frame": "5f8fec9d_img_20250603_165540.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:26+00:00"
+    },
+    {
+      "file": "7d398fda_img_5600_0.jpg",
+      "frame": "7d398fda_img_5600.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:27+00:00"
+    },
+    {
+      "file": "9e4ee468_img_5604_0.jpg",
+      "frame": "9e4ee468_img_5604.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:31+00:00"
+    },
+    {
+      "file": "090d1f45_img_20250603_171029_0.jpg",
+      "frame": "090d1f45_img_20250603_171029.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:32+00:00"
+    },
+    {
+      "file": "92c961e3_img_20250603_170841_0.jpg",
+      "frame": "92c961e3_img_20250603_170841.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:34+00:00"
+    },
+    {
+      "file": "9c2666a0_img_20250603_170558_0.jpg",
+      "frame": "9c2666a0_img_20250603_170558.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:35+00:00"
+    },
+    {
+      "file": "2f609934_img_20250603_171011_0.jpg",
+      "frame": "2f609934_img_20250603_171011.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:36+00:00"
+    },
+    {
+      "file": "2f609934_img_20250603_171011_1.jpg",
+      "frame": "2f609934_img_20250603_171011.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:38+00:00"
+    },
+    {
+      "file": "6af07cb9_img_20250603_170555_0.jpg",
+      "frame": "6af07cb9_img_20250603_170555.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:39+00:00"
+    },
+    {
+      "file": "6b34944c_img_20250603_170613_0.jpg",
+      "frame": "6b34944c_img_20250603_170613.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:41+00:00"
+    },
+    {
+      "file": "6fac6f2a_img_20250603_170554_0.jpg",
+      "frame": "6fac6f2a_img_20250603_170554.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:42+00:00"
+    },
+    {
+      "file": "4c53fbe7_img_20250603_171020_0.jpg",
+      "frame": "4c53fbe7_img_20250603_171020.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:43+00:00"
+    },
+    {
+      "file": "38cd3942_img_20250603_171835_0.jpg",
+      "frame": "38cd3942_img_20250603_171835.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:44+00:00"
+    },
+    {
+      "file": "6d5c157e_img_20250603_172721_1.jpg",
+      "frame": "6d5c157e_img_20250603_172721.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:45+00:00"
+    },
+    {
+      "file": "04458ef1_img_20250603_172632_0.jpg",
+      "frame": "04458ef1_img_20250603_172632.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:47+00:00"
+    },
+    {
+      "file": "129aa233_img_20250603_172638_0.jpg",
+      "frame": "129aa233_img_20250603_172638.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:48+00:00"
+    },
+    {
+      "file": "214cecaa_img_20250603_172651_0.jpg",
+      "frame": "214cecaa_img_20250603_172651.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:48+00:00"
+    },
+    {
+      "file": "2391c837_img_20250603_172355_0.jpg",
+      "frame": "2391c837_img_20250603_172355.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:49+00:00"
+    },
+    {
+      "file": "37f71ad8_img_20250603_172402_0.jpg",
+      "frame": "37f71ad8_img_20250603_172402.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:50+00:00"
+    },
+    {
+      "file": "50db814c_img_20250603_172404_0.jpg",
+      "frame": "50db814c_img_20250603_172404.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:51+00:00"
+    },
+    {
+      "file": "57f9c959_img_20250603_172646_0.jpg",
+      "frame": "57f9c959_img_20250603_172646.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:52+00:00"
+    },
+    {
+      "file": "922a66d8_img_20250603_172630_0.jpg",
+      "frame": "922a66d8_img_20250603_172630.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:53+00:00"
+    },
+    {
+      "file": "6d5c157e_img_20250603_172721_0.jpg",
+      "frame": "6d5c157e_img_20250603_172721.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:56+00:00"
+    },
+    {
+      "file": "ac2fa1d9_img_20250506_120021_0.jpg",
+      "frame": "ac2fa1d9_img_20250506_120021.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:57+00:00"
+    },
+    {
+      "file": "b47abd43_img_20250506_115948_0.jpg",
+      "frame": "b47abd43_img_20250506_115948.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:57+00:00"
+    },
+    {
+      "file": "ce00be7d_img_20250506_115956_0.jpg",
+      "frame": "ce00be7d_img_20250506_115956.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:58+00:00"
+    },
+    {
+      "file": "fd30d98f_img_20250506_115958_0.jpg",
+      "frame": "fd30d98f_img_20250506_115958.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:39:59+00:00"
+    },
+    {
+      "file": "e85ad017_img_20250506_120642_0.jpg",
+      "frame": "e85ad017_img_20250506_120642.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:01+00:00"
+    },
+    {
+      "file": "ff3637d7_img_20250506_120649_0.jpg",
+      "frame": "ff3637d7_img_20250506_120649.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:01+00:00"
+    },
+    {
+      "file": "cdd58014_img_20250506_121428_0.jpg",
+      "frame": "cdd58014_img_20250506_121428.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:08+00:00"
+    },
+    {
+      "file": "e51de84c_img_20250506_121430_0.jpg",
+      "frame": "e51de84c_img_20250506_121430.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:09+00:00"
+    },
+    {
+      "file": "e5936762_img_20250506_121137_0.jpg",
+      "frame": "e5936762_img_20250506_121137.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:10+00:00"
+    },
+    {
+      "file": "d161c5e2_img_20250506_121419_0.jpg",
+      "frame": "d161c5e2_img_20250506_121419.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:11+00:00"
+    },
+    {
+      "file": "e1981a5c_img_20250506_121422_0.jpg",
+      "frame": "e1981a5c_img_20250506_121422.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:12+00:00"
+    },
+    {
+      "file": "f3a37528_img_20250506_121158_0.jpg",
+      "frame": "f3a37528_img_20250506_121158.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:13+00:00"
+    },
+    {
+      "file": "fc5b0367_img_20250506_122015_0.jpg",
+      "frame": "fc5b0367_img_20250506_122015.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:14+00:00"
+    },
+    {
+      "file": "cb007a7f_img_20250514_111114_0.jpg",
+      "frame": "cb007a7f_img_20250514_111114.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:15+00:00"
+    },
+    {
+      "file": "f3ec1693_img_20250514_111525_0.jpg",
+      "frame": "f3ec1693_img_20250514_111525.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:16+00:00"
+    },
+    {
+      "file": "3775ec38_img_20250514_111801_0.jpg",
+      "frame": "3775ec38_img_20250514_111801.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:18+00:00"
+    },
+    {
+      "file": "a7c88d99_img_20250514_111758_0.jpg",
+      "frame": "a7c88d99_img_20250514_111758.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:19+00:00"
+    },
+    {
+      "file": "c966fdeb_img_20250514_111721_0.jpg",
+      "frame": "c966fdeb_img_20250514_111721.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:20+00:00"
+    },
+    {
+      "file": "af08403f_img_20250514_112418_0.jpg",
+      "frame": "af08403f_img_20250514_112418.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:20+00:00"
+    },
+    {
+      "file": "dc59d589_img_20250514_112711_0.jpg",
+      "frame": "dc59d589_img_20250514_112711.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:21+00:00"
+    },
+    {
+      "file": "c2955398_img_20250514_112110_0.jpg",
+      "frame": "c2955398_img_20250514_112110.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:23+00:00"
+    },
+    {
+      "file": "c681ab8f_img_20250514_112358_0.jpg",
+      "frame": "c681ab8f_img_20250514_112358.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:28+00:00"
+    },
+    {
+      "file": "a921b900_img_4878_0.jpg",
+      "frame": "a921b900_img_4878.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:29+00:00"
+    },
+    {
+      "file": "df64fc7d_img_4873_0.jpg",
+      "frame": "df64fc7d_img_4873.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:36+00:00"
+    },
+    {
+      "file": "ba95c121_img_4881_0.jpg",
+      "frame": "ba95c121_img_4881.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:39+00:00"
+    },
+    {
+      "file": "bbfa5d0a_img_4930_0.jpg",
+      "frame": "bbfa5d0a_img_4930.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:39+00:00"
+    },
+    {
+      "file": "c1c3c035_img_4946_0.jpg",
+      "frame": "c1c3c035_img_4946.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:40+00:00"
+    },
+    {
+      "file": "acf85fd9_img_20250521_155216_0.jpg",
+      "frame": "acf85fd9_img_20250521_155216.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:41+00:00"
+    },
+    {
+      "file": "aacbbe66_img_20250521_155002_0.jpg",
+      "frame": "aacbbe66_img_20250521_155002.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:43+00:00"
+    },
+    {
+      "file": "f9e786e4_img_20250521_155224_0.jpg",
+      "frame": "f9e786e4_img_20250521_155224.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:43+00:00"
+    },
+    {
+      "file": "6444e922_img_20250521_155620_1.jpg",
+      "frame": "6444e922_img_20250521_155620.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:44+00:00"
+    },
+    {
+      "file": "f22c4902_img_20250521_155640_0.jpg",
+      "frame": "f22c4902_img_20250521_155640.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:44+00:00"
+    },
+    {
+      "file": "f3df860d_img_20250521_155543_0.jpg",
+      "frame": "f3df860d_img_20250521_155543.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:45+00:00"
+    },
+    {
+      "file": "f4dc8aba_img_20250521_155618_0.jpg",
+      "frame": "f4dc8aba_img_20250521_155618.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:45+00:00"
+    },
+    {
+      "file": "18770bdd_img_20250521_155550_0.jpg",
+      "frame": "18770bdd_img_20250521_155550.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:46+00:00"
+    },
+    {
+      "file": "6444e922_img_20250521_155620_0.jpg",
+      "frame": "6444e922_img_20250521_155620.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:46+00:00"
+    },
+    {
+      "file": "f01c6218_img_20250521_155807_0.jpg",
+      "frame": "f01c6218_img_20250521_155807.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:47+00:00"
+    },
+    {
+      "file": "f3df860d_img_20250521_155543_1.jpg",
+      "frame": "f3df860d_img_20250521_155543.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:47+00:00"
+    },
+    {
+      "file": "dffa805d_img_20250521_160317_0.jpg",
+      "frame": "dffa805d_img_20250521_160317.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:49+00:00"
+    },
+    {
+      "file": "eebebed9_img_20250521_160306_0.jpg",
+      "frame": "eebebed9_img_20250521_160306.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:49+00:00"
+    },
+    {
+      "file": "56270c6a_img_20250521_160147_0.jpg",
+      "frame": "56270c6a_img_20250521_160147.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:51+00:00"
+    },
+    {
+      "file": "e2973f2b_img_20250521_161024_0.jpg",
+      "frame": "e2973f2b_img_20250521_161024.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:51+00:00"
+    },
+    {
+      "file": "e2973f2b_img_20250521_161024_1.jpg",
+      "frame": "e2973f2b_img_20250521_161024.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:52+00:00"
+    },
+    {
+      "file": "e9646b37_img_20250521_161022_0.jpg",
+      "frame": "e9646b37_img_20250521_161022.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:52+00:00"
+    },
+    {
+      "file": "df5344ce_img_20250521_161218_0.jpg",
+      "frame": "df5344ce_img_20250521_161218.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:53+00:00"
+    },
+    {
+      "file": "e2a1e39c_img_20250521_161016_0.jpg",
+      "frame": "e2a1e39c_img_20250521_161016.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:54+00:00"
+    },
+    {
+      "file": "bb7e036c_img_20250521_172624_0.jpg",
+      "frame": "bb7e036c_img_20250521_172624.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:56+00:00"
+    },
+    {
+      "file": "b4828a79_img_20250521_172632_0.jpg",
+      "frame": "b4828a79_img_20250521_172632.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:56+00:00"
+    },
+    {
+      "file": "b9358402_img_20250521_172846_0.jpg",
+      "frame": "b9358402_img_20250521_172846.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:57+00:00"
+    },
+    {
+      "file": "dbd54155_img_20250521_172622_0.jpg",
+      "frame": "dbd54155_img_20250521_172622.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:58+00:00"
+    },
+    {
+      "file": "e0b9a32c_img_20250521_172725_0.jpg",
+      "frame": "e0b9a32c_img_20250521_172725.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:40:59+00:00"
+    },
+    {
+      "file": "eb735cd7_img_20250521_172459_0.jpg",
+      "frame": "eb735cd7_img_20250521_172459.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:00+00:00"
+    },
+    {
+      "file": "f0e71724_img_20250521_172844_0.jpg",
+      "frame": "f0e71724_img_20250521_172844.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:00+00:00"
+    },
+    {
+      "file": "f8e4c49e_img_20250521_174116_0.jpg",
+      "frame": "f8e4c49e_img_20250521_174116.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:01+00:00"
+    },
+    {
+      "file": "fab47795_img_20250521_173856_0.jpg",
+      "frame": "fab47795_img_20250521_173856.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:02+00:00"
+    },
+    {
+      "file": "45176ab2_img_20250521_174247_0.jpg",
+      "frame": "45176ab2_img_20250521_174247.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:03+00:00"
+    },
+    {
+      "file": "a390d93a_img_20250521_174410_0.jpg",
+      "frame": "a390d93a_img_20250521_174410.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:04+00:00"
+    },
+    {
+      "file": "ad6d2b42_img_20250521_174406_0.jpg",
+      "frame": "ad6d2b42_img_20250521_174406.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:05+00:00"
+    },
+    {
+      "file": "e9994ff2_img_20250521_174123_0.jpg",
+      "frame": "e9994ff2_img_20250521_174123.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:06+00:00"
+    },
+    {
+      "file": "c2e836f9_img_20250521_173925_0.jpg",
+      "frame": "c2e836f9_img_20250521_173925.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:06+00:00"
+    },
+    {
+      "file": "cd80a4ef_img_20250521_174349_0.jpg",
+      "frame": "cd80a4ef_img_20250521_174349.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:07+00:00"
+    },
+    {
+      "file": "ce8042fc_img_20250521_174232_0.jpg",
+      "frame": "ce8042fc_img_20250521_174232.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:08+00:00"
+    },
+    {
+      "file": "d6b5f833_img_20250521_174234_0.jpg",
+      "frame": "d6b5f833_img_20250521_174234.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:09+00:00"
+    },
+    {
+      "file": "f649ef37_img_4527_0.jpg",
+      "frame": "f649ef37_img_4527.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:10+00:00"
+    },
+    {
+      "file": "aef178ef_img_4538_0.jpg",
+      "frame": "aef178ef_img_4538.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:11+00:00"
+    },
+    {
+      "file": "be9db235_img_4539_0.jpg",
+      "frame": "be9db235_img_4539.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:12+00:00"
+    },
+    {
+      "file": "aef178ef_img_4538_1.jpg",
+      "frame": "aef178ef_img_4538.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:12+00:00"
+    },
+    {
+      "file": "d3c34396_img_4546_0.jpg",
+      "frame": "d3c34396_img_4546.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:13+00:00"
+    },
+    {
+      "file": "41244c5f_img_5275_0.jpg",
+      "frame": "41244c5f_img_5275.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:14+00:00"
+    },
+    {
+      "file": "8076769c_img_5274_0.jpg",
+      "frame": "8076769c_img_5274.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:14+00:00"
+    },
+    {
+      "file": "bde12709_img_5276_0.jpg",
+      "frame": "bde12709_img_5276.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:15+00:00"
+    },
+    {
+      "file": "c1acef60_img_5306_0.jpg",
+      "frame": "c1acef60_img_5306.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:22+00:00"
+    },
+    {
+      "file": "cc47602e_img_5301_0.jpg",
+      "frame": "cc47602e_img_5301.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:22+00:00"
+    },
+    {
+      "file": "e89ac47b_img_5296_0.jpg",
+      "frame": "e89ac47b_img_5296.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:23+00:00"
+    },
+    {
+      "file": "aae7ee01_img_5324_0.jpg",
+      "frame": "aae7ee01_img_5324.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:24+00:00"
+    },
+    {
+      "file": "f4a951ba_img_5322_0.jpg",
+      "frame": "f4a951ba_img_5322.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:24+00:00"
+    },
+    {
+      "file": "b80b8948_img_5336_0.jpg",
+      "frame": "b80b8948_img_5336.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:25+00:00"
+    },
+    {
+      "file": "d3a4c24c_img_5346_0.jpg",
+      "frame": "d3a4c24c_img_5346.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:25+00:00"
+    },
+    {
+      "file": "fb88f3ab_img_5338_0.jpg",
+      "frame": "fb88f3ab_img_5338.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:26+00:00"
+    },
+    {
+      "file": "e2b082cb_img_5363_0.jpg",
+      "frame": "e2b082cb_img_5363.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:27+00:00"
+    },
+    {
+      "file": "e7a46ea5_img_5362_0.jpg",
+      "frame": "e7a46ea5_img_5362.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:27+00:00"
+    },
+    {
+      "file": "f23c28dd_img_5364_0.jpg",
+      "frame": "f23c28dd_img_5364.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:28+00:00"
+    },
+    {
+      "file": "c317d6be_img_4606_0.jpg",
+      "frame": "c317d6be_img_4606.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:31+00:00"
+    },
+    {
+      "file": "cc741dca_img_4601_0.jpg",
+      "frame": "cc741dca_img_4601.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:31+00:00"
+    },
+    {
+      "file": "e097c39b_img_4611_0.jpg",
+      "frame": "e097c39b_img_4611.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:32+00:00"
+    },
+    {
+      "file": "f3002fee_img_4607_0.jpg",
+      "frame": "f3002fee_img_4607.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:33+00:00"
+    },
+    {
+      "file": "ae8633d1_img_4613_0.jpg",
+      "frame": "ae8633d1_img_4613.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:34+00:00"
+    },
+    {
+      "file": "cea6808d_img_4617_0.jpg",
+      "frame": "cea6808d_img_4617.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:35+00:00"
+    },
+    {
+      "file": "ed51a891_img_4622_0.jpg",
+      "frame": "ed51a891_img_4622.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:35+00:00"
+    },
+    {
+      "file": "f2e3ee36_img_4616_0.jpg",
+      "frame": "f2e3ee36_img_4616.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:41+00:00"
+    },
+    {
+      "file": "ede1f04c_img_5439_0.jpg",
+      "frame": "ede1f04c_img_5439.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:42+00:00"
+    },
+    {
+      "file": "fdeb7d34_img_5437_0.jpg",
+      "frame": "fdeb7d34_img_5437.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:42+00:00"
+    },
+    {
+      "file": "f2079049_img_5574_0.jpg",
+      "frame": "f2079049_img_5574.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:44+00:00"
+    },
+    {
+      "file": "e52f3886_img_5590_0.jpg",
+      "frame": "e52f3886_img_5590.jpg",
+      "legacy_class": "Glas",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "igloo",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:45+00:00"
+    },
+    {
+      "file": "48462049_img_20250603_164430_0.jpg",
+      "frame": "48462049_img_20250603_164430.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:47+00:00"
+    },
+    {
+      "file": "744902b4_img_20250603_164013_0.jpg",
+      "frame": "744902b4_img_20250603_164013.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:48+00:00"
+    },
+    {
+      "file": "ab1210d7_img_20250603_164337_0.jpg",
+      "frame": "ab1210d7_img_20250603_164337.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:49+00:00"
+    },
+    {
+      "file": "bd52795f_img_20250603_164039_0.jpg",
+      "frame": "bd52795f_img_20250603_164039.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:50+00:00"
+    },
+    {
+      "file": "48462049_img_20250603_164430_1.jpg",
+      "frame": "48462049_img_20250603_164430.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:51+00:00"
+    },
+    {
+      "file": "bd52795f_img_20250603_164039_1.jpg",
+      "frame": "bd52795f_img_20250603_164039.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:51+00:00"
+    },
+    {
+      "file": "ccb5474f_img_20250603_164045_0.jpg",
+      "frame": "ccb5474f_img_20250603_164045.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:52+00:00"
+    },
+    {
+      "file": "cd724375_img_20250603_164453_0.jpg",
+      "frame": "cd724375_img_20250603_164453.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:53+00:00"
+    },
+    {
+      "file": "986537f7_img_5593_0.jpg",
+      "frame": "986537f7_img_5593.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:54+00:00"
+    },
+    {
+      "file": "e94ab539_img_20250603_164953_0.jpg",
+      "frame": "e94ab539_img_20250603_164953.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:54+00:00"
+    },
+    {
+      "file": "eea6bbc5_img_20250603_164956_0.jpg",
+      "frame": "eea6bbc5_img_20250603_164956.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:55+00:00"
+    },
+    {
+      "file": "bd23838e_img_5592_0.jpg",
+      "frame": "bd23838e_img_5592.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:55+00:00"
+    },
+    {
+      "file": "bb1267d0_img_20250603_165647_0.jpg",
+      "frame": "bb1267d0_img_20250603_165647.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:56+00:00"
+    },
+    {
+      "file": "c5383a00_img_20250603_165755_0.jpg",
+      "frame": "c5383a00_img_20250603_165755.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:58+00:00"
+    },
+    {
+      "file": "8266c280_img_20250603_165656_0.jpg",
+      "frame": "8266c280_img_20250603_165656.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:41:59+00:00"
+    },
+    {
+      "file": "968676a3_img_20250603_165648_0.jpg",
+      "frame": "968676a3_img_20250603_165648.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:00+00:00"
+    },
+    {
+      "file": "968676a3_img_20250603_165648_1.jpg",
+      "frame": "968676a3_img_20250603_165648.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:01+00:00"
+    },
+    {
+      "file": "a19de8ad_img_20250603_165549_0.jpg",
+      "frame": "a19de8ad_img_20250603_165549.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:02+00:00"
+    },
+    {
+      "file": "bb1267d0_img_20250603_165647_1.jpg",
+      "frame": "bb1267d0_img_20250603_165647.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:03+00:00"
+    },
+    {
+      "file": "c0e0a370_img_20250603_165548_0.jpg",
+      "frame": "c0e0a370_img_20250603_165548.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:03+00:00"
+    },
+    {
+      "file": "abf03147_img_20250603_165409_0.jpg",
+      "frame": "abf03147_img_20250603_165409.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:05+00:00"
+    },
+    {
+      "file": "b33a9b14_img_20250603_165745_0.jpg",
+      "frame": "b33a9b14_img_20250603_165745.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:05+00:00"
+    },
+    {
+      "file": "c47ff111_img_20250603_165704_0.jpg",
+      "frame": "c47ff111_img_20250603_165704.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:07+00:00"
+    },
+    {
+      "file": "c785aec1_img_20250603_165700_0.jpg",
+      "frame": "c785aec1_img_20250603_165700.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:08+00:00"
+    },
+    {
+      "file": "d455bac5_img_5603_0.jpg",
+      "frame": "d455bac5_img_5603.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:10+00:00"
+    },
+    {
+      "file": "d475a652_img_20250603_165538_0.jpg",
+      "frame": "d475a652_img_20250603_165538.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:11+00:00"
+    },
+    {
+      "file": "dc6b2dfa_img_20250603_165541_0.jpg",
+      "frame": "dc6b2dfa_img_20250603_165541.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:13+00:00"
+    },
+    {
+      "file": "e2de6fc2_img_20250603_165411_0.jpg",
+      "frame": "e2de6fc2_img_20250603_165411.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:13+00:00"
+    },
+    {
+      "file": "f906f7e5_img_20250603_165750_0.jpg",
+      "frame": "f906f7e5_img_20250603_165750.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:14+00:00"
+    },
+    {
+      "file": "fa7a759a_img_5602_0.jpg",
+      "frame": "fa7a759a_img_5602.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:15+00:00"
+    },
+    {
+      "file": "fcd29ca3_img_5601_0.jpg",
+      "frame": "fcd29ca3_img_5601.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:15+00:00"
+    },
+    {
+      "file": "e37bb2e3_img_20250603_170612_0.jpg",
+      "frame": "e37bb2e3_img_20250603_170612.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:17+00:00"
+    },
+    {
+      "file": "7738263a_img_20250603_171015_0.jpg",
+      "frame": "7738263a_img_20250603_171015.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:17+00:00"
+    },
+    {
+      "file": "cf32f1db_img_20250603_171016_0.jpg",
+      "frame": "cf32f1db_img_20250603_171016.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:18+00:00"
+    },
+    {
+      "file": "ea4f2e7d_img_20250603_170854_0.jpg",
+      "frame": "ea4f2e7d_img_20250603_170854.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:18+00:00"
+    },
+    {
+      "file": "f214d7ef_img_20250603_170846_0.jpg",
+      "frame": "f214d7ef_img_20250603_170846.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:19+00:00"
+    },
+    {
+      "file": "fb7b4f52_img_20250603_170852_1.jpg",
+      "frame": "fb7b4f52_img_20250603_170852.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:20+00:00"
+    },
+    {
+      "file": "af4fdf3d_img_20250603_171022_0.jpg",
+      "frame": "af4fdf3d_img_20250603_171022.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:20+00:00"
+    },
+    {
+      "file": "ce4e2efc_img_20250603_170851_0.jpg",
+      "frame": "ce4e2efc_img_20250603_170851.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:21+00:00"
+    },
+    {
+      "file": "ce4e2efc_img_20250603_170851_1.jpg",
+      "frame": "ce4e2efc_img_20250603_170851.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:21+00:00"
+    },
+    {
+      "file": "ef694b40_img_20250603_170858_0.jpg",
+      "frame": "ef694b40_img_20250603_170858.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:23+00:00"
+    },
+    {
+      "file": "fb7b4f52_img_20250603_170852_0.jpg",
+      "frame": "fb7b4f52_img_20250603_170852.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:24+00:00"
+    },
+    {
+      "file": "fe9d7914_img_20250603_170549_0.jpg",
+      "frame": "fe9d7914_img_20250603_170549.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:25+00:00"
+    },
+    {
+      "file": "fe9d7914_img_20250603_170549_1.jpg",
+      "frame": "fe9d7914_img_20250603_170549.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:25+00:00"
+    },
+    {
+      "file": "c92a77ce_img_20250603_171832_0.jpg",
+      "frame": "c92a77ce_img_20250603_171832.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:26+00:00"
+    },
+    {
+      "file": "f0901c9c_img_20250603_172719_0.jpg",
+      "frame": "f0901c9c_img_20250603_172719.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:26+00:00"
+    },
+    {
+      "file": "e2ae9d1e_img_20250603_172919_0.jpg",
+      "frame": "e2ae9d1e_img_20250603_172919.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:27+00:00"
+    },
+    {
+      "file": "e8b5fc31_img_20250603_172722_0.jpg",
+      "frame": "e8b5fc31_img_20250603_172722.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:27+00:00"
+    },
+    {
+      "file": "ffc2a28e_img_20250603_172923_0.jpg",
+      "frame": "ffc2a28e_img_20250603_172923.jpg",
+      "legacy_class": "Papier",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:28+00:00"
+    },
+    {
+      "file": "e8b5fc31_img_20250603_172722_1.jpg",
+      "frame": "e8b5fc31_img_20250603_172722.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:29+00:00"
+    },
+    {
+      "file": "4966269a_img_20250521_161025_0.jpg",
+      "frame": "4966269a_img_20250521_161025.jpg",
+      "legacy_class": "Biomüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_small",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:30+00:00"
+    },
+    {
+      "file": "3530362b_img_20250521_161019_0.jpg",
+      "frame": "3530362b_img_20250521_161019.jpg",
+      "legacy_class": "Restmüll",
+      "proposed": null,
+      "adjudication": "authored",
+      "form_factor": "wheelie_large",
+      "reviewer": "alex",
+      "decided": "2026-08-21T07:42:31+00:00"
+    }
+  ]
+}
