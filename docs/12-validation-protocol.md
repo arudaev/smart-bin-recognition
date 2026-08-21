@@ -925,6 +925,31 @@ classification path.
 
 ---
 
+## P12 – The controlled host
+
+*Not pre-registered, because it is not a probe: it is the phase-2 gate, measured
+where the gate says to measure it. It is numbered here so the result has a home
+beside the probes that predicted it.*
+
+**RAN 2026-08-21 — [result](research/probes/P12-the-controlled-host.md).**
+Latency **passes** on `representative: true` hardware — validator 18.3 ms
+against 50, identifier 9.9 ms against 25. Concurrency **fails**: **5** scanners
+at one bin against a gate of 10, and **2** at six bins.
+
+The first admissible absolute concurrency figure the project has had. It
+supersedes the withdrawn 4 and 1, and it lands inside P4's corrected prediction
+of 4.3–5.1 and 1.8–2.2.
+
+**One methodological lesson worth carrying.** The first pass reported 10 and 10.
+`run.py --bins N` is a report label; `SBR_FORCE_CROPS` is what makes it true,
+and it was unset, so the client's synthetic noise produced no detections and the
+identifier never ran. Both halves measured a validator-only frame — and returned
+curves identical to within 2 ms at every one of fourteen levels, which is what
+exposed it. **Two configurations that agree exactly are not confirming each
+other; they are the same configuration.**
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
