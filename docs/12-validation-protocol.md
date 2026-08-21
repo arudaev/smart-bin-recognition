@@ -31,6 +31,14 @@ model.
 
 ## P1 – Form-factor separability
 
+> **RAN 2026-08-21 — [result](research/probes/P1-form-factor-separability.md).**
+> The amended rule's **first row fires**: pairwise
+> `wheelie_small`/`wheelie_large` **0.9834** out-of-fold against a 0.75
+> threshold and a 0.6823 baseline, on the **embedding alone**, so box area
+> is not needed as a service feature. The evidence points at a three-class
+> B; **the class list itself is the maintainer's decision and the probe did
+> not take it.**
+
 **Question.** Are the ten form factors separable from a 320 px crop? Specifically:
 is `wheelie_small` vs `wheelie_large` a *size* distinction that resizing
 destroys?
@@ -147,7 +155,7 @@ degrees of freedom here — which layer, which split, which regulariser — that
 |---|---|
 | **Representation** | `facebook/dinov2-base`, revision recorded in the report. CLS token, 768-d. Resize shorter side to 256, centre-crop 224, ImageNet mean/std, fp32, `eval()`, no fine-tuning |
 | **Estimator** | `LogisticRegression(penalty="l2", C=1.0, solver="lbfgs", max_iter=5000, class_weight="balanced", random_state=42)` |
-| **Scoring** | `GroupKFold(n_splits=5)` on **`capture_cluster`**. A random split over 403 crops from ~138 clusters measures memorisation, which is precisely the predecessor's mistake this project exists not to repeat |
+| **Scoring** | `GroupKFold(n_splits=5)` on **`capture_cluster`**. A random split over 403 crops from **100** clusters measures memorisation, which is precisely the predecessor's mistake this project exists not to repeat. *(This row said "~138 clusters" when it was frozen; measured, it is 100 — `wheelie_small` 65, `wheelie_large` 56, `igloo` 17, `street_basket` 1. Nothing in the estimator depended on it, and the figure is corrected rather than quietly left.)* |
 | **Scaling** | `StandardScaler` fitted **inside each fold**. It matters most in variant (b), where one feature has a wildly different scale from the other 768 |
 | **Variants** | **(a)** embedding alone · **(b)** embedding ⧺ relative box area, `bbox_norm` w·h, appended as one feature |
 | **Aggregation** | Out-of-fold predictions pooled across all five folds, then scored once |

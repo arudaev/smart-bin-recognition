@@ -22,7 +22,7 @@ fitted inside each fold, two variants (with and without relative box area), and
 every headline quoted beside its majority-class baseline and its balanced
 accuracy.
 
-**Why group-aware.** 403 crops come from ~138 capture clusters - one visit to
+**Why group-aware.** 403 crops come from 100 capture clusters - one visit to
 one bin, reconstructed from EXIF times. A random split puts two photographs of
 the same physical bin either side of the line and reports memorisation as
 generalisation, which is the predecessor's 95.2 % and the exact mistake this
