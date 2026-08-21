@@ -242,6 +242,36 @@ nearest named colour:
 Lid-vs-body separation is **explicitly out of scope for P3** and recorded as an
 open problem (research note 06 § 3). Measure body colour first.
 
+### That scoping is now the binding constraint on the product — observed 2026-08-21
+
+Both models exist, and a real Deggendorf frame was run through the real service.
+The **glass path answers**: a legacy `Glas` frame returns
+`form_factor: igloo`, `body_color: metal`, `stream: glass_mixed`,
+`local_name: "Glascontainer"`.
+
+**Every wheelie answers `unknown`**, and not because anything failed. The
+validator finds it, the identifier names it correctly at 0.98–0.99 confidence,
+colour measures its body — and then **all four wheelie rules in the Deggendorf
+pack match on `lid_color`**, which the service does not measure:
+
+| rule | matches on |
+|---|---|
+| `deg-residual-wheelie` | `lid_color: black, grey` |
+| `deg-paper-wheelie` | `lid_color: blue` |
+| `deg-bio-wheelie` | `lid_color: brown` |
+| `deg-packaging-wheelie` | `lid_color: yellow` |
+
+The sharpest case observed: a `Papier` bin came back with `body_color: blue` —
+the exact colour `deg-paper-wheelie` looks for — and still resolved to
+`unknown`, because the rule reads the *lid*.
+
+**So lid-vs-body separation is no longer a tidy-up after P3; it is what stands
+between a working two-model pipeline and an answer for the commonest bin in
+Deggendorf.** `igloo` is 40 crops of the project's data and the only form factor
+that currently resolves; `wheelie_small` and `wheelie_large` are 362 crops and
+resolve to nothing. That reorders P3's own priorities and is recorded here
+rather than acted on.
+
 **Cost.** No GPU, no model, no SAM. Half a day, most of it labelling.
 
 **Resolves.** docs/02 § 1's colour axis · docs/04 § 1's mask claim · docs/07's
