@@ -113,6 +113,29 @@ looked at what form factors are in them. Generate crops, sample, and **report
 what is visibly present** — establish whether a second adjudication pass would
 be worth a person's time before proposing one.
 
+### The survey, frozen 2026-08-21, before a single crop was opened
+
+A sample chosen after looking is not a sample, and a survey with no stated frame
+becomes "I saw a few of those" by the time it is quoted. So:
+
+| | |
+|---|---|
+| **Population** | all 1 936 boxes across 1 110 Open Images frames in `arudaev/smart-bin-detect@8666aa23` |
+| **Sample** | **384 boxes, seed 20260821, without replacement.** Sampling unit is the **box**, not the frame — a frame with six bins contributes six chances, which is what "what form factors are in them" asks |
+| **Categories** | the ten taxonomy form factors, plus **`uncertain`** (too small, too occluded, or genuinely ambiguous) and **`not_a_bin`** (the box is on something else) |
+| **Output** | counts over the sample, by one observer, **reported as a visual survey and explicitly not as labels** |
+| **Writes** | none. Nothing goes back into any manifest, and no crop acquires a `form_factor` |
+
+**Why 384.** At n=384 a proportion is estimated to roughly ±5 points at 95 %
+confidence in the worst case, which is the resolution the question actually
+needs: *is there enough of form factor X to be worth a human pass?* is a
+question about tens of percent, not about single crops.
+
+**What this cannot do.** It cannot produce training labels — one observer, no
+blind protocol, no adjudication record — and it cannot tell us whether a box is
+correct, only what is inside it. It answers one question: whether a second human
+pass over this corpus would find form factors the legacy archive does not have.
+
 ### The estimator, frozen 2026-08-21, before the kernel was written
 
 The amendment above fixes the *rule* and not the *estimator*, and an unstated
