@@ -48,7 +48,17 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       ([08 § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is)).
 - [x] Tooling for the human pass – `ml/scripts/adjudicate.py`, 403 crops ordered
       by capture cluster, one keystroke each
-- [ ] **The human pass itself.** Blocks the identifier and nothing else.
+- [x] **The human pass itself — DONE 2026-08-21.** All 403 crops, reviewer
+      `alex`, run with `--blind` so the pool's stream→shape proposals were
+      withheld; every verdict is `authored` rather than `confirmed`, and none
+      was rejected. That was necessary rather than fastidious: against the
+      finished pass the shipped proposals are **wrong on 116 of 403 crops
+      (28.8 %)**, of which **111 are `wheelie_small` where the answer is
+      `wheelie_large`** — precisely the pair P1 tests. Primed, the pass would
+      have measured the mapping table. Result: `wheelie_small` 247,
+      `wheelie_large` 115, `igloo` 40, `street_basket` **1**, and six form
+      factors at **zero**. Committed at `data/legacy/pool/adjudication.json`,
+      which nothing can regenerate.
 - [x] Negative corpus + out-of-city bins from Open Images. **Landed 2026-08-16**
       and pinned: 1 110 bin frames carrying 1 936 boxes, of which **98 hold four
       or more bins** — the legacy archive holds none — plus 17 474 background
@@ -74,8 +84,28 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       [P5](research/probes/P5-validator-architecture.md): RF-DETR-nano is 475 ms,
       9.5× over budget, so **YOLO11n stays**; D-FINE-N is unevaluated, which is
       recorded as a gap rather than as a failure.
-- [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
-      403 crops are not labelled against a class list that turns out wrong
+- [x] **Probe P1 — ANSWERED 2026-08-21.** Its amendment ran it *after* the pass
+      rather than before, because the pass finished first and the rule it was
+      written against could not fire on the result. Pairwise
+      `wheelie_small`/`wheelie_large` is **0.9834** out-of-fold under
+      `GroupKFold` on capture cluster, against a 0.75 threshold and a **0.6823**
+      majority-class baseline, on the **embedding alone** — so box area does not
+      become a service feature. Six errors in 402, all between the two wheelie
+      sizes; not one crop crossed between a wheelie and an igloo.
+      [P1](research/probes/P1-form-factor-separability.md).
+- [x] **Open Images form-factor survey — DONE 2026-08-21.** 384 boxes, seed
+      20260821, frozen before a crop was opened. Open Images is a **street-litter
+      corpus**: `street_basket` is 35 % of the sample against a legacy archive
+      holding exactly one. It does **not** close the coverage gap, which is the
+      more useful answer — zero `underground`, zero `textile_bank`, zero
+      `wall_unit`. [research/11](research/11-open-images-form-factors.md).
+- [x] **Model B trained, exported and gated on accuracy — 2026-08-21.**
+      Three classes, decided by the maintainer on P1's evidence.
+      int8 costs **0.0000** top-1 against a 0.02 budget, so the pre-registered
+      sweep never ran. `test` top-1 is 1.0000 **on 47 crops**, of which `igloo`
+      is three from two clusters — the 95 % lower bound is 0.936 and P1's
+      out-of-fold 0.9834 is the better estimate.
+      [P11](research/probes/P11-identifier-int8.md).
 - [x] **First training run on a Kaggle kernel — COMPLETED 2026-08-18**, after
       two failures and a six-rung diagnosis. yolo11n @ 448, 80 epochs, on a
       requested T4: **test mAP@0.5 = 0.7524**, specificity on 2 662 background
