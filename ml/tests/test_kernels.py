@@ -27,7 +27,10 @@ import pytest
 ML_ROOT = Path(__file__).resolve().parents[1]
 KAGGLE = ML_ROOT / "kaggle"
 KERNELS = ("train_validator", "train_identifier")
-CPU_KERNELS = ("build_negatives", "bench_latency", "probe_latency", "probe_quantisation")
+CPU_KERNELS = (
+    "build_negatives", "bench_latency", "probe_latency",
+    "probe_quantisation", "probe_residual",
+)
 
 #: The diagnostic ladder from docs/07 phase 2. Each rung changes exactly one
 #: thing from the one before it, which is the only way to find a boundary when
@@ -42,10 +45,17 @@ SMOKE_KERNELS = (
     "smoke_gpu",          # what GPU, and can the IMAGE'S own torch use it?
 )
 
-#: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
-BUNDLED_KERNELS = (*KERNELS, *CPU_KERNELS, *[k for k in SMOKE_KERNELS if k != "smoke_bare"])
+#: Probes that need a GPU. P1 embeds 403 crops with DINOv2; it is not training,
+#: but it is not two-threads-of-CPU either.
+GPU_PROBES = ("probe_separability",)
 
-ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
+#: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
+BUNDLED_KERNELS = (
+    *KERNELS, *CPU_KERNELS, *GPU_PROBES,
+    *[k for k in SMOKE_KERNELS if k != "smoke_bare"],
+)
+
+ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *GPU_PROBES, *SMOKE_KERNELS)
 
 #: Kernels that read from or write to the Hub, and therefore need the token the
 #: secrets dataset carries. ``probe_latency`` is deliberately not one: it builds
@@ -53,7 +63,10 @@ ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
 #: token it never uses would be cargo cult rather than configuration.
 #: ``probe_quantisation`` IS one - it reads ``v1/best.pt`` - even though it
 #: uploads nothing.
-HUB_KERNELS = (*KERNELS, "build_negatives", "bench_latency", "probe_quantisation")
+HUB_KERNELS = (
+    *KERNELS, *GPU_PROBES,
+    "build_negatives", "bench_latency", "probe_quantisation", "probe_residual",
+)
 
 
 def source(kernel: str) -> str:
@@ -390,7 +403,7 @@ def test_the_device_is_decided_by_capability_not_availability(kernel):
     assert 'device=0 if torch.cuda.is_available()' not in text
 
 
-GPU_KERNELS = (*KERNELS, "smoke_train", "smoke_gpu")
+GPU_KERNELS = (*KERNELS, *GPU_PROBES, "smoke_train", "smoke_gpu")
 
 
 @pytest.mark.parametrize("kernel", GPU_KERNELS)
@@ -737,3 +750,252 @@ def test_the_quantisation_probe_records_the_test_runs_it_actually_made():
     text = source("probe_quantisation")
     assert 'r["variant"] for r in rows if r["split"] == "test"' in text
     assert "what ran, not what was planned" in text
+
+
+def test_the_residual_probe_tests_its_standing_hypothesis_regardless():
+    """docs/12 P10: an untested hypothesis makes the result unfalsifiable.
+
+    /model.10/ is a suspect only because a local smoke test reported a 1517x
+    weight-scale increase on its attention QKV conv. If the probe only swept
+    what the SQNR ranking pointed at and the ranking missed it, "we found no
+    other culprit" would be unfalsifiable rather than measured.
+    """
+    text = source("probe_residual")
+    assert 'STANDING_SUSPECT = "/model.10/"' in text
+    assert "STANDING_SUSPECT]" in text
+    assert "regardless" in text
+
+
+def test_the_residual_probe_reproduces_p9s_anchor_first():
+    # Everything it does is an attempt to attribute head-fp32's residual, so
+    # head-fp32 has to be the same graph P9 measured before that means anything.
+    text = source("probe_residual")
+    assert "P9_HEAD_FP32_VAL_MAP50" in text
+    assert "did not reproduce" in text
+    assert "raise SystemExit" in text
+
+
+def test_the_residual_probe_reads_sqnr_lowest_first():
+    # qdq_err is SQNR in dB: higher is better. P9's first pass sorted descending
+    # and named the eight best-preserved tensors as suspects.
+    text = source("probe_residual")
+    assert "lowest_sqnr_db" in text
+    assert "higher is better" in text
+
+
+#: Every kernel that writes a `dataset.revision` into a report somebody will
+#: quote. P10's first run recorded `"revision": "main"` beside a composition that
+#: matched the pin exactly - right data, unusable record.
+REPORTING_KERNELS = (
+    "train_validator",
+    "train_identifier",
+    "probe_quantisation",
+    "probe_residual",
+)
+
+
+@pytest.mark.parametrize("kernel", REPORTING_KERNELS)
+def test_the_report_records_the_revision_it_resolved(kernel):
+    text = source(kernel)
+    assert "resolve_revision(" in text, (
+        f"{kernel} records a revision without resolving one"
+    )
+    assert '"revision": revision,' in text, (
+        f"{kernel} writes the config literal into its report rather than the "
+        "revision the run actually used. 'main' is not a revision, it is a "
+        "promise to change, and a report naming it cannot be reproduced from."
+    )
+    assert '"revision": config["data"]["revision"],' not in text
+
+
+def test_the_identifier_checks_its_crop_contract_before_the_gpu_hour():
+    """A pin says which crops; it does not say what labels are on them.
+
+    The identifier's entire training signal IS those labels, and totals can hold
+    exactly while every form factor underneath changes. The check has to sit
+    before `model.train`, or it reports a problem after paying for it.
+    """
+    text = source("train_identifier")
+    assert "check_crop_composition(" in text
+    assert "crop_counts(" in text
+
+    checked = text.index("check_crop_composition(counts, expectation)")
+    # The CALL, not the two comments that mention it by name.
+    trained = text.index("results = model.train(")
+    assert checked < trained, "the crop contract is checked after training starts"
+
+
+def test_the_identifier_refuses_a_pin_its_contract_does_not_describe():
+    text = source("train_identifier")
+    assert "sbr.dataset.expected describes" in text
+    assert "raise SystemExit" in text
+
+
+# --------------------------------------------------------------------------- #
+# P1 - the estimator is the one docs/12 froze, not one chosen on the way past
+# --------------------------------------------------------------------------- #
+
+
+def test_the_separability_probe_scores_group_aware():
+    """403 crops come from ~138 capture clusters.
+
+    A random split puts two photographs of the same physical bin either side of
+    the line and reports memorisation as generalisation. That is the
+    predecessor's 95.2 %, and it is the one mistake this project exists not to
+    repeat.
+    """
+    text = source("probe_separability")
+    assert "GroupKFold" in text
+    assert "capture_cluster" in text
+    assert "train_test_split" not in text
+
+
+def test_the_separability_probe_scales_inside_each_fold():
+    # Fitting the scaler on everything leaks the test folds' distribution into
+    # the training ones - and it matters most in the box-area variant, where one
+    # feature has a wildly different scale from the other 768.
+    text = source("probe_separability")
+    assert "StandardScaler().fit(features[train])" in text
+
+
+def test_the_separability_probe_reports_a_baseline_beside_every_headline():
+    # 0.75 pairwise accuracy on a 247/115 split is 0.68 of prevalence. A rule
+    # that reads the raw number alone mistakes imbalance for skill.
+    text = source("probe_separability")
+    assert "majority_class_baseline" in text
+    assert "balanced_accuracy" in text
+
+
+def test_the_separability_probe_excludes_the_class_it_cannot_evaluate():
+    """`street_basket` is n=1 in one cluster: not trainable, not evaluable.
+
+    Recorded rather than merged, and recorded rather than silently dropped -
+    those are three different things and only one of them is honest.
+    """
+    text = source("probe_separability")
+    assert 'NOT_EVALUABLE = "street_basket"' in text
+    assert "excluded_from_every_fitted_number" in text
+    assert "coverage gap" in text
+
+
+def test_the_separability_probe_does_not_take_the_class_list_decision():
+    # docs/12 is explicit: bring the number, do not edit waste-streams.json.
+    text = source("probe_separability")
+    assert "does not take it" in text
+    assert "waste-streams.json" not in text
+
+
+# --------------------------------------------------------------------------- #
+# docs/12 P11 - the identifier's partitioning, which goes wrong quietly
+# --------------------------------------------------------------------------- #
+
+
+def test_the_identifier_calibrates_from_train():
+    """Calibrating on `val` and then selecting on `val` lets the calibration set
+    see the split it is judged on. P9 and P10 avoided that by construction and
+    this kernel did not until docs/12 P11 said so."""
+    text = source("train_identifier")
+    assert 'calibration_frames(\n        tree,\n        "train",' in text
+
+
+def test_the_identifier_selects_on_val_and_confirms_on_test_once():
+    text = source("train_identifier")
+    # Every variant is scored on val...
+    assert 'split="val",\n            )' in text
+    assert '"selection": "val - no candidate is ever selected on test"' in text
+    # ...and exactly one int8 evaluation touches test. There are two `test`
+    # scorings in total and that is correct: the accuracy gate is fp32-vs-int8
+    # on the SAME split, so the locked winner needs both. What must never
+    # happen is a second int8-on-test, which would mean a sweep ran there.
+    assert text.count("split=\"test\"") == 2
+    int8_on_test = text.count('int8, role=ROLE, data=tree, imgsz=config["data"]["imgsz"], split="test"')
+    assert int8_on_test == 1, (
+        f"{int8_on_test} int8 evaluations on test - a sweep that touches test "
+        "more than once has selected on it"
+    )
+
+
+def test_the_identifier_leaves_test_unspent_when_nothing_is_eligible():
+    text = source("train_identifier")
+    assert "NO VARIANT IS ELIGIBLE" in text
+    assert "stays unspent" in text
+    assert 'history["confirmed_on_test"] = False' in text
+
+
+def test_the_identifier_sweep_has_no_head_to_exclude():
+    """A yolo11s-cls has no DFL detection head, so P9's diagnosis cannot
+    transfer. A variant named for a structure the graph lacks would measure the
+    reference under a different label."""
+    text = source("train_identifier")
+    # It may be NAMED in prose explaining why it is absent; it must never be
+    # passed. The prose is the point - a future reader needs to know the
+    # omission was reasoned rather than forgotten.
+    assert "QuantSettings(exclude_head" not in text
+    assert "exclude_head=True" not in text
+
+
+def test_the_identifier_sweep_is_the_pre_registered_list():
+    text = source("train_identifier")
+    for variant in ("10-reference", "11-s8s8", "12-reduce-range", "13-u8u8",
+                    "14-per-tensor", "15-preprocessed", "16-letterboxed"):
+        assert f'"{variant}"' in text, f"{variant} is in docs/12 P11 and not in the kernel"
+
+
+def test_an_accuracy_number_says_which_split_it_came_from():
+    # A number without its split is not evidence, and it matters most when
+    # nothing is eligible: the val drop that missed must not read as a test
+    # confirmation nobody is entitled to.
+    for kernel in ("train_identifier", "train_validator"):
+        assert "accuracy_split=" in source(kernel), f"{kernel} does not record its split"
+
+
+def test_the_identifier_does_not_gate_on_top5_or_the_unknown_threshold():
+    # Top-5 over three classes is arithmetic, not accuracy. 0.55 is an
+    # uncalibrated guess until docs/12 P2.
+    text = source("train_identifier")
+    assert '"not_gates"' in text
+
+
+def test_the_runtime_is_pinned_everywhere_it_is_installed():
+    """A quantised graph's score is a property of the runtime, not just the weights.
+
+    `onnxruntime>=1.18.0` let three different versions serve, measure and export
+    the same graph - the laptop was on 1.26.0 while every published number came
+    from 1.29.0 - so the ship gate could compare figures from different
+    machines without anything saying so.
+    """
+    import re
+
+    pinned = set()
+    for kernel in ALL_KERNELS + GPU_PROBES:
+        for match in re.finditer(r'"onnxruntime([=><]{1,2})([\d.]+)"', source(kernel)):
+            operator, version = match.groups()
+            assert operator == "==", (
+                f"{kernel} installs onnxruntime{operator}{version}; it must be pinned"
+            )
+            pinned.add(version)
+
+    assert len(pinned) == 1, f"kernels disagree about the runtime: {sorted(pinned)}"
+
+
+def test_the_service_and_the_kernels_agree_about_the_runtime():
+    import re
+
+    def version_in(path):
+        text = (ML_ROOT.parent / path).read_text(encoding="utf-8")
+        found = re.search(r"^onnxruntime==([\d.]+)$", text, re.MULTILINE)
+        assert found, f"{path} does not pin onnxruntime"
+        return found.group(1)
+
+    service = version_in("service/requirements.txt")
+    bench = version_in("service/bench/requirements.txt")
+    assert service == bench, (
+        f"the service runs {service} and its bench measures on {bench}; a latency "
+        "number from the bench would not describe the service"
+    )
+
+    import re as _re
+    kernel = _re.search(r'"onnxruntime==([\d.]+)"', source("bench_latency")).group(1)
+    assert kernel == service, (
+        f"the Kaggle bench installs {kernel} and the service runs {service}"
+    )

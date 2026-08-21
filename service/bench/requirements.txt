@@ -1,5 +1,11 @@
 fastapi>=0.110
 uvicorn[standard]>=0.27
-onnxruntime>=1.18.0
+# PINNED, not lower-bounded. onnxruntime is the runtime every published
+# accuracy and latency number in this project was measured under - P9 and
+# P10 both ran 1.29.0 - and `>=1.18.0` let three different versions serve,
+# measure and export the same graph. A quantised graph's score is a property
+# of the runtime as much as of the weights, so an unpinned runtime makes the
+# ship gate compare numbers from different machines. See docs/11.
+onnxruntime==1.29.0
 numpy>=1.24
 huggingface_hub>=0.24.0

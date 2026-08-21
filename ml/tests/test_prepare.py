@@ -19,6 +19,7 @@ import pytest
 import yaml
 
 from sbr.dataset.prepare import (
+    ADJUDICATED,
     VALIDATOR_CLASSES,
     Record,
     assign_splits,
@@ -455,6 +456,78 @@ def test_a_pending_crop_never_reaches_the_identifier(legacy_pool, tmp_path):
     summary = json.loads((out / "classification.json").read_text(encoding="utf-8"))
     assert summary["skipped_pending_adjudication"] == 1
     assert sum(summary["classes_present"].values()) == len(manifest["crop_records"]) - 1
+
+
+def test_a_blind_authored_crop_does_reach_the_identifier(legacy_pool, tmp_path):
+    """The verdict `adjudicate.py --blind` records, and it must be trainable.
+
+    Its absence from ADJUDICATED silently discarded the whole human pass: all 403
+    legacy decisions were taken blind and carry `authored`, so the builder raised
+    "no adjudicated crops" over a pool that was fully adjudicated. A blind
+    decision is stronger evidence than a confirmation - the pool's proposals are
+    a stream -> shape mapping and are wrong on 116 of 403 crops.
+    """
+    manifest = json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))
+    for crop in manifest["crop_records"]:
+        crop["form_factor"] = "wheelie_large"
+        crop["adjudication"] = "authored"
+        crop["proposed"] = None
+    (legacy_pool / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    out = tmp_path / "cls"
+    build_classification_tree(legacy_pool, out, IDENTIFIER_CONFIG)
+    summary = json.loads((out / "classification.json").read_text(encoding="utf-8"))
+    assert summary["skipped_pending_adjudication"] == 0
+    assert summary["classes_present"]["wheelie_large"] == len(manifest["crop_records"])
+
+
+def test_a_rejected_crop_never_reaches_the_identifier(legacy_pool, tmp_path):
+    # "not a bin" is a decision, not a label. It must not become one.
+    manifest = json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))
+    for index, crop in enumerate(manifest["crop_records"]):
+        crop["form_factor"] = None if index == 0 else "igloo"
+        crop["adjudication"] = "rejected" if index == 0 else "authored"
+    (legacy_pool / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    out = tmp_path / "cls"
+    build_classification_tree(legacy_pool, out, IDENTIFIER_CONFIG)
+    summary = json.loads((out / "classification.json").read_text(encoding="utf-8"))
+    # A rejection is a decision, not outstanding work, and the summary says so.
+    assert summary["skipped_rejected_not_a_bin"] == 1
+    assert summary["skipped_pending_adjudication"] == 0
+    assert sum(summary["classes_present"].values()) == len(manifest["crop_records"]) - 1
+
+
+def test_a_dropped_class_is_recorded_as_a_decision_not_as_missing_data(
+    legacy_pool, tmp_path
+):
+    """`street_basket` is the live case: n=1 in one cluster, so it cannot be
+    split and cannot be trained. Dropping it must read as a choice, not as a
+    crop nobody labelled - those are opposite facts about the dataset."""
+    manifest = json.loads((legacy_pool / "manifest.json").read_text(encoding="utf-8"))
+    for index, crop in enumerate(manifest["crop_records"]):
+        crop["form_factor"] = "street_basket" if index == 0 else "igloo"
+        crop["adjudication"] = "authored"
+    (legacy_pool / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    out = tmp_path / "cls"
+    build_classification_tree(
+        legacy_pool, out, {"data": {**IDENTIFIER_CONFIG["data"],
+                                   "classes_from_taxonomy": False,
+                                   "classes": ["igloo"]}},
+    )
+    summary = json.loads((out / "classification.json").read_text(encoding="utf-8"))
+    assert summary["excluded_by_class_list"] == {"street_basket": 1}
+    assert summary["skipped_no_form_factor"] == 0
+    assert summary["skipped_pending_adjudication"] == 0
+
+
+def test_the_trainable_verdicts_are_pinned():
+    """Which verdicts may train a model is a data-provenance decision, not a
+    tuning knob. Adding one silently is how an unadjudicated crop gets in."""
+    assert ADJUDICATED == {"confirmed", "corrected", "authored"}
+    assert "pending" not in ADJUDICATED
+    assert "rejected" not in ADJUDICATED
 
 
 def test_absent_form_factors_are_named_rather_than_hidden(legacy_pool, tmp_path):

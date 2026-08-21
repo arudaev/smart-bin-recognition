@@ -40,7 +40,19 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ---
 
-## Phase 2 – Vision spike *(highest risk – in progress)*
+## Phase 2 – Vision spike *(the gate is closed, with a fail. The phase is not.)*
+
+**Status, 2026-08-21.** Every model, dataset and probe item in this phase is
+done. **The gate is closed and it did not pass**: latency passes on
+representative hardware, concurrency fails at 5 against 10. What keeps the phase
+open is **one unchecked item — colour extraction (P3)** — and this session made
+it more important rather than less: a working two-model pipeline answers
+`unknown` for every wheelie in Deggendorf, because the pack's wheelie rules
+match on `lid_color` and nothing measures a lid.
+
+So: **the gate has an answer; the phase has a remaining task.** Do not read
+"phase 2 closed" as "phase 2 complete".
+
 
 - [x] `legacy_import.py` → resized dataset with provenance on HF Hub, pinned by
       revision. **370 usable frames, not 466**: the published archive is a
@@ -48,7 +60,17 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       ([08 § 7.1](08-legacy-audit.md#71-the-archive-as-it-really-is)).
 - [x] Tooling for the human pass – `ml/scripts/adjudicate.py`, 403 crops ordered
       by capture cluster, one keystroke each
-- [ ] **The human pass itself.** Blocks the identifier and nothing else.
+- [x] **The human pass itself — DONE 2026-08-21.** All 403 crops, reviewer
+      `alex`, run with `--blind` so the pool's stream→shape proposals were
+      withheld; every verdict is `authored` rather than `confirmed`, and none
+      was rejected. That was necessary rather than fastidious: against the
+      finished pass the shipped proposals are **wrong on 116 of 403 crops
+      (28.8 %)**, of which **111 are `wheelie_small` where the answer is
+      `wheelie_large`** — precisely the pair P1 tests. Primed, the pass would
+      have measured the mapping table. Result: `wheelie_small` 247,
+      `wheelie_large` 115, `igloo` 40, `street_basket` **1**, and six form
+      factors at **zero**. Committed at `data/legacy/pool/adjudication.json`,
+      which nothing can regenerate.
 - [x] Negative corpus + out-of-city bins from Open Images. **Landed 2026-08-16**
       and pinned: 1 110 bin frames carrying 1 936 boxes, of which **98 hold four
       or more bins** — the legacy archive holds none — plus 17 474 background
@@ -74,8 +96,28 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       [P5](research/probes/P5-validator-architecture.md): RF-DETR-nano is 475 ms,
       9.5× over budget, so **YOLO11n stays**; D-FINE-N is unevaluated, which is
       recorded as a gap rather than as a failure.
-- [ ] **Probe P1** — form-factor separability, *before* the adjudication pass, so
-      403 crops are not labelled against a class list that turns out wrong
+- [x] **Probe P1 — ANSWERED 2026-08-21.** Its amendment ran it *after* the pass
+      rather than before, because the pass finished first and the rule it was
+      written against could not fire on the result. Pairwise
+      `wheelie_small`/`wheelie_large` is **0.9834** out-of-fold under
+      `GroupKFold` on capture cluster, against a 0.75 threshold and a **0.6823**
+      majority-class baseline, on the **embedding alone** — so box area does not
+      become a service feature. Six errors in 402, all between the two wheelie
+      sizes; not one crop crossed between a wheelie and an igloo.
+      [P1](research/probes/P1-form-factor-separability.md).
+- [x] **Open Images form-factor survey — DONE 2026-08-21.** 384 boxes, seed
+      20260821, frozen before a crop was opened. Open Images is a **street-litter
+      corpus**: `street_basket` is 35 % of the sample against a legacy archive
+      holding exactly one. It does **not** close the coverage gap, which is the
+      more useful answer — zero `underground`, zero `textile_bank`, zero
+      `wall_unit`. [research/11](research/11-open-images-form-factors.md).
+- [x] **Model B trained, exported and gated on accuracy — 2026-08-21.**
+      Three classes, decided by the maintainer on P1's evidence.
+      int8 costs **0.0000** top-1 against a 0.02 budget, so the pre-registered
+      sweep never ran. `test` top-1 is 1.0000 **on 47 crops**, of which `igloo`
+      is three from two clusters — the 95 % lower bound is 0.936 and P1's
+      out-of-fold 0.9834 is the better estimate.
+      [P11](research/probes/P11-identifier-int8.md).
 - [x] **First training run on a Kaggle kernel — COMPLETED 2026-08-18**, after
       two failures and a six-rung diagnosis. yolo11n @ 448, 80 epochs, on a
       requested T4: **test mAP@0.5 = 0.7524**, specificity on 2 662 background
@@ -101,6 +143,22 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       the probe's to make. There is deliberately **no `test` measurement** of that
       configuration: nothing was eligible, so nothing was confirmed, and the test
       split is unspent. [P9](research/probes/P9-int8-quantisation.md).
+- [x] **Probe P10 — where the residual lives. ANSWERED 2026-08-21, and the
+      answer is "nowhere findable".** The corrected SQNR diagnostic ran for the
+      first time and named `/model.10/m/m.0/attn/Softmax_output_0` at 23.90 dB,
+      the worst tensor in the graph by 1.65 dB — the same C2PSA block a 1517×
+      weight-scale anomaly had independently pointed at. **Excluding it removes
+      75 QDQ nodes, 12 % of everything still quantised, and buys +0.000914 mAP**,
+      which is below the 0.005 this project treats as noise. The other two ranked
+      modules made it worse. So the ranking and the sweep disagreed, the
+      pre-registered rule says believe the sweep, and the conclusion is that **no
+      module outside the detection head accounts for the residual by a
+      distinguishable amount** — the 0.0254 is spread across the remaining 544
+      QDQ nodes. Best configuration on `val`: **0.7480 against 0.7734, missing
+      the gate by 0.0054.** `test` untouched, gate unmoved, no v2 published.
+      Quantisation-aware training is the only remaining route and is the
+      maintainer's decision, not attempted.
+      [P10](research/probes/P10-where-the-residual-lives.md).
       *The original failure, for the record:*
       The kernel pulled the pinned pool, built the dataset (18 954 images, split
       13 265/2 823/2 866) and started Ultralytics, then ended with status
@@ -133,7 +191,17 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
-- [ ] Colour extraction, validated against **hand-labelled body/lid colours**
+- [ ] **Colour extraction — THE ONE ITEM LEFT IN THIS PHASE, and it went up in
+      priority on 2026-08-21.** Both models exist and a real Deggendorf frame
+      returns a form factor; glass resolves to `glass_mixed` / "Glascontainer"
+      and **every wheelie resolves to `unknown`**, because all four wheelie
+      rules match on `lid_color` and the service measures body colour only. One
+      `Papier` bin came back with `body_color: blue` — the exact colour the
+      paper rule wants — and still answered `unknown`. `igloo` is 40 crops and
+      resolves; the wheelies are 362 crops and resolve to nothing. Lid-vs-body
+      separation was scoped *out* of P3 as a follow-on; it is now the binding
+      constraint on the product. Validated against **hand-labelled body/lid
+      colours**
       ([probe P3](12-validation-protocol.md#p3--colour-measurement)). The earlier
       wording here — "from SAM 2 masks, validated against the legacy class
       labels" — was wrong twice: legacy labels are waste *streams* and a stream
@@ -141,9 +209,12 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
       at all is exactly what the probe tests.
 - [x] **Load-test the service: how many concurrent scanners before degradation?**
       Built and run 2026-08-17, and the instrument outlived its first answer.
-      It reported **4 at one bin per frame, 1 at six**; P8 later showed the
-      host cannot hold that figure still, so the absolute number is
-      **unresolved** and the harness now compares configurations in pairs.
+      It reported **4 at one bin per frame, 1 at six**; P8 then showed the host
+      could not hold that figure still, and the harness now compares
+      configurations in pairs. **Settled 2026-08-21 on a controlled host
+      ([P12](research/probes/P12-the-controlled-host.md)): 5 and 2.** The
+      instrument was right about the shape and the laptop was wrong about the
+      level.
       Its lasting finding stands: the degradation ladder had never been
       reachable in production — inference blocked the event loop, so the load
       shedder never saw a queue and no rung ever fired.
@@ -158,7 +229,42 @@ roughly three times a one-bin frame, so ten concurrent scanners is the *easy*
 end of a 3–10 range ([05 § 3](05-cost-model.md#3-the-concurrency-ceiling--the-number-that-matters)).
 Probe P4 measures the curve.
 
-### Gate status: the latency half passes. The concurrency half is UNRESOLVED, and was wrongly recorded as answered.
+### Gate status, 2026-08-21: BOTH LATENCY HALVES PASS. THE CONCURRENCY HALF FAILS AT 5 AGAINST 10.
+
+| half | budget | measured | verdict |
+|---|---|---|---|
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50 | **PASS**, 63 % headroom |
+| identifier @ 320 per crop | ≤ 25 ms | **9.9 ms** p50 | **PASS**, 60 % headroom |
+| **concurrent scanners @ 1 bin** | **≥ 10** | **5** | **FAIL** |
+| concurrent scanners @ 6 bins | – | **2** | the PRD's normal input |
+
+**Measured on a controlled host, `representative: true`** — GCE
+`n2-standard-4`, `europe-west3-a`, CPU platform pinned, the service on CPUs 0–1
+and the load-test client on 2–3, three repeats agreeing to within ~3 ms.
+Created for the measurement and destroyed after.
+[P12](research/probes/P12-the-controlled-host.md).
+
+**This is the first admissible absolute concurrency figure the project has had**,
+and it replaces the withdrawn 4 and 1 of 2026-08-17. Those were not wildly
+wrong — P4's corrected arithmetic predicted 4.3–5.1 and 1.8–2.2, and the
+measurements land at 5 and 2, inside both ranges. They were simply not
+reproducible, which is what [P8](research/probes/P8-recovery-measurements.md)
+actually established.
+
+**What it would take.** The frame costs 49 ms and would have to cost ~25.
+Validator 18.3, identifier 9.9, and ~21 ms of decode, letterbox, colour and
+wire. P8b's shared onnxruntime thread pool — the one recovery ever shown to
+work — was **already active**, so 5 is the figure with it applied. Of the two
+still unmeasured, 384 px takes at best ~6 ms off 49, and capping crops does
+nothing at one bin per frame, which is the level the gate is stated at.
+**The gate fails on compute rather than on tuning.**
+
+**Whether that kills the free-tier thesis is the maintainer's call**, and the
+kill criterion below is deliberately left as it stands rather than being
+declared fired by the probe that produced the number.
+
+### The history, kept because the reasoning still holds
+
 
 > **Revised 2026-08-18.** This section read *"ANSWERED … the kill criterion
 > fires"* on the strength of the concurrency row below. [Probe
@@ -395,19 +501,19 @@ Built in the same pass, beyond what this phase originally listed:
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
 gets a correct answer in Ukrainian.
 
-No longer blocked on the service — that exists. Blocked on four things, and it
+No longer blocked on the service — that exists. Blocked on five things, and it
 is worth being exact about which, because they have different owners:
 
 | Blocker | Owner | Note |
 |---|---|---|
-| **No model at all** | the maintainer, then this phase | Was "no identifier". It is now both: the identifier still needs the 403-crop human pass in `data/legacy/pool/crops/`, and the validator run failed on 2026-08-17 with no log. Until one artefact passes its gates the service will not start, so nothing can be deployed that serves. |
-| **Nothing is deployed** | this phase, *behind the above* | The Cloud Run path is built, budgeted and documented; it has nothing to serve. One command once a model exists. |
+| **The validator cannot ship** | this phase | Was "no model at all", and before that "no identifier". **Both models now exist**: the human pass is done (403 crops, blind) and the identifier passes every gate. The validator is trained and real — test mAP@0.5 0.7524 — and int8 costs it 0.727 mAP, which [P10](research/probes/P10-where-the-residual-lives.md) could not attribute to any module outside the detection head. **The service loads the validator unconditionally and refuses it**, so nothing can be deployed that serves. |
+| **Nothing is deployed** | this phase, *behind the above* | The Cloud Run path is built, budgeted and documented; it has nothing it may serve. One command once the validator ships. |
+| **Wheelies resolve to `unknown`** | this phase | New, and it is the one that decides whether the exit criterion is *useful* rather than whether it is reachable. All four wheelie rules in the Deggendorf pack match on `lid_color`; the service measures body colour only. Glass resolves end to end; every wheelie does not. See [docs/12 P3](12-validation-protocol.md). |
 | **The Ukrainian bundle** | this phase | `en` is complete at 422 keys; `de`/`ar` are at 271 (64 %); six locales including `uk` are not started |
-| **The Deggendorf pack is `draft`** | this phase | Every source now carries a deep link and a retrieval date, so `is_publishable` is true — that is the *sourcing* bar and nothing more. The 2026-08-17 pass found the operator routes packaging to a **Wertstoffinsel**, contradicting both packaging rules, and that no source states any container colour. It stays draft until a human resolves that. |
+| **The Deggendorf pack is `draft`** | **the maintainer** | Every source carries a deep link and a retrieval date, so `is_publishable` is true — the *sourcing* bar and nothing more. The 2026-08-17 pass found the operator routes packaging to a **Wertstoffinsel**, contradicting both packaging rules. **Evidence gathered 2026-08-21** ([research/12](research/12-deggendorf-packaging-evidence.md)): no source found says a Gelber Sack exists anywhere in the ZAW area, LVP goes to recycling centres by association decision until end-2027, and a Gelbe Tonne is possible only from 2028. That same pass found a source that **does** state the container colours, which the pack's notes said none did. Resolving the rules is the maintainer's. |
 
-The first is the one that decides whether the exit criterion is reachable on
-any particular date, and half of it is the only one no amount of engineering
-shortens.
+The first decides whether the exit criterion is *reachable*; the third decides
+whether reaching it is *useful*. Neither is shortened by engineering the client.
 
 ---
 
@@ -485,6 +591,21 @@ Stated in advance, so they are not rationalised away later:
   and then 4 within one evening. **What the criterion now waits on is a
   controlled 2-vCPU x86 host**, not another idea. Do not quietly restate the
   gate as four, or as eight.
+  **THE HOST RAN, 2026-08-21 ([P12](research/probes/P12-the-controlled-host.md)),
+  and the gate FAILS at 5 against 10** — 2 at the six-bin frame the PRD calls
+  normal. `representative: true`, three repeats within ~3 ms, on a box created
+  for the measurement and destroyed after. The first half of the criterion is
+  now established on evidence that can be quoted.
+  **The second half — *cannot be recovered* — is NOT declared here.** What P12
+  establishes is narrower and worth stating exactly: the frame costs 49 ms and
+  would need ~25; P8b's shared thread pool was already applied; and of the two
+  remaining recoveries on docs/05 § 7's list, 384 px is worth at best ~6 ms and
+  capping crops is worth nothing at one bin per frame. **So the gate is not
+  recoverable by anything currently on the list**, which is a statement about
+  the list rather than about the thesis. Whether to fire this criterion — and
+  therefore whether to cost a paid tier, shrink the validator, or revise the
+  gate — is the maintainer's decision, and is deliberately left open rather than
+  taken by the probe that produced the number.
 - **Novelty precision stays below 0.5** → the validator/identifier disagreement
   is not a usable signal and the improvement loop does not close. That is the
   load-bearing assumption of the whole design.

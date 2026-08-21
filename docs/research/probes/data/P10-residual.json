@@ -1,0 +1,632 @@
+{
+  "probe": "P10",
+  "role": "validator",
+  "source_version": 1,
+  "hardware": {
+    "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+    "where": "Kaggle CPU kernel",
+    "cpu": "AMD EPYC 7B12",
+    "cores": 4,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.29.0",
+    "representative": false
+  },
+  "toolchain": {
+    "ultralytics": "8.4.121",
+    "onnx": "1.22.0",
+    "onnxruntime": "1.29.0",
+    "torch": "2.10.0+cpu",
+    "numpy": "2.0.2"
+  },
+  "dataset": {
+    "repo_id": "arudaev/smart-bin-detect",
+    "revision": "main",
+    "composition": {
+      "per_split": {
+        "test": 2866,
+        "train": 13265,
+        "val": 2823
+      },
+      "per_pool": {
+        "legacy": 370,
+        "negatives": 17474,
+        "open_images": 1110
+      },
+      "background_per_split": {
+        "test": 2662,
+        "train": 12230,
+        "val": 2582
+      },
+      "positives": 1480,
+      "background_images": 17474,
+      "negative_ratio": 11.8,
+      "classes": [
+        "bin"
+      ]
+    }
+  },
+  "reference": {
+    "pytorch_fp32_test_map50": 0.7524389678079388,
+    "pytorch_fp32_val_map50": 0.7733835153437881,
+    "p9_head_fp32_val_map50": 0.7481,
+    "anchor_reproduced_at": 0.7471069030086752,
+    "max_accuracy_drop": 0.02
+  },
+  "partitioning": {
+    "calibration": "train",
+    "selection": "val - no candidate is ever selected on test",
+    "test_evaluations": [],
+    "test_evaluations_are": "what ran, not what was planned"
+  },
+  "modules_swept": [
+    "/model.10/",
+    "/model.1/",
+    "/model.2/"
+  ],
+  "modules_the_ranking_pointed_at": [
+    "/model.10/",
+    "/model.1/",
+    "/model.2/"
+  ],
+  "standing_suspect": "/model.10/",
+  "winner": null,
+  "calibration_sets": {
+    "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5": {
+      "strategy": "stratified",
+      "split": "train",
+      "seed": 42,
+      "count": 200,
+      "positives": 16,
+      "background": 184,
+      "background_fraction": 0.92,
+      "sources": {
+        "legacy": 4,
+        "negatives": 184,
+        "open_images": 12
+      },
+      "sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+      "images": [
+        "legacy__0b79c94d_img_20250521_155219.jpg",
+        "legacy__3ff9b3b6_img_5585.jpg",
+        "legacy__788aea20_img_5588.jpg",
+        "legacy__88448572_img_20250603_165413.jpg",
+        "negatives__0007e4ace390f6ee.jpg",
+        "negatives__006b6f515a8ba718.jpg",
+        "negatives__014426eae4f80d4d.jpg",
+        "negatives__02b688779e782116.jpg",
+        "negatives__0824aa9f39e70033.jpg",
+        "negatives__09847daddfbcd5a5.jpg",
+        "negatives__0a0a1a01c23567a0.jpg",
+        "negatives__0a2615da6f5891da.jpg",
+        "negatives__0da239b0cea06678.jpg",
+        "negatives__0e56c7b086b0e316.jpg",
+        "negatives__0ebbc3d0ac07a2d5.jpg",
+        "negatives__11989c5bc01467fd.jpg",
+        "negatives__142a69da8981b867.jpg",
+        "negatives__150e43c25ebff0f5.jpg",
+        "negatives__1604ba73b710e872.jpg",
+        "negatives__169589c792088434.jpg",
+        "negatives__191ad3805cf4b74a.jpg",
+        "negatives__1954a1c7aa130f74.jpg",
+        "negatives__1bd4d47dcfc69108.jpg",
+        "negatives__1d230a56cfa5bda0.jpg",
+        "negatives__1d8cb3a7f9b1577c.jpg",
+        "negatives__1e21cef024fe1184.jpg",
+        "negatives__1f0a8032fef5bdab.jpg",
+        "negatives__207b1620f21fc748.jpg",
+        "negatives__20c9053d0877cbd6.jpg",
+        "negatives__20d8ab5de022a0f2.jpg",
+        "negatives__220c9ea2168c7d07.jpg",
+        "negatives__2321a414db6beafa.jpg",
+        "negatives__23de8cb6a268c131.jpg",
+        "negatives__24cf999663ed309a.jpg",
+        "negatives__2836198376b792e2.jpg",
+        "negatives__2cb176f7eda480f2.jpg",
+        "negatives__2d10628b2b4bbb56.jpg",
+        "negatives__2d19ccb044988ac5.jpg",
+        "negatives__2e5238746940ca70.jpg",
+        "negatives__31b45b5bc05c9fda.jpg",
+        "negatives__32cf43e58f8ff2ea.jpg",
+        "negatives__338c34cacebc04ed.jpg",
+        "negatives__340ff8518aa03410.jpg",
+        "negatives__342a0ce2315291b1.jpg",
+        "negatives__348eb27eb053de62.jpg",
+        "negatives__35138f7924508f5f.jpg",
+        "negatives__35668ad0db058f31.jpg",
+        "negatives__38367a587d952f9e.jpg",
+        "negatives__3aea2309ef87a29c.jpg",
+        "negatives__3fde7fe50d351f9e.jpg",
+        "negatives__41fec3e47126f0a6.jpg",
+        "negatives__4205a15402a98a57.jpg",
+        "negatives__45956837c941af45.jpg",
+        "negatives__460ee0f18fb15b5c.jpg",
+        "negatives__469d58b04c6b2271.jpg",
+        "negatives__47962a51ece4337a.jpg",
+        "negatives__48c21480ab0b9454.jpg",
+        "negatives__48f4ea4570126914.jpg",
+        "negatives__4920cf9c3e20e7f1.jpg",
+        "negatives__4964597c3a24ceea.jpg",
+        "negatives__4a635ee35f99e600.jpg",
+        "negatives__4c57c7fc31b95019.jpg",
+        "negatives__4cb1879da6c0592c.jpg",
+        "negatives__4e019f3d8c033ba3.jpg",
+        "negatives__4e1d5510bfe8a2e7.jpg",
+        "negatives__5262d24ce30cb197.jpg",
+        "negatives__5329978eea4099f4.jpg",
+        "negatives__549be7a22e73c27c.jpg",
+        "negatives__586ca1b2886fd429.jpg",
+        "negatives__58a7663e8d3dfe3c.jpg",
+        "negatives__58e1d0003ad78ddf.jpg",
+        "negatives__59089899cb4a1825.jpg",
+        "negatives__5991aecc161bb5c8.jpg",
+        "negatives__59ab91ea592e5866.jpg",
+        "negatives__59d397ba67e5fe68.jpg",
+        "negatives__5aa09f0d53520f51.jpg",
+        "negatives__5d2dc0df1d317e3f.jpg",
+        "negatives__5d32562836a905dc.jpg",
+        "negatives__5d385fc32d16a16e.jpg",
+        "negatives__612891135c97a440.jpg",
+        "negatives__623105d1b64ccc7b.jpg",
+        "negatives__6256e9ab73b7704a.jpg",
+        "negatives__6446c09a88672d39.jpg",
+        "negatives__6a339f1890d3e6c6.jpg",
+        "negatives__6a5d07c612ceea99.jpg",
+        "negatives__6d507443740be438.jpg",
+        "negatives__71b3bea110ee810c.jpg",
+        "negatives__72c8be382d6d1dbe.jpg",
+        "negatives__72c8eed67003595e.jpg",
+        "negatives__741ffae996082a5d.jpg",
+        "negatives__77c4e3f0f8bb006e.jpg",
+        "negatives__7903aa6d911a544b.jpg",
+        "negatives__79fb8467da86f4d4.jpg",
+        "negatives__7a1b9de72b28ab28.jpg",
+        "negatives__7aefa90b64621e2d.jpg",
+        "negatives__7cd172930425acba.jpg",
+        "negatives__7df93292d2889195.jpg",
+        "negatives__7f9699aafa14fae1.jpg",
+        "negatives__7fccda9d031f7a27.jpg",
+        "negatives__80066c2d865cab96.jpg",
+        "negatives__803bc6544d0a979c.jpg",
+        "negatives__80bd2850623d7171.jpg",
+        "negatives__81b2c51f6dbcd0b6.jpg",
+        "negatives__84f5b3ae84d2c86e.jpg",
+        "negatives__861744fdc29df948.jpg",
+        "negatives__867e7c706a076e12.jpg",
+        "negatives__8cc0ed8154284d23.jpg",
+        "negatives__8d7de213fe876f3a.jpg",
+        "negatives__8d935ed5324e152f.jpg",
+        "negatives__8dbb38a724268adb.jpg",
+        "negatives__9000133c72168b9e.jpg",
+        "negatives__9245e0261b8232a3.jpg",
+        "negatives__97e94bd9e3346c3e.jpg",
+        "negatives__99b9b1b9906c5e75.jpg",
+        "negatives__99d1843d0af191e4.jpg",
+        "negatives__9bb85ab9b8ca4655.jpg",
+        "negatives__9be0cef353d11546.jpg",
+        "negatives__9cfa0e3ce3d1189b.jpg",
+        "negatives__9ed86ac416641067.jpg",
+        "negatives__a71dd8452c737d92.jpg",
+        "negatives__a93686ad72817247.jpg",
+        "negatives__a9b25f6c8c7a4223.jpg",
+        "negatives__ab02ecb4f47483fa.jpg",
+        "negatives__ab997cb9cea0f3bf.jpg",
+        "negatives__ac946a25ad19d3da.jpg",
+        "negatives__b2fbe72ec8773d86.jpg",
+        "negatives__b35556dbd29d716c.jpg",
+        "negatives__b4ace9f1d07f7926.jpg",
+        "negatives__b56d47db80323db8.jpg",
+        "negatives__b5c699e9d0934860.jpg",
+        "negatives__b66acdd4b6eaceea.jpg",
+        "negatives__b68a10724982903d.jpg",
+        "negatives__b807e3c124e245c7.jpg",
+        "negatives__b83e84ceafe08b60.jpg",
+        "negatives__bae53becfad5f4ea.jpg",
+        "negatives__bb4ad81f1f21e31a.jpg",
+        "negatives__bca9890e33766270.jpg",
+        "negatives__bddd010bf86f149c.jpg",
+        "negatives__bde6c5e7c4529b6d.jpg",
+        "negatives__c001dcbe47cd2276.jpg",
+        "negatives__c3721ed0643e9fb4.jpg",
+        "negatives__c573fe19d70d7b29.jpg",
+        "negatives__c5e692749434302e.jpg",
+        "negatives__c78a14a1cb66088c.jpg",
+        "negatives__c7db5fd06a6924e3.jpg",
+        "negatives__c95d5e6070d6d1b1.jpg",
+        "negatives__c97fabc4c3ff26b6.jpg",
+        "negatives__ca3ac12318b4dbfe.jpg",
+        "negatives__cb646099a2d594b4.jpg",
+        "negatives__cbc90a02f8f7b800.jpg",
+        "negatives__cd84396d0b44e821.jpg",
+        "negatives__cd91a0c2f487b089.jpg",
+        "negatives__d0b3e031bd4803f0.jpg",
+        "negatives__d2c0d366d79e8e20.jpg",
+        "negatives__d38b87b1b4f152be.jpg",
+        "negatives__d3d6cae97c03d885.jpg",
+        "negatives__d63536fabadfdab7.jpg",
+        "negatives__d6760b896afb6bfb.jpg",
+        "negatives__d7b4646ad278e222.jpg",
+        "negatives__d806e066e1662a53.jpg",
+        "negatives__d8425c293bb15dfd.jpg",
+        "negatives__d8fd48354c793970.jpg",
+        "negatives__dadf711d61448100.jpg",
+        "negatives__db701a9cb11662a3.jpg",
+        "negatives__dd7a745565411b38.jpg",
+        "negatives__dfaf232f7539db9e.jpg",
+        "negatives__e30af46fccbcea4d.jpg",
+        "negatives__e533a7379c655986.jpg",
+        "negatives__e666213769976234.jpg",
+        "negatives__e6726ab129fc168f.jpg",
+        "negatives__e6eb52a2d79e65ed.jpg",
+        "negatives__e78c7e3f067745ff.jpg",
+        "negatives__e81cd116a4add7f1.jpg",
+        "negatives__e9707c9ed908cf87.jpg",
+        "negatives__eceb9a84a2da901c.jpg",
+        "negatives__ee0d7ce8a8dc8cec.jpg",
+        "negatives__ee336cc172ecd2d8.jpg",
+        "negatives__ef5df6f610ba34a8.jpg",
+        "negatives__f3b971200a5d1a02.jpg",
+        "negatives__f487fae4e83a7d23.jpg",
+        "negatives__f539d643309cf65b.jpg",
+        "negatives__f5add09b23213b21.jpg",
+        "negatives__f630fe41c64ef3d9.jpg",
+        "negatives__f8ebab083a4fc596.jpg",
+        "negatives__f9229562c6625a79.jpg",
+        "negatives__fbf913287f16230a.jpg",
+        "negatives__fde035bf62bc0e92.jpg",
+        "negatives__ff63acca0ce31e1b.jpg",
+        "open_images__0147b2c10d41e6f2.jpg",
+        "open_images__06773cca014cceb7.jpg",
+        "open_images__09d87af81aa6b8cd.jpg",
+        "open_images__0b0ec78f51c01396.jpg",
+        "open_images__121be81bc79332b5.jpg",
+        "open_images__3af5029ae4a0a3c4.jpg",
+        "open_images__3af7ad8cb8197a30.jpg",
+        "open_images__52f6c1cfd8d70189.jpg",
+        "open_images__59fb348b5f6cc11b.jpg",
+        "open_images__68a18e44597fd58b.jpg",
+        "open_images__98e173dae911d312.jpg",
+        "open_images__b6e44366b84e1043.jpg"
+      ]
+    }
+  },
+  "rows": [
+    {
+      "variant": "00-head-fp32-anchor",
+      "note": "P9's best configuration, re-measured. Everything below is an attempt to attribute ITS residual, so it has to reproduce first",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": true,
+        "head_prefix": "/model.23/",
+        "exclude_prefixes": []
+      },
+      "calibration_sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+      "sha256": "27a636981f4c6522ff633bf05c46384947579b00b65a7e3da7514a97a7f291f6",
+      "size_bytes": 4365875,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 619,
+        "total_nodes": 937
+      },
+      "build_seconds": 13.2,
+      "metric": 0.7471069030086752,
+      "latency": {
+        "median_latency_ms": 25.36,
+        "p95_latency_ms": 26.901,
+        "mean_latency_ms": 25.268,
+        "min_latency_ms": 22.6,
+        "max_latency_ms": 28.343,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      },
+      "tensor_error": {
+        "frames": 8,
+        "tensors_compared": 246,
+        "units": "SQNR in dB, higher is better; these are the LOWEST",
+        "lowest_sqnr_db": [
+          {
+            "tensor": "/model.10/m/m.0/attn/Softmax_output_0",
+            "qdq_sqnr_db": 23.90353859645912,
+            "xmodel_sqnr_db": 11.155823360821643
+          },
+          {
+            "tensor": "/model.1/conv/Conv_output_0",
+            "qdq_sqnr_db": 25.55511287637269,
+            "xmodel_sqnr_db": 21.94687439513411
+          },
+          {
+            "tensor": "/model.2/cv1/conv/Conv_output_0",
+            "qdq_sqnr_db": 25.983101644449395,
+            "xmodel_sqnr_db": 18.581149362564112
+          },
+          {
+            "tensor": "/model.2/cv2/conv/Conv_output_0",
+            "qdq_sqnr_db": 29.323006192492112,
+            "xmodel_sqnr_db": 16.112628681754124
+          },
+          {
+            "tensor": "/model.1/act/Mul_output_0",
+            "qdq_sqnr_db": 29.330563269924173,
+            "xmodel_sqnr_db": 21.158623560085502
+          },
+          {
+            "tensor": "/model.0/conv/Conv_output_0",
+            "qdq_sqnr_db": 31.53878235805896,
+            "xmodel_sqnr_db": 31.066962018050578
+          },
+          {
+            "tensor": "/model.4/cv2/act/Mul_output_0",
+            "qdq_sqnr_db": 32.067372692673686,
+            "xmodel_sqnr_db": 14.01616226246273
+          },
+          {
+            "tensor": "/model.6/m.0/m/m.0/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 32.271044998894126,
+            "xmodel_sqnr_db": 15.318130209181353
+          },
+          {
+            "tensor": "/model.19/cv2/act/Mul_output_0",
+            "qdq_sqnr_db": 32.36265120676913,
+            "xmodel_sqnr_db": 21.094064546862707
+          },
+          {
+            "tensor": "/model.12/Concat_output_0",
+            "qdq_sqnr_db": 32.421805190186326,
+            "xmodel_sqnr_db": 18.72303369346494
+          },
+          {
+            "tensor": "/model.22/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 32.568289240015616,
+            "xmodel_sqnr_db": 21.81117844093165
+          },
+          {
+            "tensor": "/model.6/m.0/m/m.1/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 32.60377634746555,
+            "xmodel_sqnr_db": 16.283637481349057
+          },
+          {
+            "tensor": "/model.6/m.0/cv2/act/Mul_output_0",
+            "qdq_sqnr_db": 32.80431065270599,
+            "xmodel_sqnr_db": 14.415538643822964
+          },
+          {
+            "tensor": "/model.22/m.0/m/m.0/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 33.002323416414406,
+            "xmodel_sqnr_db": 20.916251282512476
+          },
+          {
+            "tensor": "/model.3/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.09414458122994,
+            "xmodel_sqnr_db": 16.779198991315745
+          },
+          {
+            "tensor": "/model.8/m.0/cv1/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.105798026574234,
+            "xmodel_sqnr_db": 20.73431751373161
+          },
+          {
+            "tensor": "/model.8/m.0/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 33.13435654245978,
+            "xmodel_sqnr_db": 19.66461204892912
+          },
+          {
+            "tensor": "/model.16/m.0/cv1/act/Mul_output_0",
+            "qdq_sqnr_db": 33.15771375163063,
+            "xmodel_sqnr_db": 17.618332560198354
+          },
+          {
+            "tensor": "/model.13/m.0/cv2/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.277111138333964,
+            "xmodel_sqnr_db": 21.274304180778557
+          },
+          {
+            "tensor": "/model.6/m.0/cv2/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.3399342111944,
+            "xmodel_sqnr_db": 17.91618417004441
+          },
+          {
+            "tensor": "/model.2/cv2/act/Mul_output_0",
+            "qdq_sqnr_db": 33.423787764503054,
+            "xmodel_sqnr_db": 14.916137460055324
+          },
+          {
+            "tensor": "/model.22/cv2/act/Mul_output_0",
+            "qdq_sqnr_db": 33.55191184659625,
+            "xmodel_sqnr_db": 22.03789811003955
+          },
+          {
+            "tensor": "/model.6/cv1/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.695414292888465,
+            "xmodel_sqnr_db": 18.537219268358854
+          },
+          {
+            "tensor": "/model.22/cv2/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.77223642378288,
+            "xmodel_sqnr_db": 24.922573113536135
+          },
+          {
+            "tensor": "/model.16/m.0/cv1/conv/Conv_output_0",
+            "qdq_sqnr_db": 33.914846301141964,
+            "xmodel_sqnr_db": 16.83332474960149
+          }
+        ]
+      }
+    },
+    {
+      "variant": "10-head-plus-model10",
+      "note": "head in fp32 AND /model.10/ in fp32 - the standing suspect",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": true,
+        "head_prefix": "/model.23/",
+        "exclude_prefixes": [
+          "/model.10/"
+        ]
+      },
+      "calibration_sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+      "sha256": "f32133c4f3fbfe51ae6215ff28b0e6969fd9257bc92ca323e07633bdadf4fca6",
+      "size_bytes": 5062739,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 544,
+        "total_nodes": 862
+      },
+      "build_seconds": 13.1,
+      "metric": 0.7480205356963382,
+      "latency": {
+        "median_latency_ms": 25.553,
+        "p95_latency_ms": 27.712,
+        "mean_latency_ms": 25.754,
+        "min_latency_ms": 22.839,
+        "max_latency_ms": 28.686,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "11-head-plus-model1",
+      "note": "head in fp32 AND /model.1/ in fp32",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": true,
+        "head_prefix": "/model.23/",
+        "exclude_prefixes": [
+          "/model.1/"
+        ]
+      },
+      "calibration_sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+      "sha256": "252e8bd17b2d4bfd6b71040c2e246bdbc0347511e52064f3af4f6d6ed8edf1fe",
+      "size_bytes": 4377459,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 613,
+        "total_nodes": 931
+      },
+      "build_seconds": 13.3,
+      "metric": 0.7464653676162498,
+      "latency": {
+        "median_latency_ms": 26.334,
+        "p95_latency_ms": 27.642,
+        "mean_latency_ms": 26.225,
+        "min_latency_ms": 22.986,
+        "max_latency_ms": 29.442,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    },
+    {
+      "variant": "12-head-plus-model2",
+      "note": "head in fp32 AND /model.2/ in fp32",
+      "split": "val",
+      "settings": {
+        "activation_type": "u8",
+        "weight_type": "s8",
+        "reduce_range": false,
+        "per_channel": true,
+        "calibrate_method": "minmax",
+        "preprocess": false,
+        "calibration_fit": "stretch",
+        "exclude_head": true,
+        "head_prefix": "/model.23/",
+        "exclude_prefixes": [
+          "/model.2/"
+        ]
+      },
+      "calibration_sha256": "70227d898ee6f212183aee0ae4f551b439f24fa355e3dc2e6c37daffd040a7d5",
+      "sha256": "2ee68726d09cd0a9827189015e780d170871e9903c775bf990e43185459599c8",
+      "size_bytes": 4371310,
+      "boundary": {
+        "qdq_nodes_in_head": 0,
+        "qdq_nodes_outside_head": 581,
+        "total_nodes": 899
+      },
+      "build_seconds": 13.2,
+      "metric": 0.7457475780276697,
+      "latency": {
+        "median_latency_ms": 28.048,
+        "p95_latency_ms": 29.231,
+        "mean_latency_ms": 27.99,
+        "min_latency_ms": 24.377,
+        "max_latency_ms": 32.195,
+        "iterations": 50,
+        "warmup": 10,
+        "imgsz": 448,
+        "batch": 1,
+        "role": null,
+        "version": null,
+        "onnx_path": null,
+        "hardware": {
+          "label": "Kaggle CPU kernel, 2 of 4 vCPU, AMD EPYC 7B12, onnxruntime 1.29.0 [PROXY, not the service]",
+          "where": "Kaggle CPU kernel",
+          "cpu": "AMD EPYC 7B12",
+          "cores": 4,
+          "intra_op_threads": 2,
+          "onnxruntime": "1.29.0",
+          "representative": false
+        }
+      }
+    }
+  ]
+}

@@ -11,100 +11,60 @@ Generated 2026-08-13 by `ml/scripts/evaluate.py`.
 docs/07 states it: **validator ≤ 50 ms @ 448 and identifier ≤ 25 ms per crop
 on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 
-| model | measured p50 | budget | verdict |
+| half of the gate | budget | measured | verdict |
 |---|---|---|---|
-| validator @ 448 | **26.6 – 33.0 ms** | ≤ 50 ms | **within budget**, ~40 % headroom |
-| identifier @ 320, per crop | **17.4 – 21.7 ms** | ≤ 25 ms | **within budget** |
-| concurrent scanners, 1 bin | **not reliably measured** (see below) | ≥ 10 | **not established** |
-| concurrent scanners, 6 bins | **1** (measured) | – | the PRD's normal input |
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50, 21.3 ms p95 | **PASS**, 63 % headroom |
+| identifier @ 320, per crop | ≤ 25 ms | **9.9 ms** p50, 11.4 ms p95 | **PASS**, 60 % headroom |
+| **concurrent scanners, 1 bin** | **≥ 10** | **5** | **FAIL**, by a factor of two |
+| concurrent scanners, 6 bins | – | **2** | the PRD's normal input |
 
-> **The concurrency row stopped being a measurement on 2026-08-18, and the
-> reason is the host.** [Probe P8](research/probes/P8-recovery-measurements.md) bracketed a
-> measurement block with the same baseline at both ends and got **7 at 22:30 and
-> 4 at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor,
-> and the laptop was also running the development tooling at ~50 % CPU, so the
-> container was being starved — the service's own `ms` moved from a flat 33 ms
-> to 46–55 ms. Two baselines an evening apart is an **observed spread**, not an
-> error bar — the experiment was never designed to estimate one. **No absolute
-> concurrency figure from this project should be quoted until a controlled
-> 2-vCPU x86 host produces one.** The highest figure ever observed under any
-> configuration is 8, so the gate has certainly not passed; that it *failed* is
-> no longer supported by an admissible measurement either.
+**Measured 2026-08-21 on a controlled host, and this is the first admissible
+absolute concurrency figure this project has had.** GCE `n2-standard-4`,
+`europe-west3-a`, CPU platform pinned to Intel Cascade Lake; the service pinned
+to CPUs 0–1 with `--cpus 2 --cpuset-cpus 0,1`, the load-test client on CPUs 2–3
+so it cannot steal the cores the number is about; onnxruntime 1.29.0;
+**`representative: true`** by the maintainer's decision that a 2-vCPU x86 box
+running the same amd64 image counts as the service for these budgets. Created
+for the measurement and destroyed after. Full account:
+[P12](research/probes/P12-the-controlled-host.md).
 
-**The concurrency figure is no longer a prediction.** The load test ran on
-2026-08-17 against `docker run --cpus 2`, ramping virtual scanners at 3 fps in
-strict request-response until p95 crossed 250 ms:
+**Two latency halves pass on hardware that counts. The concurrency half fails.**
 
-| scanners | p50 | p95 | throughput | ladder |
-|---:|---:|---:|---:|---|
-| 1 | 96 ms | 111 ms | 2.3 fps | – |
-| 2 | 90 ms | 143 ms | 4.6 fps | – |
-| 3 | 100 ms | 170 ms | 6.9 fps | – |
-| **4** | **106 ms** | **219 ms** | **9.2 fps** | – |
-| 5 | 99 ms | 257 ms | 11.5 fps | rung 1 |
-| 6 | 126 ms | 317 ms | 13.7 fps | rung 1 |
-| 8 | 437 ms | 470 ms | 14.2 fps | rung 1 |
-| 10 | 551 ms | 595 ms | 15.8 fps | rung 2 |
-| 12 | 660 ms | 710 ms | 16.0 fps | rung 2 |
+The host is quiet and the numbers show it: across three repeats of a fourteen-
+level ramp the worst spread at any level is about 3 ms, against a laptop whose
+identical baseline moved by three whole scanners in one evening.
 
-Load-test hardware: **`docker run --cpus 2` (cgroup quota 2.0), `linux/arm64`
-native, Snapdragon X1E80100 @ 3.40 GHz, onnxruntime 1.28.0, Python 3.11.15.**
-`representative: false` — **Cloud Run is x86_64**, so this is a second proxy,
-not the serving tier. It is a *pinned* proxy, which the Kaggle kernel was not,
-and its measured throughput of 15.8–16.0 frames/second sits inside the corrected
-13–15 prediction. The Snapdragon core is fast for its class, so a shared Cloud
-Run vCPU is more likely to give fewer scanners than more.
+**P4's corrected arithmetic was right.** It predicted 4.3–5.1 scanners at one
+bin and 1.8–2.2 at six; measured, it is **5** and **2**. The withdrawn laptop
+figures were 4 and 1 — not wildly wrong, simply not reproducible, which is the
+criticism [P8](research/probes/P8-recovery-measurements.md) actually made.
 
-Artefacts: stock COCO YOLO11n @ 448 and YOLO11s-cls @ 320, int8, **untrained on
-this project's data** and served with `SBR_ALLOW_UNGATED=1`. Sound for cost,
-which depends on architecture and input shape; meaningless for accuracy, which
-is not measured here.
+**The frame costs 49 ms and would have to cost ~25 ms.** The validator is
+18.3 ms of that and the identifier 9.9 ms; the remaining ~21 ms is decode,
+letterbox, colour and the wire. [P8b](research/probes/P8-recovery-measurements.md)'s
+shared onnxruntime thread pool — the one recovery ever shown to work — was
+**already active** for these runs, so 5 is the figure with it applied. Of the
+two recoveries still unmeasured, 384 px takes at best ~6 ms off 49, and capping
+crops does nothing at all at one bin per frame, which is the level the gate is
+stated at. **The gate fails on compute rather than on tuning**, and whether that
+means more vCPU, a smaller validator or a revised gate is not this document's
+decision.
 
-Latency hardware: **Kaggle CPU kernel, Intel Xeon @ 2.20 GHz, onnxruntime
-pinned to 2 of 4 vCPU, onnxruntime 1.28.0.** `representative: false` – a
-proxy for a service container, not one, and about **25 % noisy** between
-two runs six minutes apart. Both runs are reported as a range for that
-reason.
+> **One figure here is a measurement of the wrong thing, kept because it is
+> worth knowing.** The first pass through the harness reported **10 concurrent
+> scanners** — because `run.py --bins N` is a report label and
+> `SBR_FORCE_CROPS` had not been set on the container, so the client's synthetic
+> noise produced no detections, no crops, and no identifier work at all. Both
+> halves measured a **validator-only frame** and came back identical to within
+> 2 ms at every level, which is what exposed it. As a fact about validator-only
+> frames it stands: **a frame the validator rejects costs 24 ms and supports ten
+> concurrent scanners.** Most frames a real scanner sends are that frame. The
+> gate's frame is the expensive one.
 
-Measured 2026-08-16 by
-[probe P4](research/probes/P4-multi-bin-cost-curve.md), on **stock COCO
-architectures untrained on this project's data**. That is sound for
-latency, which depends on architecture and input shape, and meaningless
-for accuracy, which is not measured there.
+### The superseded history
 
-**The two model budgets pass and the thing they were supposed to buy does
-not.** The concurrency figure is derived from the measured frame cost, and
-it is out by a factor of two against the gate. Two contributing findings,
-both in P4:
-
-- docs/05 § 3's arithmetic **double-counted the vCPUs** – it divided 2 vCPU
-  by a latency that had already been measured on both of them. Capacity is
-  ~13–15 frames/second, not 30.
-- a frame costs **15–40 ms more than its two graphs**, most likely from
-  alternating between two onnxruntime sessions. At one bin that is a third
-  of the frame and nothing had budgeted for it.
-
-A third finding, and the load test is the only thing that could have produced
-it: **the degradation ladder had never been reachable.** Inference blocked the
-event loop, so requests queued in the ASGI layer instead of arriving at the load
-shedder — twelve concurrent scanners gave `peak_depth: 1` and not one rung
-fired. Every rung test passed throughout, because each forces its threshold to
-zero and fires on the first request; they checked the shedder's arithmetic and
-none checked that it is ever handed a queue. The service degraded by getting
-slower and saying nothing, which is the one behaviour docs/05 § 3 rules out by
-name. Fixed, and the fix is why the table above shows rungs firing at all.
-
-Two notes on how this page should be read:
-
-- **Latency did not need a trained model**, and that is why the table
-  above is no longer empty. ONNX cost depends on architecture and input
-  shape rather than on weights, so P4 and P5 filled it from stock
-  exports while the identifier is still blocked on the human pass.
-- **The concurrency figure is a range over scene complexity**, and as of
-  2026-08-18 its absolute values are withdrawn. One bin per frame was the easy
-  end and measured 4; a bank of six — which the PRD calls a normal input —
-  measured **1**. Quoting 4 without the scene it assumes was one mistake;
-  quoting it at all, on this host, is the other.
+Everything below this line was the state of knowledge before 2026-08-21 and is
+kept because the reasoning is still the right reasoning.
 
 ## Architecture
 
@@ -211,7 +171,8 @@ API-pushed kernel.
 
 **4. `bench_latency`'s failure was correct behaviour misread as a symptom.** It
 ends with `raise SystemExit("no artefacts at v1 to measure - train something
-first")`, and no model exists, so it refuses — exactly as designed. Re-pushed on
+first")`, and at that date no model existed, so it refused — exactly as
+designed. Re-pushed on
 2026-08-17 it errored again, **with an empty log**, on an account that had
 returned full tracebacks minutes earlier. So *"errored with no log"* is how a
 deliberate `SystemExit` surfaces through the Kaggle API; it is not evidence of
@@ -363,6 +324,49 @@ confound, recorded rather than smoothed. And anything below ~0.1 in that table i
 **one number, not several**: across two runs the collapsed rows swap places
 freely, while every row that means something replicates to within 0.001.
 
+### And the residual has now been hunted and not found — P10, 2026-08-21
+
+[P10](research/probes/P10-where-the-residual-lives.md) asked where the remaining
+0.0252 lives. It ran the corrected SQNR diagnostic — which P9 never executed,
+because `quantisation_error` only fires on a winner and P9 had none — and then
+swept the modules it named, plus `/model.10/` regardless of the ranking.
+
+| variant | val mAP@0.5 | drop vs 0.7733835 | QDQ nodes outside head |
+|---|---:|---:|---:|
+| head-fp32 anchor (P9's best, re-measured) | 0.747107 | 0.026277 | 619 |
+| **head + `/model.10/` in fp32** | **0.748021** | **0.025363** | 544 |
+| head + `/model.1/` | 0.746465 | 0.026918 | 613 |
+| head + `/model.2/` | 0.745748 | 0.027636 | 581 |
+
+**The diagnostic and the standing hypothesis agreed, and the sweep contradicted
+both.** The single most damaged tensor in the graph is
+`/model.10/m/m.0/attn/Softmax_output_0` at **23.90 dB SQNR**, 1.65 dB clear of
+the next — the same C2PSA attention block a 1517× weight-scale anomaly had
+pointed at. Excluding `/model.10/` removes **75 QDQ nodes, 12 % of everything
+still quantised**, including that tensor — and buys **+0.000914 mAP**, which is
+below the `MAP_NOISE = 0.005` this project uses for "the same candidate". The
+other two modules made it slightly worse.
+
+So: **no module outside the detection head accounts for the residual by a
+distinguishable amount.** A low-SQNR activation does not imply a task-metric
+cost. That is a stronger statement than P9's "not attributed" — it is evidence
+against the obvious hypothesis rather than absence of evidence — and it means the
+0.0254 is spread across the remaining 544 QDQ nodes rather than sitting in one
+findable place.
+
+**The gate is unmoved and the artefact still may not ship.** Best known
+configuration on `val`, proxy hardware: **0.7480 against 0.7734, missing by
+0.0054**. `test` was not touched and stays unspent. The remaining route to a
+post-training-free int8 graph is quantisation-aware training, which is the
+maintainer's decision and was **not attempted**.
+
+**One number in P9's table above should not be compared with P10's.** The
+identical head-fp32 graph measured **36.6 ms** on a Kaggle Xeon and **25.36 ms**
+on a Kaggle EPYC — 31 % apart on the same bytes and the same onnxruntime,
+entirely from which machine the platform allocated. Both are
+`representative: false`. It is the plainest evidence in this document for why the
+latency half of the gate is not closed by a proxy.
+
 ### Recall by bins per frame
 
 docs/04 § 5 commits to this so a model that only works on one big centred bin
@@ -418,26 +422,121 @@ excluded ([P9](research/probes/P9-int8-quantisation.md)).
 
 ## Identifier
 
+**Trained 2026-08-21**, on `arudaev/smart-bin-identify@cda374c9` — the 403
+crops the human pass produced, run blind by reviewer `alex`. yolo11s-cls @ 320,
+100 epochs, Kaggle T4. Full account: [P11](research/probes/P11-identifier-int8.md).
+
 | metric | split | value |
 |---|---|---|
-| top-1 | test (group-aware) | _not measured_ |
-| top-5 | test | _not measured_ |
-| unknown rate | test | _not measured_ |
-| accuracy when answering | test | _not measured_ |
+| top-1 fp32 | **val** (group-aware, n=56) | **0.9821** |
+| top-1 int8 | **val** (n=56) | **0.9821** |
+| **int8 drop** | val | **0.0000** against a 0.02 budget |
+| top-1 fp32 | test (group-aware, **n=47**) | 1.0000 |
+| top-1 int8 | test (n=47) | 1.0000 |
+| top-5 | test | 1.0 — **not a gate**, and arithmetic at three classes |
+| unknown rate | test | 0.0 — **not a gate**, see below |
+| accuracy when answering | test | 1.0 — **not a gate** |
+| `min_formfactor_acc_heldout_city` | — | **unmeasurable** — no second city |
 
-_The identifier run has not completed._ It is blocked on the human
-adjudication pass: the legacy labels are waste **streams**, and a stream
-does not determine a shape, so `ml/scripts/adjudicate.py` has to run
-before there is anything to train on.
+**Every gate now passes.** Accuracy: int8 drop 0.0000 against 0.02. Latency:
+9.9 ms per crop against 25 ms, measured on `representative: true` hardware by
+[P12](research/probes/P12-the-controlled-host.md). `gate.py` returns *all ship
+gates passed*.
+
+**The published sidecar still reads `may_ship: false`.** Pushing the verdict to
+the model repo is a deliberate act and the maintainer's; it has not been taken.
+The accurate statement is that the identifier **is eligible to ship**, not that
+it ships.
+
+**`1.0000` must never be quoted without its denominator.** The test split is
+**47 crops**: 25 `wheelie_small` over 9 capture clusters, 19 `wheelie_large`
+over 8, and **`igloo` 3 crops over 2 clusters**. By the rule of three the 95 %
+lower bound on that accuracy is **0.936**, and the igloo figure rests on two
+scenes. docs/12 and AGENTS.md both predicted that a group-aware split over 17
+igloo clusters would leave 2–3 in test; measured, it is 2.
+
+**The better estimate of separability is [P1](research/probes/P1-form-factor-separability.md)'s
+0.9834**, out-of-fold over all 403 crops under `GroupKFold` on capture cluster
+— a far larger evaluation than 47 items.
+
+**int8 cost nothing measurable, and the measurement is coarse.** The shipped
+defaults were eligible on the first variant, so the pre-registered sweep never
+ran. That is the same U8S8 per-channel configuration that cost the *validator*
+0.727 mAP, which is consistent with P9's finding that the DFL detection head
+was the cause — a classifier has none. It is consistent with, not proof of: on
+56 val crops one extra misclassification is **0.018** against a **0.020**
+budget, so the measurement resolves roughly one crop.
+
+**The served class order is alphabetical**, read back from `model.names`:
+`["igloo", "wheelie_large", "wheelie_small"]`. Not the config's order, not the
+taxonomy's. The sidecar carries it and the service reads the sidecar.
+
+### What it was not trained on
+
+Three of ten form factors. `street_basket` is **dropped at n=1 in one capture
+cluster** — it cannot be split across train/val/test, so it can be neither
+trained nor evaluated — and `underground`, `textile_bank`, `sack`, `crate`,
+`wall_unit` and `container_bank` have **no data at all**. All seven keep their
+ids; everything B has never seen resolves to `unknown`.
+
+[research/11](research/11-open-images-form-factors.md) established that Open
+Images cannot close that gap: zero `underground`, zero `textile_bank`, zero
+`wall_unit` in a 384-box sample. **`sack` and `textile_bank` both carry
+Deggendorf pack rules**, so a pilot there will meet bins B cannot name.
+
+## What a scan actually produces
+
+Measured 2026-08-21 against the real validator graph, served locally with
+`SBR_ALLOW_UNGATED=1`. Reported because "the service works" is a claim and
+these are observations.
+
+| frame | manifest says | detections returned | server `ms` |
+|---|---|---|---|
+| legacy, one bin | 1 | **1** at conf 0.884, body colour `black` | 129 |
+| legacy, two bins | 2 | **1** at conf 0.779 | 126 |
+| legacy, three bins | 3 | **3** at conf 0.858 / 0.768 / 0.606 | 129 |
+| Open Images, eighteen bins | 18 | **7**, and **0 crops** — every box fell under `min_box_px` | 90 |
+| negative corpus, street scene | 0 | **0** | 91 |
+| negative corpus, hard negative | 0 | **0** | 84 |
+
+Four things worth keeping:
+
+- **The two-bin frame returned one box.** That is not a surprise, it is
+  docs/11's own measured recall at two bins per frame: **0.6087**.
+- **`form_factor`, `stream` and `local_name` were `null` on every detection**,
+  because the service was running validator-only. The resolver answers
+  `unknown`, which is the designed state.
+- **The 18-bin frame produced `crops: 0`.** Every box was below the 64 px floor
+  `identifier.yaml` sets, so the identifier would have been handed nothing —
+  corroborating [research/11](research/11-open-images-form-factors.md)'s finding
+  that 29 % of Open Images boxes fall under that floor.
+- **Both background frames returned an empty list.** "Nothing here" is the
+  answer that matters most, and it is the one the negative corpus was bought
+  for.
+
+The browser reached the same service from `http://localhost:5173` over CORS and
+got HTTP 200, and the settings screen named the transport **`rest`** rather than
+`mock`. A screenshot could not be produced in this environment; the page text
+and the response are the evidence instead.
 
 ## Novelty precision
 
 The kill criterion in docs/07 is **< 0.5**, and the whole improvement loop
 rests on the validator/identifier disagreement being a trustworthy signal.
 
-**_not measured_.** It needs both models plus a human verdict on whether each
-flagged frame was genuinely a new bin type, so it cannot be computed until
-the identifier exists and its flags have been adjudicated.
+**_not measured_, and the blocker has changed.** It needed both models plus a
+human verdict on whether each flagged frame was genuinely a new bin type. As of
+2026-08-21 **both models exist**, so the first half is no longer missing; what
+remains is the adjudication of the flags, which nothing has produced yet.
+
+Worth noting what B's shape does to this. The disagreement signal is
+*validator fires, identifier does not recognise it* — and B knows three form
+factors out of ten. Against a Deggendorf street that is a reasonable detector of
+novelty; against `sack`, `textile_bank` or anything else in the coverage gap it
+will flag constantly and correctly, which is the loop working rather than
+failing, but it means **the first novelty-precision measurement will be
+dominated by the coverage gap rather than by genuinely new bin types.** Design
+the set accordingly (docs/12 P2).
 
 ## Numbers this project does not quote
 

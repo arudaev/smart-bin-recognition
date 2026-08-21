@@ -1,0 +1,416 @@
+{
+  "probe": "P1",
+  "pre_registered": "docs/12 P1, amended and frozen 2026-08-21 before this ran",
+  "hardware": {
+    "accelerator": "Tesla T4",
+    "capability": "sm_75",
+    "where": "Kaggle GPU kernel"
+  },
+  "toolchain": {
+    "torch": "2.10.0+cu128",
+    "transformers": "5.0.0",
+    "sklearn": "1.6.1",
+    "numpy": "2.0.2",
+    "PIL": "11.3.0"
+  },
+  "representation": {
+    "model": "facebook/dinov2-base",
+    "revision": "f9e44c814b77203eaa57a6bdbbd535f21ede1415",
+    "features": "CLS token, last hidden state",
+    "dim": 768,
+    "preprocessing": "AutoImageProcessor: resize 256, centre-crop 224, ImageNet mean/std",
+    "fine_tuned": false
+  },
+  "estimator": {
+    "probe": "LogisticRegression(l2, C=1.0, lbfgs, max_iter=5000, class_weight=balanced, random_state=42)",
+    "cv": "GroupKFold(n_splits=5) on capture_cluster",
+    "scaling": "StandardScaler fitted INSIDE each fold",
+    "aggregation": "out-of-fold predictions pooled across folds"
+  },
+  "dataset": {
+    "repo_id": "arudaev/smart-bin-identify",
+    "revision": "cda374c9a55dccb7e05c2fb6b4929077f8174d6a",
+    "crops": 403,
+    "clusters": 100,
+    "class_counts": {
+      "igloo": 40,
+      "street_basket": 1,
+      "wheelie_large": 115,
+      "wheelie_small": 247
+    },
+    "cluster_counts": {
+      "igloo": 17,
+      "street_basket": 1,
+      "wheelie_large": 56,
+      "wheelie_small": 65
+    }
+  },
+  "excluded_from_every_fitted_number": {
+    "street_basket": {
+      "crops": 1,
+      "clusters": 1,
+      "why": "n=1 in one capture cluster - cannot be split across folds, so it can be neither trained nor evaluated. Dropped from every fitted number and RECORDED as a coverage gap, not merged into anything on the strength of one photograph"
+    }
+  },
+  "decision_rule_reads": {
+    "pairwise_wheelie_accuracy_embedding_only": 0.9834254143646409,
+    "pairwise_wheelie_accuracy_with_box_area": 0.9834254143646409,
+    "threshold": 0.75
+  },
+  "results": {
+    "a-embedding": {
+      "multiclass": {
+        "n": 402,
+        "classes": [
+          "igloo",
+          "wheelie_large",
+          "wheelie_small"
+        ],
+        "accuracy": 0.9850746268656716,
+        "balanced_accuracy": 0.9872557648301356,
+        "majority_class_baseline": 0.6144278606965174,
+        "support": {
+          "igloo": 40,
+          "wheelie_large": 115,
+          "wheelie_small": 247
+        },
+        "confusion": [
+          [
+            40,
+            0,
+            0
+          ],
+          [
+            0,
+            112,
+            3
+          ],
+          [
+            0,
+            3,
+            244
+          ]
+        ],
+        "folds": [
+          {
+            "fold": 0,
+            "train_crops": 321,
+            "test_crops": 81,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 11,
+              "wheelie_large": 29,
+              "wheelie_small": 41
+            }
+          },
+          {
+            "fold": 1,
+            "train_crops": 321,
+            "test_crops": 81,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "wheelie_large": 22,
+              "wheelie_small": 59
+            }
+          },
+          {
+            "fold": 2,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 12,
+              "wheelie_large": 27,
+              "wheelie_small": 41
+            }
+          },
+          {
+            "fold": 3,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 6,
+              "wheelie_large": 15,
+              "wheelie_small": 59
+            }
+          },
+          {
+            "fold": 4,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 11,
+              "wheelie_large": 22,
+              "wheelie_small": 47
+            }
+          }
+        ]
+      },
+      "pairwise_wheelie": {
+        "n": 362,
+        "classes": [
+          "wheelie_small",
+          "wheelie_large"
+        ],
+        "accuracy": 0.9834254143646409,
+        "balanced_accuracy": 0.9808836472452034,
+        "majority_class_baseline": 0.6823204419889503,
+        "support": {
+          "wheelie_large": 115,
+          "wheelie_small": 247
+        },
+        "confusion": [
+          [
+            244,
+            3
+          ],
+          [
+            3,
+            112
+          ]
+        ],
+        "folds": [
+          {
+            "fold": 0,
+            "train_crops": 289,
+            "test_crops": 73,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 16,
+              "wheelie_small": 57
+            }
+          },
+          {
+            "fold": 1,
+            "train_crops": 289,
+            "test_crops": 73,
+            "train_clusters": 73,
+            "test_clusters": 19,
+            "test_class_counts": {
+              "wheelie_large": 29,
+              "wheelie_small": 44
+            }
+          },
+          {
+            "fold": 2,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 27,
+              "wheelie_small": 45
+            }
+          },
+          {
+            "fold": 3,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 25,
+              "wheelie_small": 47
+            }
+          },
+          {
+            "fold": 4,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 73,
+            "test_clusters": 19,
+            "test_class_counts": {
+              "wheelie_large": 18,
+              "wheelie_small": 54
+            }
+          }
+        ]
+      }
+    },
+    "b-embedding-plus-box-area": {
+      "multiclass": {
+        "n": 402,
+        "classes": [
+          "igloo",
+          "wheelie_large",
+          "wheelie_small"
+        ],
+        "accuracy": 0.9850746268656716,
+        "balanced_accuracy": 0.9872557648301356,
+        "majority_class_baseline": 0.6144278606965174,
+        "support": {
+          "igloo": 40,
+          "wheelie_large": 115,
+          "wheelie_small": 247
+        },
+        "confusion": [
+          [
+            40,
+            0,
+            0
+          ],
+          [
+            0,
+            112,
+            3
+          ],
+          [
+            0,
+            3,
+            244
+          ]
+        ],
+        "folds": [
+          {
+            "fold": 0,
+            "train_crops": 321,
+            "test_crops": 81,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 11,
+              "wheelie_large": 29,
+              "wheelie_small": 41
+            }
+          },
+          {
+            "fold": 1,
+            "train_crops": 321,
+            "test_crops": 81,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "wheelie_large": 22,
+              "wheelie_small": 59
+            }
+          },
+          {
+            "fold": 2,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 12,
+              "wheelie_large": 27,
+              "wheelie_small": 41
+            }
+          },
+          {
+            "fold": 3,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 6,
+              "wheelie_large": 15,
+              "wheelie_small": 59
+            }
+          },
+          {
+            "fold": 4,
+            "train_crops": 322,
+            "test_crops": 80,
+            "train_clusters": 80,
+            "test_clusters": 20,
+            "test_class_counts": {
+              "igloo": 11,
+              "wheelie_large": 22,
+              "wheelie_small": 47
+            }
+          }
+        ]
+      },
+      "pairwise_wheelie": {
+        "n": 362,
+        "classes": [
+          "wheelie_small",
+          "wheelie_large"
+        ],
+        "accuracy": 0.9834254143646409,
+        "balanced_accuracy": 0.9808836472452034,
+        "majority_class_baseline": 0.6823204419889503,
+        "support": {
+          "wheelie_large": 115,
+          "wheelie_small": 247
+        },
+        "confusion": [
+          [
+            244,
+            3
+          ],
+          [
+            3,
+            112
+          ]
+        ],
+        "folds": [
+          {
+            "fold": 0,
+            "train_crops": 289,
+            "test_crops": 73,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 16,
+              "wheelie_small": 57
+            }
+          },
+          {
+            "fold": 1,
+            "train_crops": 289,
+            "test_crops": 73,
+            "train_clusters": 73,
+            "test_clusters": 19,
+            "test_class_counts": {
+              "wheelie_large": 29,
+              "wheelie_small": 44
+            }
+          },
+          {
+            "fold": 2,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 27,
+              "wheelie_small": 45
+            }
+          },
+          {
+            "fold": 3,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 74,
+            "test_clusters": 18,
+            "test_class_counts": {
+              "wheelie_large": 25,
+              "wheelie_small": 47
+            }
+          },
+          {
+            "fold": 4,
+            "train_crops": 290,
+            "test_crops": 72,
+            "train_clusters": 73,
+            "test_clusters": 19,
+            "test_class_counts": {
+              "wheelie_large": 18,
+              "wheelie_small": 54
+            }
+          }
+        ]
+      }
+    }
+  }
+}

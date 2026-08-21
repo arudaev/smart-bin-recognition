@@ -86,7 +86,7 @@ def install_dependencies() -> None:
     subprocess.check_call(
         [
             sys.executable, "-m", "pip", "install", "-q",
-            "ultralytics>=8.3.0", "onnx>=1.16.0", "onnxruntime>=1.18.0",
+            "ultralytics>=8.3.0", "onnx>=1.16.0", "onnxruntime==1.29.0",
             "pyyaml", "numpy", "pillow",
         ]
     )

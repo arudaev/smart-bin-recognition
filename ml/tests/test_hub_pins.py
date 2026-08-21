@@ -30,13 +30,26 @@ def test_main_resolves_to_the_pin(pinned):
     assert resolve_revision("arudaev/smart-bin-detect", "main", strict=True) == SHA
 
 
-def test_strict_run_against_an_unpinned_repo_is_an_error():
+#: A repo whose pin slot exists and is empty. Named through a fixture rather
+#: than hard-coded, because these two tests used to name `smart-bin-identify`
+#: and started failing the day it was pinned - which tested the fixture, not the
+#: behaviour.
+UNPINNED = "arudaev/some-unpinned-repo"
+
+
+@pytest.fixture
+def unpinned(monkeypatch):
+    monkeypatch.setitem(hub.PINS, UNPINNED, "")
+    return UNPINNED
+
+
+def test_strict_run_against_an_unpinned_repo_is_an_error(unpinned):
     with pytest.raises(UnpinnedRevisionError, match="no pinned revision"):
-        resolve_revision("arudaev/smart-bin-identify", "main", strict=True)
+        resolve_revision(unpinned, "main", strict=True)
 
 
-def test_lenient_run_against_an_unpinned_repo_warns_and_uses_main(caplog):
-    assert resolve_revision("arudaev/smart-bin-identify", "main") == "main"
+def test_lenient_run_against_an_unpinned_repo_warns_and_uses_main(unpinned, caplog):
+    assert resolve_revision(unpinned, "main") == "main"
     assert "unpinned" in caplog.text
 
 
@@ -306,3 +319,60 @@ def test_ensure_repo_creates_it_up_front(monkeypatch):
     hub.ensure_repo("owner/repo", private=True)
     assert seen == [{"repo_id": "owner/repo", "repo_type": "dataset",
                      "private": True, "exist_ok": True}]
+
+
+# --------------------------------------------------------------------------- #
+# Where we are, and where the token lives
+# --------------------------------------------------------------------------- #
+
+
+def test_kaggle_is_detected_by_its_environment_not_by_a_path(monkeypatch):
+    r"""``Path("/kaggle")`` is drive-relative on Windows and resolves to C:\kaggle.
+
+    This returned True on a developer laptop, and the bug was self-perpetuating:
+    ``configure_hf_runtime`` believed it, pointed HF_HOME at
+    ``/kaggle/working/hf_home``, and created the directory the next call would
+    detect. The symptom surfaced somewhere else entirely - ``.env`` was never
+    read, so a local upload failed with "cannot upload without a Hugging Face
+    token" beside a file that contained one.
+    """
+    monkeypatch.delenv("KAGGLE_KERNEL_RUN_TYPE", raising=False)
+    monkeypatch.delenv("KAGGLE_URL_BASE", raising=False)
+    monkeypatch.setattr(hub.os, "name", "nt")
+    monkeypatch.setattr(hub.Path, "is_dir", lambda self: True)
+    assert hub.on_kaggle() is False
+
+    monkeypatch.setenv("KAGGLE_KERNEL_RUN_TYPE", "Batch")
+    assert hub.on_kaggle() is True
+
+
+def test_a_posix_kernel_with_a_stripped_environment_still_counts(monkeypatch):
+    monkeypatch.delenv("KAGGLE_KERNEL_RUN_TYPE", raising=False)
+    monkeypatch.delenv("KAGGLE_URL_BASE", raising=False)
+    monkeypatch.setattr(hub.os, "name", "posix")
+    monkeypatch.setattr(hub.Path, "is_dir", lambda self: True)
+    assert hub.on_kaggle() is True
+
+
+def test_the_token_is_read_from_the_repo_dotenv(tmp_path, monkeypatch):
+    """AGENTS.md says tokens live in .env at the repo root. Act on it.
+
+    Only dispatch.py did, in two private copies, so every other local entry
+    point - push_dataset.py among them - refused to work against a file that
+    had the token in it.
+    """
+    (tmp_path / ".env").write_text("HF_TOKEN=hf_from_dotenv\n", encoding="utf-8")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setattr(hub, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(hub, "KAGGLE_SECRET_PATHS", ())
+    monkeypatch.setattr(hub, "KAGGLE_INPUT", tmp_path / "absent")
+    monkeypatch.setattr(hub, "on_kaggle", lambda: False)
+
+    assert hub.load_hf_token() == "hf_from_dotenv"
+
+
+def test_an_exported_token_beats_the_dotenv(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text("HF_TOKEN=hf_from_dotenv\n", encoding="utf-8")
+    monkeypatch.setenv("HF_TOKEN", "hf_exported")
+    monkeypatch.setattr(hub, "REPO_ROOT", tmp_path)
+    assert hub.load_hf_token() == "hf_exported"

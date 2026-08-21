@@ -170,3 +170,53 @@ def test_the_verdict_is_derived_not_taken_on_trust(review):
 def test_an_unknown_verdict_is_refused(review):
     with pytest.raises(ValueError, match="not a verdict"):
         review.record(review.queue[0]["file"], "probably", "igloo")
+
+
+# --------------------------------------------------------------------------- #
+# Blind mode - required for the docs/12 P1 pilot
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture
+def blind_review(pool: Path) -> adjudicate.Review:
+    return Review(pool, reviewer="tester", blind=True)
+
+
+def test_blind_mode_withholds_the_proposal_from_the_reviewer(blind_review):
+    """P1 measures whether `wheelie_small` and `wheelie_large` are separable.
+
+    The pool ships proposals derived from the legacy waste STREAM, and on the
+    real 403 crops that mapping is **wrong on 28.8 %** - 111 of 116 errors being
+    `wheelie_small` where the answer is `wheelie_large`, which is precisely the
+    pair the pilot exists to test. The UI shows the proposal and binds Enter to
+    accept it. A pilot run that way would measure the mapping table.
+    """
+    state = blind_review.state()
+    assert state["blind"] is True
+    for crop in state["queue"]:
+        assert crop["proposed"] is None
+        assert crop["candidates"] == []
+
+
+def test_a_blind_decision_is_authored_not_confirmed(blind_review):
+    # Nothing was proposed, so nothing was confirmed. A blind decision is
+    # evidence in a way a confirmation is not, and the record has to say which.
+    crop = blind_review.queue[0]
+    blind_review.record(crop["file"], "confirmed", "igloo")
+    decision = blind_review.decisions[crop["file"]]
+    assert decision["adjudication"] == "authored"
+    assert decision["proposed"] is None
+    assert decision["form_factor"] == "igloo"
+
+
+def test_blind_mode_still_refuses_an_invented_form_factor(blind_review):
+    with pytest.raises(ValueError, match="not a form factor"):
+        blind_review.record(blind_review.queue[0]["file"], "confirmed", "skip")
+
+
+def test_sighted_mode_is_unchanged_by_the_blind_option(review):
+    # The default must keep behaving exactly as before: blind is opt-in.
+    assert review.state()["blind"] is False
+    crop = review.queue[0]
+    review.record(crop["file"], "confirmed", crop["form_factor_proposed"])
+    assert review.decisions[crop["file"]]["adjudication"] == "confirmed"

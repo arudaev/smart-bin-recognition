@@ -1,0 +1,113 @@
+{
+  "survey": "docs/12 P1 - Open Images form-factor survey",
+  "ran": "2026-08-21",
+  "observer": "one observer, single pass, not blind, no adjudication record",
+  "this_is": "a VISUAL SURVEY. These are counts of what was visibly present in a sample. They are NOT labels, nothing was written back to any manifest, and no crop acquired a form_factor",
+  "protocol": {
+    "repo": "arudaev/smart-bin-detect",
+    "revision": "8666aa23ff1a8572cd57349a8c5bd1f0b2d88285",
+    "subset": "open_images",
+    "population_boxes": 1936,
+    "population_frames": 1110,
+    "sample_size": 384,
+    "seed": 20260821,
+    "sampling_unit": "box",
+    "padding": 0.12
+  },
+  "counts": {
+    "street_basket": 135,
+    "wheelie_small": 76,
+    "wheelie_large": 16,
+    "container_bank": 7,
+    "crate": 3,
+    "igloo": 2,
+    "sack": 1,
+    "underground": 0,
+    "textile_bank": 0,
+    "wall_unit": 0,
+    "uncertain": 129,
+    "not_a_bin": 4,
+    "no_matching_form_factor": 11
+  },
+  "counts_per_sheet": {
+    "sheet-01": {
+      "street_basket": 20,
+      "wheelie_small": 9,
+      "wheelie_large": 4,
+      "igloo": 1,
+      "uncertain": 14
+    },
+    "sheet-02": {
+      "street_basket": 17,
+      "wheelie_small": 12,
+      "wheelie_large": 1,
+      "container_bank": 2,
+      "no_matching_form_factor": 1,
+      "uncertain": 15
+    },
+    "sheet-03": {
+      "street_basket": 18,
+      "wheelie_small": 7,
+      "wheelie_large": 2,
+      "container_bank": 1,
+      "no_matching_form_factor": 2,
+      "not_a_bin": 1,
+      "uncertain": 17
+    },
+    "sheet-04": {
+      "street_basket": 16,
+      "wheelie_small": 7,
+      "wheelie_large": 1,
+      "sack": 1,
+      "uncertain": 23
+    },
+    "sheet-05": {
+      "street_basket": 11,
+      "wheelie_small": 13,
+      "wheelie_large": 3,
+      "igloo": 1,
+      "container_bank": 1,
+      "crate": 2,
+      "no_matching_form_factor": 2,
+      "uncertain": 15
+    },
+    "sheet-06": {
+      "street_basket": 14,
+      "wheelie_small": 11,
+      "container_bank": 2,
+      "no_matching_form_factor": 3,
+      "not_a_bin": 2,
+      "uncertain": 16
+    },
+    "sheet-07": {
+      "street_basket": 20,
+      "wheelie_small": 8,
+      "wheelie_large": 4,
+      "no_matching_form_factor": 1,
+      "uncertain": 15
+    },
+    "sheet-08": {
+      "street_basket": 19,
+      "wheelie_small": 9,
+      "wheelie_large": 1,
+      "container_bank": 1,
+      "crate": 1,
+      "no_matching_form_factor": 2,
+      "not_a_bin": 1,
+      "uncertain": 14
+    }
+  },
+  "protocol_deviation": {
+    "what": "the frozen category list has no bucket for 'clearly a waste container, but no taxonomy form factor fits'",
+    "found": 11,
+    "mostly": "front-load dumpsters, roll-off skips and builder's containers",
+    "how_recorded": "counted under `no_matching_form_factor`, broken out rather than folded into `uncertain`, because 'I cannot tell what this is' and 'I can tell, and the taxonomy has no id for it' are different facts and only one of them is a taxonomy finding"
+  },
+  "crop_size": {
+    "note": "measured, not estimated - from index.json. Open Images frames are already resized to 448 px, so a small box in a wide street scene yields a very small crop",
+    "median_shorter_side_px": 94,
+    "below_64px": 112,
+    "below_64px_fraction": 0.292,
+    "why_64": "identifier.yaml crops.min_box_px is 64 - the pipeline's own floor"
+  }
+}

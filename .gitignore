@@ -16,8 +16,22 @@ dist/
 kaggle.json
 
 # Data + artefacts – never committed. Datasets live on HF Hub, models on the CDN.
-data/legacy/
 data/pool/
+
+# `data/legacy/` is 138 MB of imported imagery and is not committed - with ONE
+# exception, which is not derived data. `adjudication.json` is the record of 403
+# human form-factor decisions: who decided what, and when. Nothing can
+# regenerate it. The legacy labels are waste STREAMS and a stream does not
+# determine a shape - measured, the stream-derived mapping is wrong on 28.8 % of
+# these very crops. Losing it means a person looking at 403 pictures again.
+#
+# Git cannot re-include a file whose parent directory is excluded, so the
+# directories are walked open and their contents excluded instead. Do not
+# collapse this back to `data/legacy/`.
+data/legacy/*
+!data/legacy/pool/
+data/legacy/pool/*
+!data/legacy/pool/adjudication.json
 artifacts/
 runs/
 *.pt

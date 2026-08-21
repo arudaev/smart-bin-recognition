@@ -1,0 +1,326 @@
+{
+  "hardware": {
+    "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+    "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+    "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+    "cores": 4,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.29.0",
+    "representative": true
+  },
+  "repeats": 5,
+  "roles": {
+    "validator": {
+      "median_latency_ms": 18.3,
+      "p95_latency_ms": 25.212,
+      "mean_latency_ms": 19.026,
+      "min_latency_ms": 17.693,
+      "max_latency_ms": 25.879,
+      "iterations": 50,
+      "warmup": 10,
+      "imgsz": 448,
+      "batch": 1,
+      "role": "validator",
+      "version": 1,
+      "onnx_path": "validator-v1.onnx",
+      "hardware": {
+        "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+        "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+        "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "cores": 4,
+        "intra_op_threads": 2,
+        "onnxruntime": "1.29.0",
+        "representative": true
+      },
+      "repeats": [
+        {
+          "median_latency_ms": 18.077,
+          "p95_latency_ms": 18.36,
+          "mean_latency_ms": 18.066,
+          "min_latency_ms": 17.68,
+          "max_latency_ms": 18.425,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 448,
+          "batch": 1,
+          "role": "validator",
+          "version": 1,
+          "onnx_path": "validator-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 18.3,
+          "p95_latency_ms": 18.496,
+          "mean_latency_ms": 18.318,
+          "min_latency_ms": 18.109,
+          "max_latency_ms": 18.77,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 448,
+          "batch": 1,
+          "role": "validator",
+          "version": 1,
+          "onnx_path": "validator-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 18.145,
+          "p95_latency_ms": 18.449,
+          "mean_latency_ms": 18.161,
+          "min_latency_ms": 17.75,
+          "max_latency_ms": 18.8,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 448,
+          "batch": 1,
+          "role": "validator",
+          "version": 1,
+          "onnx_path": "validator-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 18.019,
+          "p95_latency_ms": 18.328,
+          "mean_latency_ms": 18.011,
+          "min_latency_ms": 17.624,
+          "max_latency_ms": 18.53,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 448,
+          "batch": 1,
+          "role": "validator",
+          "version": 1,
+          "onnx_path": "validator-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 18.227,
+          "p95_latency_ms": 25.212,
+          "mean_latency_ms": 19.026,
+          "min_latency_ms": 17.693,
+          "max_latency_ms": 25.879,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 448,
+          "batch": 1,
+          "role": "validator",
+          "version": 1,
+          "onnx_path": "validator-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        }
+      ],
+      "median_latency_ms_runs": [
+        18.077,
+        18.3,
+        18.145,
+        18.019,
+        18.227
+      ],
+      "p95_latency_ms_runs": [
+        18.36,
+        18.496,
+        18.449,
+        18.328,
+        25.212
+      ],
+      "median_latency_ms_best": 18.019,
+      "reported": "the SLOWEST of the repeats, not the mean and not the best"
+    },
+    "identifier": {
+      "median_latency_ms": 9.913,
+      "p95_latency_ms": 14.913,
+      "mean_latency_ms": 10.235,
+      "min_latency_ms": 9.739,
+      "max_latency_ms": 14.74,
+      "iterations": 50,
+      "warmup": 10,
+      "imgsz": 320,
+      "batch": 1,
+      "role": "identifier",
+      "version": 1,
+      "onnx_path": "identifier-v1.onnx",
+      "hardware": {
+        "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+        "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+        "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+        "cores": 4,
+        "intra_op_threads": 2,
+        "onnxruntime": "1.29.0",
+        "representative": true
+      },
+      "repeats": [
+        {
+          "median_latency_ms": 9.817,
+          "p95_latency_ms": 10.282,
+          "mean_latency_ms": 9.858,
+          "min_latency_ms": 9.42,
+          "max_latency_ms": 10.987,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 320,
+          "batch": 1,
+          "role": "identifier",
+          "version": 1,
+          "onnx_path": "identifier-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 9.737,
+          "p95_latency_ms": 14.913,
+          "mean_latency_ms": 10.225,
+          "min_latency_ms": 9.464,
+          "max_latency_ms": 18.182,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 320,
+          "batch": 1,
+          "role": "identifier",
+          "version": 1,
+          "onnx_path": "identifier-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 9.882,
+          "p95_latency_ms": 10.23,
+          "mean_latency_ms": 9.963,
+          "min_latency_ms": 9.621,
+          "max_latency_ms": 12.891,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 320,
+          "batch": 1,
+          "role": "identifier",
+          "version": 1,
+          "onnx_path": "identifier-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 9.913,
+          "p95_latency_ms": 11.72,
+          "mean_latency_ms": 10.134,
+          "min_latency_ms": 9.58,
+          "max_latency_ms": 14.44,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 320,
+          "batch": 1,
+          "role": "identifier",
+          "version": 1,
+          "onnx_path": "identifier-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        },
+        {
+          "median_latency_ms": 9.879,
+          "p95_latency_ms": 12.621,
+          "mean_latency_ms": 10.235,
+          "min_latency_ms": 9.739,
+          "max_latency_ms": 14.74,
+          "iterations": 50,
+          "warmup": 10,
+          "imgsz": 320,
+          "batch": 1,
+          "role": "identifier",
+          "version": 1,
+          "onnx_path": "identifier-v1.onnx",
+          "hardware": {
+            "label": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+            "where": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a",
+            "cpu": "Intel(R) Xeon(R) CPU @ 2.80GHz",
+            "cores": 4,
+            "intra_op_threads": 2,
+            "onnxruntime": "1.29.0",
+            "representative": true
+          }
+        }
+      ],
+      "median_latency_ms_runs": [
+        9.817,
+        9.737,
+        9.882,
+        9.913,
+        9.879
+      ],
+      "p95_latency_ms_runs": [
+        10.282,
+        14.913,
+        10.23,
+        11.72,
+        12.621
+      ],
+      "median_latency_ms_best": 9.737,
+      "reported": "the SLOWEST of the repeats, not the mean and not the best"
+    }
+  }
+}

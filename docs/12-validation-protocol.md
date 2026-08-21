@@ -31,6 +31,14 @@ model.
 
 ## P1 – Form-factor separability
 
+> **RAN 2026-08-21 — [result](research/probes/P1-form-factor-separability.md).**
+> The amended rule's **first row fires**: pairwise
+> `wheelie_small`/`wheelie_large` **0.9834** out-of-fold against a 0.75
+> threshold and a 0.6823 baseline, on the **embedding alone**, so box area
+> is not needed as a service feature. The evidence points at a three-class
+> B; **the class list itself is the maintainer's decision and the probe did
+> not take it.**
+
 **Question.** Are the ten form factors separable from a 320 px crop? Specifically:
 is `wheelie_small` vs `wheelie_large` a *size* distinction that resizing
 destroys?
@@ -53,10 +61,124 @@ this is the signal resizing throws away.
 | not separable either way | **merge into `wheelie`**, and recover the distinction in the product with a clarifying question |
 | any other pair below 0.6 | record it; do not merge without the same analysis |
 
-**Cost.** One pilot adjudication (~20 min) + one Kaggle GPU kernel. No training.
+### Amended 2026-08-21, before the probe ran
+
+**The adjudication is finished — all 403 crops, not a 40-crop pilot** — and it
+produced a result the rule above cannot fire on. Every row says "proceed with ten
+classes" or "keep ten classes", and **ten classes is not available**:
+
+| form factor | crops | capture clusters |
+|---|---|---|
+| `wheelie_small` | 247 | 65 |
+| `wheelie_large` | 115 | 56 |
+| `igloo` | 40 | 17 |
+| `street_basket` | **1** | **1** |
+| `underground`, `textile_bank`, `sack`, `crate`, `wall_unit`, `container_bank` | **0** | — |
+
+docs/04 § 5 estimated "seven of ten have no data". Measured, it is **six at zero
+and a seventh at one**. The remaining legacy crops cannot help: all 403 are
+Glas/Biomüll/Papier/Restmüll, so the archive has no more form factors to give.
+
+Run blind (`adjudicate.py --blind`), every verdict `authored`, none rejected.
+That was necessary rather than fastidious: the pool's shipped proposals are a
+stream→shape mapping, and against the finished pass **they are wrong on 116 of
+403 crops — 28.8 %** — of which **111 are `wheelie_small` where the answer is
+`wheelie_large`**, precisely the pair this probe tests. Primed, P1 would have
+measured the mapping table and called the classes cleanly separable.
+
+**What the probe still decides** (DINOv2 embeddings + linear probe over the 403
+adjudicated crops, with and without relative box area):
+
+| Outcome | Action |
+|---|---|
+| `wheelie_small`/`wheelie_large` separable at ≥ 0.75 pairwise | **B is a three-class model**: `wheelie_small`, `wheelie_large`, `igloo` |
+| separable only *with* relative box area | three classes, and **box area is passed to the identifier as a feature** — a design change, not a tuning one. The crop alone is not enough and the service must send the box |
+| not separable either way | **B is a two-class model**: `wheelie`, `igloo`. Merging two published ids is a taxonomy change and is the maintainer's decision, not the probe's — bring the number, do not edit `waste-streams.json` |
+| `igloo` confuses with either wheelie below 0.6 | record it. `igloo` has 17 clusters, so a 70/15/15 group-aware split leaves ~2–3 in test and its per-class metrics will be noisy — say so wherever they are quoted, never quote them clean |
+
+**What the probe does NOT decide, and must not.**
+
+`street_basket` at **n=1 in one cluster** cannot be split across train/val/test at
+all, so it cannot be trained and cannot be evaluated. It is **dropped from B's
+class list and recorded as a known gap** — not silently omitted, and not merged
+into anything on the strength of one photograph.
+
+The **six form factors with no data keep their ids**. Ids are permanent; an id
+with no training data is a *coverage gap*, not a deletion. B's sidecar carries
+the classes it was actually trained on, the service reads the class list from the
+sidecar, and everything B has never seen resolves to `unknown` — which is a
+designed state with a real UI, and the honest answer.
+
+Whether that coverage gap is acceptable for a Deggendorf pilot is a **product
+decision and the maintainer's**: most bins there are wheelies and glass igloos,
+but `sack` and `textile_bank` both carry Deggendorf pack rules and would go
+unanswered. Bring the evidence; do not decide it.
+
+**Whether Open Images can close the gap is a separate question** and is worth
+asking before anyone labels anything again: the pinned dataset holds 1 110 Open
+Images bin frames carrying 1 936 boxes from global street scenes, and nobody has
+looked at what form factors are in them. Generate crops, sample, and **report
+what is visibly present** — establish whether a second adjudication pass would
+be worth a person's time before proposing one.
+
+### The survey, frozen 2026-08-21, before a single crop was opened
+
+A sample chosen after looking is not a sample, and a survey with no stated frame
+becomes "I saw a few of those" by the time it is quoted. So:
+
+| | |
+|---|---|
+| **Population** | all 1 936 boxes across 1 110 Open Images frames in `arudaev/smart-bin-detect@8666aa23` |
+| **Sample** | **384 boxes, seed 20260821, without replacement.** Sampling unit is the **box**, not the frame — a frame with six bins contributes six chances, which is what "what form factors are in them" asks |
+| **Categories** | the ten taxonomy form factors, plus **`uncertain`** (too small, too occluded, or genuinely ambiguous) and **`not_a_bin`** (the box is on something else) |
+| **Output** | counts over the sample, by one observer, **reported as a visual survey and explicitly not as labels** |
+| **Writes** | none. Nothing goes back into any manifest, and no crop acquires a `form_factor` |
+
+**Why 384.** At n=384 a proportion is estimated to roughly ±5 points at 95 %
+confidence in the worst case, which is the resolution the question actually
+needs: *is there enough of form factor X to be worth a human pass?* is a
+question about tens of percent, not about single crops.
+
+**What this cannot do.** It cannot produce training labels — one observer, no
+blind protocol, no adjudication record — and it cannot tell us whether a box is
+correct, only what is inside it. It answers one question: whether a second human
+pass over this corpus would find form factors the legacy archive does not have.
+
+### The estimator, frozen 2026-08-21, before the kernel was written
+
+The amendment above fixes the *rule* and not the *estimator*, and an unstated
+estimator is one that can be chosen after seeing the number. There are enough
+degrees of freedom here — which layer, which split, which regulariser — that
+"0.75 pairwise" is not a fact until they are all nailed down. So:
+
+| | |
+|---|---|
+| **Representation** | `facebook/dinov2-base`, revision recorded in the report. CLS token, 768-d. Resize shorter side to 256, centre-crop 224, ImageNet mean/std, fp32, `eval()`, no fine-tuning |
+| **Estimator** | `LogisticRegression(penalty="l2", C=1.0, solver="lbfgs", max_iter=5000, class_weight="balanced", random_state=42)` |
+| **Scoring** | `GroupKFold(n_splits=5)` on **`capture_cluster`**. A random split over 403 crops from **100** clusters measures memorisation, which is precisely the predecessor's mistake this project exists not to repeat. *(This row said "~138 clusters" when it was frozen; measured, it is 100 — `wheelie_small` 65, `wheelie_large` 56, `igloo` 17, `street_basket` 1. Nothing in the estimator depended on it, and the figure is corrected rather than quietly left.)* |
+| **Scaling** | `StandardScaler` fitted **inside each fold**. It matters most in variant (b), where one feature has a wildly different scale from the other 768 |
+| **Variants** | **(a)** embedding alone · **(b)** embedding ⧺ relative box area, `bbox_norm` w·h, appended as one feature |
+| **Aggregation** | Out-of-fold predictions pooled across all five folds, then scored once |
+
+**What gets reported, always together.** The decision rule reads the **pairwise
+`wheelie_small`/`wheelie_large` OOF accuracy, fitted on those two classes only**.
+It is quoted beside the **majority-class baseline** and the **balanced
+accuracy**, because 0.75 on a 247/115 split is 0.68 of prevalence and a rule that
+fires on the raw number alone would mistake the class imbalance for skill.
+
+**The confusion matrix is 3×3, not 4×4.** `street_basket` at n=1 in one cluster
+cannot be fitted and cannot be held out; it is recorded beside the matrix as
+`n=1, not trainable, not evaluable` rather than occupying a row that would
+suggest it was measured.
+
+**`igloo` carries its caveat wherever it is quoted.** 17 clusters over 5 folds is
+~3 per fold. Its per-class numbers will be noisy and are never quoted clean.
+
+**Cost.** The adjudication is done. One Kaggle GPU kernel for the embeddings and
+the probe. No training.
 
 **Resolves.** docs/02's form-factor list · docs/04 § 5's "seven of ten have no
-data" · the class list `adjudicate.py` presents.
+data", now measured · the class list `adjudicate.py` presents · **B's class list**.
 
 ---
 
@@ -119,6 +241,36 @@ nearest named colour:
 
 Lid-vs-body separation is **explicitly out of scope for P3** and recorded as an
 open problem (research note 06 § 3). Measure body colour first.
+
+### That scoping is now the binding constraint on the product — observed 2026-08-21
+
+Both models exist, and a real Deggendorf frame was run through the real service.
+The **glass path answers**: a legacy `Glas` frame returns
+`form_factor: igloo`, `body_color: metal`, `stream: glass_mixed`,
+`local_name: "Glascontainer"`.
+
+**Every wheelie answers `unknown`**, and not because anything failed. The
+validator finds it, the identifier names it correctly at 0.98–0.99 confidence,
+colour measures its body — and then **all four wheelie rules in the Deggendorf
+pack match on `lid_color`**, which the service does not measure:
+
+| rule | matches on |
+|---|---|
+| `deg-residual-wheelie` | `lid_color: black, grey` |
+| `deg-paper-wheelie` | `lid_color: blue` |
+| `deg-bio-wheelie` | `lid_color: brown` |
+| `deg-packaging-wheelie` | `lid_color: yellow` |
+
+The sharpest case observed: a `Papier` bin came back with `body_color: blue` —
+the exact colour `deg-paper-wheelie` looks for — and still resolved to
+`unknown`, because the rule reads the *lid*.
+
+**So lid-vs-body separation is no longer a tidy-up after P3; it is what stands
+between a working two-model pipeline and an answer for the commonest bin in
+Deggendorf.** `igloo` is 40 crops of the project's data and the only form factor
+that currently resolves; `wheelie_small` and `wheelie_large` are 362 crops and
+resolve to nothing. That reorders P3's own priorities and is recorded here
+rather than acted on.
 
 **Cost.** No GPU, no model, no SAM. Half a day, most of it labelling.
 
@@ -624,6 +776,180 @@ third of docs/07 phase 2's remaining blockers.
 
 ---
 
+## P10 – Where the residual 0.0252 lives
+
+*Pre-registered 2026-08-21, before the probe ran.* **RAN 2026-08-21 —
+[result](research/probes/P10-where-the-residual-lives.md). Two rows fired: the
+0.02–0.10 miss, and the ranking-versus-sweep disagreement. No module outside the
+detection head accounts for the residual by a distinguishable amount; the best
+configuration misses the gate by 0.0054 and the gate did not move.**
+
+**Question.** [P9](research/probes/P9-int8-quantisation.md) established that
+quantising the detection head is what collapses the validator: excluding
+`/model.23/` recovers it from 0.015 to 0.7481 on `val`. It did **not** establish
+that nothing outside the head matters — that graph still carries **619 QDQ nodes**
+and still loses **0.0252** against a 0.02 budget. Where does the residual live,
+and can it be recovered for free?
+
+**Why it is a probe and not a fix.** The obvious suspect is not evidence. A local
+smoke test on a stock YOLO11n reported a **1517× weight-scale increase** on
+`model.10.m.0.attn.qkv.conv.weight` — the C2PSA attention block in the backbone —
+which is a hint and nothing more. onnxruntime's QDQ debugger can name the layer
+instead of leaving a sweep to imply one, and **it has never been run**:
+`quantisation_error` only fires on a winner and P9 had none, so `tensor_error` on
+the head-fp32 graph is empty.
+
+**The direction of that diagnostic is a trap and is written down here because it
+already caught someone.** `qdq_err` is **SQNR in decibels** —
+`20·log10(‖x‖/‖x−y‖)` — so **higher is better** and the damaged tensors are at the
+*bottom*. P9's first pass sorted descending, called the result "the worst
+tensors", and named the eight best-preserved tensors in the graph as suspects.
+
+**Method.** One CPU kernel, no GPU, no retraining, all exports from the existing
+`v1/best.pt`. Same partitioning as P9: calibrate from `train`, score on `val`,
+touch `test` only to confirm a locked winner.
+
+1. run the corrected SQNR diagnostic on the **head-fp32** graph and rank
+   activations by *lowest* SQNR;
+2. exclude, one at a time, the module the ranking actually points at — plus
+   `/model.10/` regardless, because it is the standing hypothesis and leaving it
+   untested would make the result unfalsifiable;
+3. a combined exclusion if two modules independently help.
+
+Every row carries its settings, its calibration hash, its QDQ boundary, its
+latency, and **either a metric or an error** — never a number that was not
+measured.
+
+**Decision rule, stated in advance.**
+
+| Outcome | Action |
+|---|---|
+| a configuration reaches **total served drop ≤ 0.02** on `val` | lock it, confirm **once** on `test`, pin the settings in `validator.yaml` with the run that produced them, publish as **v2**. v1 stays exactly as it is — it is the record docs/11 quotes |
+| best is 0.02–0.10 | the gate is missed and the model is real. **Do not move the gate.** Record what the alternative costs and **stop** — whether to attempt quantisation-aware training is the maintainer's decision |
+| nothing improves on head-fp32 | head-fp32 stands as the best known configuration, validator v1 cannot ship as a post-training int8 export, and P5 reopens with that question |
+| the SQNR ranking and the exclusion sweep disagree | **believe the sweep.** A ranking is a pointer; an exclusion that changes mAP is a measurement. Record the disagreement rather than resolving it quietly |
+
+**What must not happen.** `export.gates.max_accuracy_drop` is 0.02 and stays
+0.02. It has fired twice on this artefact and been right twice. No variant is
+invented after seeing results — a new question is a new probe.
+
+**Cost.** One free CPU kernel, no GPU, no retraining.
+
+**Resolves.** Whether validator v1 can ship at all · docs/04 § 6's export
+settings · the last of docs/07 phase 2's model blockers.
+
+---
+
+## P11 – What int8 costs the identifier
+
+> **RAN 2026-08-21 — [result](research/probes/P11-identifier-int8.md).** The
+> first row fires, **on the first variant**: the shipped defaults cost
+> **0.0000** top-1 on `val` and on `test`, so the sweep never ran. Consistent
+> with P9's diagnosis and not proof of it — the task is saturated, and on 56
+> `val` crops the measurement's resolution (0.018) is about the size of the gate
+> (0.020). The accuracy gate passes; latency is the only blocker left.
+
+*Pre-registered 2026-08-21, **before model B was trained**. B does not exist
+yet; this exists so that whatever it scores is judged by a rule nobody could
+have chosen with the number in front of them.*
+
+**Why it needs its own entry.** [P9](research/probes/P9-int8-quantisation.md)
+and [P10](research/probes/P10-where-the-residual-lives.md) diagnosed the
+*validator*. It is tempting to carry the diagnosis across — "quantise everything
+but the detection head" — and it does not transfer: **a `yolo11s-cls` has no DFL
+detection head to exclude.** There is no `/model.23/` box-regression branch,
+which is precisely the structure P9 identified as the cause. So the identifier's
+int8 behaviour is *unknown*, not *predicted*, and must be established.
+
+**Gates, unchanged.** int8 top-1 drop **≤ 0.02**, median **≤ 25 ms per crop** on
+service CPU. `export.gates.max_accuracy_drop` stays 0.02. A missed gate is
+reported; it is never widened.
+
+### The partitioning, which is the part that goes wrong quietly
+
+The kernel as written before this entry evaluated fp32 on `test`, calibrated on
+`val`, then evaluated int8 on `test` — so any sweep would have selected on the
+split it later reported. Corrected, and in this order:
+
+1. **calibrate from `train`**;
+2. score the fp32 baseline and **every** variant on **`val`**;
+3. lock exactly one candidate, by `sbr.export.selection.choose_winner`;
+4. score that candidate **once, on `test`**. That is the only ship-gate number.
+
+If nothing is eligible, **`test` is not touched at all** and the split stays
+unspent — as it did for P9 and P10.
+
+### The sweep, enumerated here rather than deferred
+
+If int8 costs more than 0.02 top-1 on `val`, these variants run — **this list and
+no other.** "The same sweep P9 used" is not a specification, and inventing an
+extra variant after seeing a result is the failure this whole document exists to
+prevent.
+
+| variant | what it changes |
+|---|---|
+| `10-reference` | the shipped defaults: U8S8, per-channel, minmax, stretched calibration |
+| `11-s8s8` | onnxruntime's named "normal CPU choice" |
+| `12-reduce-range` | its documented remedy for x86 activation saturation |
+| `13-u8u8` | the other documented remedy |
+| `14-per-tensor` | per-channel off |
+| `15-preprocessed` | `quant_pre_process` on |
+| `16-letterboxed` | calibration fitted the way inference fits |
+
+**`exclude_head` is deliberately absent.** There is no head to exclude. A variant
+named for a structure the graph does not have would measure the reference under
+a different label.
+
+### The decision rule, stated in advance
+
+| Outcome | Action |
+|---|---|
+| a variant is within **0.02** top-1 of the PyTorch fp32 reference on `val` | lock it, confirm **once** on `test`, pin the settings in `identifier.yaml` with the run that produced them |
+| best is **0.02–0.10** | the gate is missed and the model is real. **Do not move the gate.** Record it and stop; what to do instead is the maintainer's decision |
+| nothing improves on the reference | post-training int8 is not viable for this architecture either, and that is a finding about the export path rather than about B |
+
+### Two numbers that are not gates, and are labelled as such wherever quoted
+
+- **top-5 is meaningless at three classes.** It is reported because the harness
+  computes it, and it must never be read as accuracy.
+- **`unknown_threshold: 0.55` is provisional and uncalibrated.** It is a guess,
+  max-softmax is a baseline rather than a principled score, and P2 replaces it
+  with an operating point chosen at a stated novelty precision. Any `unknown`
+  rate B reports is a property of that guess as much as of the model.
+
+**Cost.** No extra kernel: the sweep runs inside the training kernel, on a graph
+it has already exported.
+
+**Resolves.** Whether model B can ship · docs/04 § 6's export settings for the
+classification path.
+
+---
+
+## P12 – The controlled host
+
+*Not pre-registered, because it is not a probe: it is the phase-2 gate, measured
+where the gate says to measure it. It is numbered here so the result has a home
+beside the probes that predicted it.*
+
+**RAN 2026-08-21 — [result](research/probes/P12-the-controlled-host.md).**
+Latency **passes** on `representative: true` hardware — validator 18.3 ms
+against 50, identifier 9.9 ms against 25. Concurrency **fails**: **5** scanners
+at one bin against a gate of 10, and **2** at six bins.
+
+The first admissible absolute concurrency figure the project has had. It
+supersedes the withdrawn 4 and 1, and it lands inside P4's corrected prediction
+of 4.3–5.1 and 1.8–2.2.
+
+**One methodological lesson worth carrying.** The first pass reported 10 and 10.
+`run.py --bins N` is a report label; `SBR_FORCE_CROPS` is what makes it true,
+and it was unset, so the client's synthetic noise produced no detections and the
+identifier never ran. Both halves measured a validator-only frame — and returned
+curves identical to within 2 ms at every one of fourteen levels, which is what
+exposed it. **Two configurations that agree exactly are not confirming each
+other; they are the same configuration.**
+
+---
+
 ## Sequencing
 
 | Order | Probe | Blocks |
@@ -658,14 +984,31 @@ work rather than after it:
 | Role | Repo | Pinned | Contract |
 |---|---|---|---|
 | **validator** | `arudaev/smart-bin-detect` | `8666aa23ff1a…` | 18 954 frames = 17 474 background + 1 480 positive (370 legacy + 1 110 Open Images); 403 legacy boxes, 1 936 Open Images boxes |
-| **identifier** | `arudaev/smart-bin-identify` | **unpinned** | **none yet, deliberately** |
+| **identifier** | `arudaev/smart-bin-identify` | `cda374c9a55d…` | 370 frames, 403 boxes, **403 crops, all 403 adjudicated, 0 pending, 0 rejected** — and the per-class counts: `wheelie_small` 247, `wheelie_large` 115, `igloo` 40, `street_basket` 1 |
 
 The two roles do not share a dataset, a builder or a shape — the validator gets
 a YOLO detection tree from `build_yolo_tree`, the identifier a classification
-tree from `build_classification_tree` over **adjudicated crops**, of which there
-are currently none. Writing the identifier a contract today would be asserting a
-composition nobody has produced. It gets one when its dataset exists, pinned in
-the same commit as the pin.
+tree from `build_classification_tree` over **adjudicated crops**.
+
+**The identifier's contract landed 2026-08-21, in the same commit as its pin**,
+which is what this section promised it would wait for. Until then it asserted
+nothing, because the crops did not exist and describing them would have been
+inventing evidence.
+
+**It asserts labels, not just arithmetic**, and that is the whole reason it is a
+separate check from `check_composition`. 403 crops can remain 403 crops, all 403
+still adjudicated, while every form factor underneath them changes — a re-run of
+`adjudicate.py`, a half-applied decision file, a merged class — and the
+identifier would train on the difference without a word. So
+`check_crop_composition` compares the **per-form-factor counts** and refuses on a
+single crop moving between classes. `street_basket` is asserted at n=1 because it
+*exists*: keeping it out of a class list is a coverage-gap decision, and
+forgetting it is a different thing entirely.
+
+A crop's `form_factor` is only counted once a human has decided it. The pool
+ships a stream → shape *proposal* on every crop, and counting that would let the
+guess satisfy a contract about the human pass — the proposal is wrong on 116 of
+403.
 
 **On the two negative ratios.** Both are correct and they answer different
 questions: **15.7:1** within the Open Images subset (17 474 backgrounds against

@@ -65,8 +65,21 @@ MIN_FRAMES_TO_JUDGE_GROUPING = 200
 #: improvement loop depends on detecting.
 VALIDATOR_CLASSES = ["bin"]
 
-#: A crop may train the identifier only with one of these. "pending" may not.
-ADJUDICATED = {"confirmed", "corrected"}
+#: A crop may train the identifier only with one of these. "pending" may not,
+#: and neither may "rejected" - a crop a human said is not a bin is not a label
+#: for anything.
+#:
+#: **"authored" belongs here and its absence was a real defect.** It is what
+#: ``adjudicate.py --blind`` records: the reviewer chose a form factor from the
+#: image with no proposal in front of them, so nothing was *confirmed* because
+#: nothing was proposed. Blindness makes that verdict STRONGER evidence than a
+#: confirmation, not weaker - the pool's shipped proposals are a stream -> shape
+#: mapping and the finished pass measured them wrong on 116 of 403 crops, 111 of
+#: those being `wheelie_small` where the answer is `wheelie_large`. Leaving
+#: "authored" out silently discarded the entire human pass: all 403 decisions
+#: carry it, so `build_classification_tree` skipped every crop and raised "no
+#: adjudicated crops" over a pool that was fully adjudicated.
+ADJUDICATED = {"confirmed", "corrected", "authored"}
 
 
 @dataclass(frozen=True)
@@ -440,7 +453,15 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
 
     kept: Counter[str] = Counter()
     per_split: Counter[str] = Counter()
-    skipped_pending = skipped_unknown = 0
+    skipped_pending = skipped_rejected = skipped_unknown = 0
+    #: Crops carrying a real, human-decided form factor that is deliberately not
+    #: in this model's class list. Counted apart from `skipped_no_form_factor`
+    #: because they are opposite facts: one is data nobody labelled, the other is
+    #: a label somebody chose not to train on. `street_basket` is the live case -
+    #: n=1 in one capture cluster, so it cannot be split across train/val/test
+    #: and cannot be trained or evaluated, and it is DROPPED and RECORDED rather
+    #: than merged into anything on the strength of one photograph (docs/12 P1).
+    excluded_by_class_list: Counter[str] = Counter()
 
     for pool, manifest in manifests:
         layout = layout_of(manifest)
@@ -448,10 +469,19 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
             state = crop.get("adjudication")
             form_factor = crop.get("form_factor")
             if require and state not in ADJUDICATED:
-                skipped_pending += 1
+                # "rejected" is a decision a human made - "this is not a bin" -
+                # and reporting it as still awaiting one is a lie about the state
+                # of the pass. Both are skipped; only one is outstanding work.
+                if state == "rejected":
+                    skipped_rejected += 1
+                else:
+                    skipped_pending += 1
                 continue
-            if not form_factor or form_factor not in classes:
+            if not form_factor:
                 skipped_unknown += 1
+                continue
+            if form_factor not in classes:
+                excluded_by_class_list[form_factor] += 1
                 continue
 
             # The crop inherits its frame's split, so a crop and the frame it
@@ -474,8 +504,20 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
             "on a form factor nobody confirmed.",
             skipped_pending,
         )
+    if skipped_rejected:
+        logger.info(
+            "%d crops skipped: a reviewer rejected them as not a bin. That is a "
+            "decision, not outstanding work.", skipped_rejected,
+        )
     if skipped_unknown:
         logger.warning("%d crops skipped: no usable form factor", skipped_unknown)
+    if excluded_by_class_list:
+        logger.warning(
+            "%d crops carry a human form factor this model is NOT trained on: %s. "
+            "These ids stay canonical - an id with no head position is a coverage "
+            "gap, and the results doc must name it.",
+            sum(excluded_by_class_list.values()), dict(sorted(excluded_by_class_list.items())),
+        )
     if not kept:
         raise SystemExit(
             "no adjudicated crops - there is nothing to train the identifier on.\n"
@@ -497,7 +539,9 @@ def build_classification_tree(pool_root: Path, out_dir: Path, config: dict[str, 
         "classes_absent": missing,
         "per_split": dict(sorted(per_split.items())),
         "skipped_pending_adjudication": skipped_pending,
+        "skipped_rejected_not_a_bin": skipped_rejected,
         "skipped_no_form_factor": skipped_unknown,
+        "excluded_by_class_list": dict(sorted(excluded_by_class_list.items())),
     }
     (out_dir / "classification.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     logger.info("classification tree: %s", summary)

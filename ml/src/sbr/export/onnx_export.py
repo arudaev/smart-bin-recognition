@@ -176,10 +176,34 @@ class ExportReport:
     top1_fp32: float | None = None
     top1_int8: float | None = None
 
+    #: Which split the accuracy pair above was measured on.
+    #:
+    #: A number without its split is not evidence, and the sidecar is what the
+    #: service and docs/11 both read. It matters most in the case that actually
+    #: happens: when no export variant is eligible, the honest record is the
+    #: `val` drop that was measured and missed - reporting it as *unmeasured*
+    #: would understate the evidence, and reporting it without saying `val`
+    #: would imply a `test` confirmation nobody is entitled to.
+    accuracy_split: str | None = None
+
     # Latency, and the machine it was measured on. Both or neither.
     median_latency_ms: float | None = None
     p95_latency_ms: float | None = None
     latency_hardware: str | None = None
+
+    #: Was that machine the deployment target? ``sbr.bench.Hardware.representative``.
+    #:
+    #: **This is what makes "a proxy does not close the latency gate" a rule
+    #: rather than a sentence.** Every document in this project says it; until
+    #: 2026-08-21 nothing enforced it. `check_gates` required only that the
+    #: hardware be *named*, so a Kaggle kernel's number - free, x86, and
+    #: explicitly `representative: false` - could carry an artefact to
+    #: `may_ship: true`. The budget is stated *on service CPU*, and a number
+    #: from somewhere else does not answer it.
+    #:
+    #: ``None`` means nobody recorded it, which is treated as "not established"
+    #: rather than assumed either way.
+    latency_representative: bool | None = None
 
     #: Measurements answering ``export.targets``, keyed by target name. A target
     #: with no key here is reported *unmeasurable* rather than skipped – see
@@ -257,6 +281,19 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
         failures.append(
             "median latency was recorded without naming the hardware it was "
             "measured on; an unattributed latency number is not evidence"
+        )
+    elif not report.latency_representative:
+        # UNMEASURED, not a failure, and the distinction is the whole point: the
+        # graph may well be fast enough, and nobody has measured it where the
+        # budget is stated. `unmeasured` says "the evidence is still missing",
+        # which is exactly true, and it blocks may_ship just as firmly.
+        unmeasured.append(
+            f"median latency for the {report.role} was measured on "
+            f"{report.latency_hardware!r}, which is not the service. It read "
+            f"{report.median_latency_ms:.1f} ms against a "
+            f"{gates.max_median_latency_ms:.0f} ms budget, and that is a proxy "
+            "figure - the budget is stated on service CPU. A controlled host is "
+            "what closes this"
         )
     elif report.median_latency_ms > gates.max_median_latency_ms:
         failures.append(
@@ -383,6 +420,14 @@ class QuantSettings:
     #: quantisation and loses its boxes.
     exclude_head: bool = False
     head_prefix: str = DEFAULT_HEAD_PREFIX
+    #: Further module prefixes to leave in fp32, for docs/12 P10. P9 showed the
+    #: head causes the collapse; it did not show nothing else matters, and the
+    #: head-fp32 graph still carries 619 QDQ nodes and still loses 0.0252. Each
+    #: prefix must match at least one node or the export refuses - a variant
+    #: named "model.10 in fp32" that excluded nothing would measure the wrong
+    #: thing under the right label, which is the failure `head_node_names`
+    #: already exists to prevent.
+    exclude_prefixes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for field_name, allowed in (
@@ -642,6 +687,33 @@ def head_node_names(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> list[
     return names
 
 
+def nodes_matching(onnx_path: Path, prefixes: tuple[str, ...]) -> list[str]:
+    """Every node under any of ``prefixes``. Refuses a prefix that matches none.
+
+    The same discipline as :func:`head_node_names` and for the same reason: an
+    exclusion list that silently comes back empty produces a graph quantised
+    everywhere, reported under the name of the thing it did not exclude.
+    """
+    import onnx
+
+    model = onnx.load(str(onnx_path))
+    names: list[str] = []
+    for prefix in prefixes:
+        matched = [node.name for node in model.graph.node if prefix in node.name]
+        if not matched:
+            present = sorted(
+                {match.group(0) for node in model.graph.node
+                 if (match := re.match(r"/model\.\d+/", node.name))},
+                key=lambda item: int(item.split(".")[1].rstrip("/")),
+            )
+            raise ValueError(
+                f"prefix {prefix!r} matches no node in {onnx_path.name}, so excluding "
+                f"it would exclude nothing. Prefixes this graph carries: {present}"
+            )
+        names.extend(matched)
+    return sorted(set(names))
+
+
 def quant_boundary(onnx_path: Path, prefix: str = DEFAULT_HEAD_PREFIX) -> dict[str, int]:
     """Where the QDQ pairs actually landed, counted inside and outside the head.
 
@@ -765,8 +837,15 @@ def quantise(
         logger.info("pre-processed the graph before quantising")
 
     exclude = head_node_names(source, settings.head_prefix) if settings.exclude_head else []
+    if settings.exclude_prefixes:
+        exclude = sorted(set(exclude) | set(nodes_matching(source, settings.exclude_prefixes)))
     if exclude:
-        logger.info("leaving %d head nodes (%s) in fp32", len(exclude), settings.head_prefix)
+        logger.info(
+            "leaving %d nodes in fp32 (head=%s, prefixes=%s)",
+            len(exclude),
+            settings.head_prefix if settings.exclude_head else None,
+            list(settings.exclude_prefixes) or None,
+        )
 
     quantize_static(
         model_input=str(source),

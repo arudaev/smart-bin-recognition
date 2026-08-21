@@ -42,6 +42,21 @@ class PoolExpectation:
     boxes: int
     note: str = ""
 
+    #: Identifier-side. Zero for a subset that carries no crops at all.
+    crops: int = 0
+    #: Crops carrying a human decision - `confirmed`, `corrected` or `authored`.
+    #: A run that trains on crops asserts this equals :attr:`crops`.
+    crops_adjudicated: int = 0
+    #: Crops a reviewer rejected as not a bin. A decision, not outstanding work,
+    #: and counted apart from the pending ones for exactly that reason.
+    crops_rejected: int = 0
+    #: **The human pass's own result, per form factor.** Totals are necessary
+    #: and not sufficient: 403 crops can stay 403 crops while every label
+    #: underneath them changes, and the identifier would train on the difference
+    #: without a word. This is what makes the contract about labels rather than
+    #: about arithmetic.
+    crops_by_form_factor: dict[str, int] = field(default_factory=dict)
+
 
 @dataclass(frozen=True)
 class DatasetExpectation:
@@ -118,11 +133,39 @@ EXPECTED: dict[str, DatasetExpectation] = {
         },
         background_frames=17474,
     ),
-    # The identifier's dataset. Present so the absence is a recorded decision
-    # rather than an oversight - see this module's docstring.
+    # The identifier's dataset. Pushed 2026-08-21, private, in the same commit
+    # as this contract - which is what the docstring above promised it would
+    # wait for. It is the SAME legacy pool as `smart-bin-detect`'s `legacy`
+    # subset, with `crops/` included and the human pass applied to the manifest.
+    #
+    # The per-class counts are the human pass's result, all 403 decisions taken
+    # blind by reviewer `alex`: no proposal was shown, so every verdict is
+    # `authored` rather than `confirmed`. That distinction is load-bearing - the
+    # pool's shipped `form_factor_proposed` is a stream -> shape mapping and is
+    # wrong on 116 of 403, of which 111 are `wheelie_small` where the answer is
+    # `wheelie_large`.
     "arudaev/smart-bin-identify": DatasetExpectation(
         repo_id="arudaev/smart-bin-identify",
-        revision="",
+        revision="cda374c9a55dccb7e05c2fb6b4929077f8174d6a",
+        pools={
+            "legacy": PoolExpectation(
+                frames=370, boxes=403,
+                crops=403, crops_adjudicated=403, crops_rejected=0,
+                crops_by_form_factor={
+                    "wheelie_small": 247,
+                    "wheelie_large": 115,
+                    "igloo": 40,
+                    # n=1 in ONE capture cluster, so it cannot be split across
+                    # train/val/test and cannot be trained or evaluated. It is
+                    # asserted here because it EXISTS; whether it reaches a
+                    # class list is a separate decision, and dropping it is
+                    # recorded as a coverage gap rather than merged away.
+                    "street_basket": 1,
+                },
+                note="one city, one week; 403 crops, all adjudicated blind by `alex`",
+            ),
+        },
+        background_frames=0,
     ),
 }
 
@@ -205,4 +248,112 @@ def check_manifest_counts(
         raise CompositionDriftError(
             f"{expected.repo_id}@{expected.revision[:12]} manifests do not match "
             f"sbr.dataset.expected:\n  - " + "\n  - ".join(drift)
+        )
+
+
+# --------------------------------------------------------------------------- #
+# The identifier's side: crops, and the labels on them
+# --------------------------------------------------------------------------- #
+
+#: What counts as a human decision. Mirrors `sbr.dataset.prepare.ADJUDICATED`,
+#: and a test pins the two together - they are the same fact stated twice, and
+#: the day they disagree the contract passes over data the builder skips.
+ADJUDICATED = frozenset({"confirmed", "corrected", "authored"})
+
+
+@dataclass(frozen=True)
+class CropCounts:
+    """What one pool's ``crop_records`` actually hold."""
+
+    crops: int
+    adjudicated: int
+    rejected: int
+    pending: int
+    by_form_factor: dict[str, int] = field(default_factory=dict)
+
+
+def crop_counts(manifest: dict[str, Any]) -> CropCounts:
+    """Count a pool manifest's crops by state and by form factor.
+
+    Only *adjudicated* crops contribute to ``by_form_factor``. A form factor
+    sitting on a pending crop is the pool's stream -> shape guess, not a label,
+    and counting it here would let the guess satisfy a contract about the
+    human pass.
+    """
+    records = manifest.get("crop_records", []) or []
+    by_form_factor: dict[str, int] = {}
+    adjudicated = rejected = pending = 0
+
+    for crop in records:
+        state = crop.get("adjudication")
+        if state == "rejected":
+            rejected += 1
+            continue
+        if state not in ADJUDICATED:
+            pending += 1
+            continue
+        adjudicated += 1
+        form_factor = crop.get("form_factor")
+        if form_factor:
+            by_form_factor[form_factor] = by_form_factor.get(form_factor, 0) + 1
+
+    return CropCounts(
+        crops=len(records),
+        adjudicated=adjudicated,
+        rejected=rejected,
+        pending=pending,
+        by_form_factor=dict(sorted(by_form_factor.items())),
+    )
+
+
+def check_crop_composition(
+    counts: dict[str, CropCounts], expected: DatasetExpectation
+) -> None:
+    """Compare ``{subset: CropCounts}`` against the contract. Raise on drift.
+
+    This is the check that makes the identifier's pin mean something. The frame
+    and box totals can hold exactly while every form factor underneath them
+    changes - a re-run of the adjudication tool, a merged class, a partially
+    applied decision file - and the model would train on the difference in
+    silence. So the **per-class counts are asserted**, not just the totals.
+    """
+    drift: list[str] = []
+
+    for name, pool in sorted(expected.pools.items()):
+        actual = counts.get(name)
+        if actual is None:
+            drift.append(f"subset {name!r} is missing entirely")
+            continue
+        if actual.crops != pool.crops:
+            drift.append(f"subset {name!r}: {actual.crops} crops, expected {pool.crops}")
+        if actual.adjudicated != pool.crops_adjudicated:
+            drift.append(
+                f"subset {name!r}: {actual.adjudicated} adjudicated crops, "
+                f"expected {pool.crops_adjudicated}"
+            )
+        if actual.rejected != pool.crops_rejected:
+            drift.append(
+                f"subset {name!r}: {actual.rejected} rejected crops, "
+                f"expected {pool.crops_rejected}"
+            )
+        if actual.pending:
+            drift.append(
+                f"subset {name!r}: {actual.pending} crops are still pending "
+                "adjudication. The identifier cannot be trained on a form factor "
+                "nobody confirmed"
+            )
+        if actual.by_form_factor != pool.crops_by_form_factor:
+            drift.append(
+                f"subset {name!r} labels changed: {actual.by_form_factor} against "
+                f"an expected {pool.crops_by_form_factor}"
+            )
+
+    if drift:
+        raise CompositionDriftError(
+            f"{expected.repo_id}@{expected.revision[:12]} does not hold the crops "
+            f"sbr.dataset.expected says it holds:\n  - "
+            + "\n  - ".join(drift)
+            + "\n\nThe human pass is the one irreplaceable step in this phase. If "
+            "it was re-run, pin the new revision and update this contract in the "
+            "same commit, with the reason in the message."
         )
