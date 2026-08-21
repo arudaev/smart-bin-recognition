@@ -1,12 +1,41 @@
 # P12 – The controlled host: the phase-2 gate, measured
 
-*Run 2026-08-21 on a GCE `n2-standard-4` in `europe-west3-a`, created for the
-measurement and destroyed after. Raw data:
-[`data/P12-gce-latency.json`](data/P12-gce-latency.json),
-[`data/P12-gce-loadtest-1crop.json`](data/P12-gce-loadtest-1crop.json),
-[`data/P12-gce-loadtest-6crop.json`](data/P12-gce-loadtest-6crop.json),
-[`data/P12-gce-loadtest-no-crops.json`](data/P12-gce-loadtest-no-crops.json).
-Harness: `service/deploy/measure-on-gce.sh`.*
+*Run 2026-08-21 on GCE `n2-standard-4` instances in `europe-west3-a`, created
+for the measurement and destroyed after. Harness:
+`service/deploy/measure-on-gce.sh`.*
+
+**Raw data, and which file the numbers come from.** There were **two VM runs**,
+because the first measured the wrong thing (see below). Both are committed:
+
+| file | run | what it is |
+|---|---|---|
+| [`P12-gce-latency.json`](data/P12-gce-latency.json) | 2 | **canonical.** The latency this document quotes and the gate was decided on |
+| [`P12-gce-loadtest-1crop.json`](data/P12-gce-loadtest-1crop.json) | 2 | **canonical.** One crop per frame |
+| [`P12-gce-loadtest-6crop.json`](data/P12-gce-loadtest-6crop.json) | 2 | **canonical.** Six crops per frame |
+| [`P12-gce-latency-run1.json`](data/P12-gce-latency-run1.json) | 1 | the same graphs on a different instance of the same spec |
+| [`P12-gce-loadtest-no-crops.json`](data/P12-gce-loadtest-no-crops.json) | 1 | the validator-only ramp, kept deliberately |
+
+**Run 2 is canonical because it is coherent**: its latency and its concurrency
+come from the same instance in the same session. An earlier version of this
+document quoted run 1's p95 figures (25.2 ms and 14.9 ms) beside run 2's
+concurrency, and gated against run 1 — a file that was not committed. Corrected:
+every figure here now traces to `P12-gce-latency.json`, and the sidecars were
+regenerated from it.
+
+**What the two runs say about each other**, which is the useful part:
+
+| | run 1 | run 2 |
+|---|---|---|
+| validator p50 | 18.30 ms | 18.25 ms |
+| validator p95 | 25.21 ms | 21.35 ms |
+| identifier p50 | 9.91 ms | 9.92 ms |
+| identifier p95 | 14.91 ms | 11.41 ms |
+
+**p50 reproduces to 0.05 ms across two separate VMs; p95 moves by up to 3.9 ms.**
+That is the expected shape — a median over 50 iterations is stable, a 95th
+percentile over 50 iterations is one or two samples and is not. Both runs clear
+both budgets with room, so nothing about the verdict depends on which is used;
+the point of naming one is that a number has to be traceable to a file.
 
 **Question.** [P8](P8-recovery-measurements.md) established that the development
 laptop cannot hold a concurrency figure still — the identical baseline gave **7
@@ -33,8 +62,8 @@ is recorded as one.
 
 | half of the gate | budget | measured | verdict |
 |---|---|---|---|
-| validator @ 448 | ≤ 50 ms | **18.3 ms** p50, 25.2 ms p95 | **PASS**, 63 % headroom |
-| identifier @ 320 per crop | ≤ 25 ms | **9.9 ms** p50, 14.9 ms p95 | **PASS**, 60 % headroom |
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50, 21.3 ms p95 | **PASS**, 63 % headroom |
+| identifier @ 320 per crop | ≤ 25 ms | **9.9 ms** p50, 11.4 ms p95 | **PASS**, 60 % headroom |
 | **concurrent scanners, 1 bin** | **≥ 10** | **5** | **FAIL** |
 | concurrent scanners, 6 bins | – | **2** | the PRD's normal input |
 
@@ -154,8 +183,9 @@ representative: true
 
 **The image predates the double-softmax fix** (`service/pipeline.py`), which
 changes a three-element numpy operation and no cost. Latency was measured five
-times per role and the **slowest** repeat is the one reported — the spread was
-18.02–18.30 ms for the validator and 9.74–9.91 ms for the identifier.
+times per role and the **slowest** repeat is the one reported — in the canonical
+run the p50 spread was 18.12–18.25 ms for the validator and 9.80–9.92 ms for the
+identifier.
 
 **Cost.** The VM was created, measured on, and deleted on every exit path. About
 90 minutes of `n2-standard-4` at USD 0.250248/hour, plus a 20 GiB balanced boot

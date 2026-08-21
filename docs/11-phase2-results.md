@@ -13,8 +13,8 @@ on service CPU, and ≥ 10 concurrent scanners on the free tier.**
 
 | half of the gate | budget | measured | verdict |
 |---|---|---|---|
-| validator @ 448 | ≤ 50 ms | **18.3 ms** p50, 25.2 ms p95 | **PASS**, 63 % headroom |
-| identifier @ 320, per crop | ≤ 25 ms | **9.9 ms** p50, 14.9 ms p95 | **PASS**, 60 % headroom |
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50, 21.3 ms p95 | **PASS**, 63 % headroom |
+| identifier @ 320, per crop | ≤ 25 ms | **9.9 ms** p50, 11.4 ms p95 | **PASS**, 60 % headroom |
 | **concurrent scanners, 1 bin** | **≥ 10** | **5** | **FAIL**, by a factor of two |
 | concurrent scanners, 6 bins | – | **2** | the PRD's normal input |
 
