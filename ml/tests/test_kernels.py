@@ -773,3 +773,28 @@ def test_the_residual_probe_reads_sqnr_lowest_first():
     text = source("probe_residual")
     assert "lowest_sqnr_db" in text
     assert "higher is better" in text
+
+
+#: Every kernel that writes a `dataset.revision` into a report somebody will
+#: quote. P10's first run recorded `"revision": "main"` beside a composition that
+#: matched the pin exactly - right data, unusable record.
+REPORTING_KERNELS = (
+    "train_validator",
+    "train_identifier",
+    "probe_quantisation",
+    "probe_residual",
+)
+
+
+@pytest.mark.parametrize("kernel", REPORTING_KERNELS)
+def test_the_report_records_the_revision_it_resolved(kernel):
+    text = source(kernel)
+    assert "resolve_revision(" in text, (
+        f"{kernel} records a revision without resolving one"
+    )
+    assert '"revision": revision,' in text, (
+        f"{kernel} writes the config literal into its report rather than the "
+        "revision the run actually used. 'main' is not a revision, it is a "
+        "promise to change, and a report naming it cannot be reproduced from."
+    )
+    assert '"revision": config["data"]["revision"],' not in text

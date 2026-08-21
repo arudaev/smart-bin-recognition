@@ -164,7 +164,12 @@ def main() -> None:
         score_onnx,
     )
     from sbr.export.selection import Candidate, choose_winner
-    from sbr.utils.hub import configure_hf_runtime, download_dataset, load_hf_token
+    from sbr.utils.hub import (
+        configure_hf_runtime,
+        download_dataset,
+        load_hf_token,
+        resolve_revision,
+    )
 
     configure_hf_runtime()
     config = load_config(CONFIG_NAME, PROJECT / "ml" / "configs")
@@ -194,9 +199,16 @@ def main() -> None:
     from sbr.dataset.expected import check_composition, expectation_for
     from sbr.dataset.prepare import build_yolo_tree
 
+    # The revision the run ACTUALLY used, not the config's literal. P10's first
+    # report wrote `"revision": "main"` beside a composition that matched the pin
+    # exactly - the data was right and the record of it was not, and a report
+    # that names its pin as "main" is one nobody can reproduce from.
+    revision = resolve_revision(
+        config["data"]["repo_id"], config["data"]["revision"], strict=True
+    )
     pool = download_dataset(
         config["data"]["repo_id"],
-        revision=config["data"]["revision"],
+        revision=revision,
         local_dir=SCRATCH / "pool",
         strict=True,
     )
@@ -546,7 +558,7 @@ def main() -> None:
         "toolchain": versions,
         "dataset": {
             "repo_id": config["data"]["repo_id"],
-            "revision": config["data"]["revision"],
+            "revision": revision,
             "composition": composition,
         },
         "reference": {

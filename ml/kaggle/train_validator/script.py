@@ -225,9 +225,16 @@ def main() -> None:
     # strict=True: an unpinned revision stops the run. A number measured against
     # a moving target cannot be reproduced, and that is the one failure this
     # repo exists not to repeat.
+    # The revision the run ACTUALLY used, not the config's literal. P10's first
+    # report wrote `"revision": "main"` beside a composition that matched the pin
+    # exactly - the data was right and the record of it was not, and a report
+    # that names its pin as "main" is one nobody can reproduce from.
+    revision = resolve_revision(
+        config["data"]["repo_id"], config["data"]["revision"], strict=True
+    )
     pool = download_dataset(
         config["data"]["repo_id"],
-        revision=config["data"]["revision"],
+        revision=revision,
         local_dir=WORKING / "pool",
         strict=True,
     )
@@ -244,10 +251,9 @@ def main() -> None:
     if expectation is None:
         log(f"no composition contract for {config['data']['repo_id']} - proceeding unchecked")
     else:
-        resolved = resolve_revision(config["data"]["repo_id"], config["data"]["revision"], strict=True)
-        if resolved != expectation.revision:
+        if revision != expectation.revision:
             raise SystemExit(
-                f"this run resolved {resolved[:12]} but sbr.dataset.expected describes "
+                f"this run resolved {revision[:12]} but sbr.dataset.expected describes "
                 f"{expectation.revision[:12]}. Pinning new data is a deliberate act: update "
                 "the contract in the same commit as the pin, with the reason in the message."
             )
@@ -302,7 +308,7 @@ def main() -> None:
         "version": int(MODEL_VERSION),
         "dataset": {
             "repo_id": config["data"]["repo_id"],
-            "revision": config["data"]["revision"],
+            "revision": revision,
             "composition": composition,
         },
         "test": {

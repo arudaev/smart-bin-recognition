@@ -149,6 +149,7 @@ def main() -> None:
         configure_hf_runtime,
         download_dataset,
         require_hf_token,
+        resolve_revision,
         upload_artifacts,
     )
 
@@ -167,9 +168,16 @@ def main() -> None:
     accelerator = require_usable_gpu("train the identifier")
 
     # --- data -------------------------------------------------------------- #
+    # The revision the run ACTUALLY used, not the config's literal. P10's first
+    # report wrote `"revision": "main"` beside a composition that matched the pin
+    # exactly - the data was right and the record of it was not, and a report
+    # that names its pin as "main" is one nobody can reproduce from.
+    revision = resolve_revision(
+        config["data"]["repo_id"], config["data"]["revision"], strict=True
+    )
     pool = download_dataset(
         config["data"]["repo_id"],
-        revision=config["data"]["revision"],
+        revision=revision,
         local_dir=WORKING / "pool",
         strict=True,
     )
@@ -224,7 +232,7 @@ def main() -> None:
         "version": int(MODEL_VERSION),
         "dataset": {
             "repo_id": config["data"]["repo_id"],
-            "revision": config["data"]["revision"],
+            "revision": revision,
             "composition": composition,
         },
         "test": {"top1": top1, "top5": float(metrics.top5)},
