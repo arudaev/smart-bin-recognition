@@ -33,7 +33,7 @@ sooner than bandwidth ever did.**
 | Path | Frequency | Where | Marginal cost |
 |---|---|---|---|
 | App shell, JS, CSS | once per cold load | Vercel CDN | €0 |
-| **Frame inference** | ~15 frames per scan | **HF Space CPU** | **€0 until saturated** |
+| **Frame inference** | ~15 frames per scan | **Cloud Run, request-based** | **€0 within the free allowance** |
 | Rules, i18n, taxonomy | cached | Vercel CDN | €0 |
 | Registry tiles | occasional | Vercel CDN, pre-baked | €0 |
 | Map basemap | per map view | free tile provider | €0 |

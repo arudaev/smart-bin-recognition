@@ -97,9 +97,10 @@ name. Fixed, and the fix is why the table above shows rungs firing at all.
 Two notes on how this page should be read:
 
 - **Latency did not need a trained model**, and that is why the table
-  above is no longer empty. ONNX cost depends on architecture and input
-  shape rather than on weights, so P4 and P5 filled it from stock
-  exports while the identifier is still blocked on the human pass.
+  above was never empty. ONNX cost depends on architecture and input shape
+  rather than on weights, so P4 and P5 filled it from stock exports before
+  either model existed. Both models exist now, and the figures above are
+  measured on the real graphs.
 - **The concurrency figure is a range over scene complexity**, and as of
   2026-08-18 its absolute values are withdrawn. One bin per frame was the easy
   end and measured 4; a bank of six — which the PRD calls a normal input —
@@ -461,26 +462,115 @@ excluded ([P9](research/probes/P9-int8-quantisation.md)).
 
 ## Identifier
 
+**Trained 2026-08-21**, on `arudaev/smart-bin-identify@cda374c9` — the 403
+crops the human pass produced, run blind by reviewer `alex`. yolo11s-cls @ 320,
+100 epochs, Kaggle T4. Full account: [P11](research/probes/P11-identifier-int8.md).
+
 | metric | split | value |
 |---|---|---|
-| top-1 | test (group-aware) | _not measured_ |
-| top-5 | test | _not measured_ |
-| unknown rate | test | _not measured_ |
-| accuracy when answering | test | _not measured_ |
+| top-1 fp32 | **val** (group-aware, n=56) | **0.9821** |
+| top-1 int8 | **val** (n=56) | **0.9821** |
+| **int8 drop** | val | **0.0000** against a 0.02 budget |
+| top-1 fp32 | test (group-aware, **n=47**) | 1.0000 |
+| top-1 int8 | test (n=47) | 1.0000 |
+| top-5 | test | 1.0 — **not a gate**, and arithmetic at three classes |
+| unknown rate | test | 0.0 — **not a gate**, see below |
+| accuracy when answering | test | 1.0 — **not a gate** |
+| `min_formfactor_acc_heldout_city` | — | **unmeasurable** — no second city |
 
-_The identifier run has not completed._ It is blocked on the human
-adjudication pass: the legacy labels are waste **streams**, and a stream
-does not determine a shape, so `ml/scripts/adjudicate.py` has to run
-before there is anything to train on.
+**The accuracy gate passes and the artefact does not ship**, because latency
+was unmeasured at the time of writing; `may_ship: false` with `unmeasured`
+naming the bench. That is the correct verdict, not a failure.
+
+**`1.0000` must never be quoted without its denominator.** The test split is
+**47 crops**: 25 `wheelie_small` over 9 capture clusters, 19 `wheelie_large`
+over 8, and **`igloo` 3 crops over 2 clusters**. By the rule of three the 95 %
+lower bound on that accuracy is **0.936**, and the igloo figure rests on two
+scenes. docs/12 and AGENTS.md both predicted that a group-aware split over 17
+igloo clusters would leave 2–3 in test; measured, it is 2.
+
+**The better estimate of separability is [P1](research/probes/P1-form-factor-separability.md)'s
+0.9834**, out-of-fold over all 403 crops under `GroupKFold` on capture cluster
+— a far larger evaluation than 47 items.
+
+**int8 cost nothing measurable, and the measurement is coarse.** The shipped
+defaults were eligible on the first variant, so the pre-registered sweep never
+ran. That is the same U8S8 per-channel configuration that cost the *validator*
+0.727 mAP, which is consistent with P9's finding that the DFL detection head
+was the cause — a classifier has none. It is consistent with, not proof of: on
+56 val crops one extra misclassification is **0.018** against a **0.020**
+budget, so the measurement resolves roughly one crop.
+
+**The served class order is alphabetical**, read back from `model.names`:
+`["igloo", "wheelie_large", "wheelie_small"]`. Not the config's order, not the
+taxonomy's. The sidecar carries it and the service reads the sidecar.
+
+### What it was not trained on
+
+Three of ten form factors. `street_basket` is **dropped at n=1 in one capture
+cluster** — it cannot be split across train/val/test, so it can be neither
+trained nor evaluated — and `underground`, `textile_bank`, `sack`, `crate`,
+`wall_unit` and `container_bank` have **no data at all**. All seven keep their
+ids; everything B has never seen resolves to `unknown`.
+
+[research/11](research/11-open-images-form-factors.md) established that Open
+Images cannot close that gap: zero `underground`, zero `textile_bank`, zero
+`wall_unit` in a 384-box sample. **`sack` and `textile_bank` both carry
+Deggendorf pack rules**, so a pilot there will meet bins B cannot name.
+
+## What a scan actually produces
+
+Measured 2026-08-21 against the real validator graph, served locally with
+`SBR_ALLOW_UNGATED=1`. Reported because "the service works" is a claim and
+these are observations.
+
+| frame | manifest says | detections returned | server `ms` |
+|---|---|---|---|
+| legacy, one bin | 1 | **1** at conf 0.884, body colour `black` | 129 |
+| legacy, two bins | 2 | **1** at conf 0.779 | 126 |
+| legacy, three bins | 3 | **3** at conf 0.858 / 0.768 / 0.606 | 129 |
+| Open Images, eighteen bins | 18 | **7**, and **0 crops** — every box fell under `min_box_px` | 90 |
+| negative corpus, street scene | 0 | **0** | 91 |
+| negative corpus, hard negative | 0 | **0** | 84 |
+
+Four things worth keeping:
+
+- **The two-bin frame returned one box.** That is not a surprise, it is
+  docs/11's own measured recall at two bins per frame: **0.6087**.
+- **`form_factor`, `stream` and `local_name` were `null` on every detection**,
+  because the service was running validator-only. The resolver answers
+  `unknown`, which is the designed state.
+- **The 18-bin frame produced `crops: 0`.** Every box was below the 64 px floor
+  `identifier.yaml` sets, so the identifier would have been handed nothing —
+  corroborating [research/11](research/11-open-images-form-factors.md)'s finding
+  that 29 % of Open Images boxes fall under that floor.
+- **Both background frames returned an empty list.** "Nothing here" is the
+  answer that matters most, and it is the one the negative corpus was bought
+  for.
+
+The browser reached the same service from `http://localhost:5173` over CORS and
+got HTTP 200, and the settings screen named the transport **`rest`** rather than
+`mock`. A screenshot could not be produced in this environment; the page text
+and the response are the evidence instead.
 
 ## Novelty precision
 
 The kill criterion in docs/07 is **< 0.5**, and the whole improvement loop
 rests on the validator/identifier disagreement being a trustworthy signal.
 
-**_not measured_.** It needs both models plus a human verdict on whether each
-flagged frame was genuinely a new bin type, so it cannot be computed until
-the identifier exists and its flags have been adjudicated.
+**_not measured_, and the blocker has changed.** It needed both models plus a
+human verdict on whether each flagged frame was genuinely a new bin type. As of
+2026-08-21 **both models exist**, so the first half is no longer missing; what
+remains is the adjudication of the flags, which nothing has produced yet.
+
+Worth noting what B's shape does to this. The disagreement signal is
+*validator fires, identifier does not recognise it* — and B knows three form
+factors out of ten. Against a Deggendorf street that is a reasonable detector of
+novelty; against `sack`, `textile_bank` or anything else in the coverage gap it
+will flag constantly and correctly, which is the loop working rather than
+failing, but it means **the first novelty-precision measurement will be
+dominated by the coverage gap rather than by genuinely new bin types.** Design
+the set accordingly (docs/12 P2).
 
 ## Numbers this project does not quote
 
