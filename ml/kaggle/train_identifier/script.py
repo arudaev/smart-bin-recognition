@@ -76,7 +76,7 @@ def install_dependencies() -> None:
     )
     subprocess.check_call(
         [sys.executable, "-m", "pip", "install", "-q",
-         "onnx>=1.16.0", "onnxruntime>=1.18.0", "huggingface_hub>=1.2.0", "pyyaml"]
+         "onnx>=1.16.0", "onnxruntime==1.29.0", "huggingface_hub>=1.2.0", "pyyaml"]
     )
     log("dependencies installed (torch left exactly as the image shipped it)")
 

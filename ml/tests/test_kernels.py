@@ -954,3 +954,48 @@ def test_the_identifier_does_not_gate_on_top5_or_the_unknown_threshold():
     # uncalibrated guess until docs/12 P2.
     text = source("train_identifier")
     assert '"not_gates"' in text
+
+
+def test_the_runtime_is_pinned_everywhere_it_is_installed():
+    """A quantised graph's score is a property of the runtime, not just the weights.
+
+    `onnxruntime>=1.18.0` let three different versions serve, measure and export
+    the same graph - the laptop was on 1.26.0 while every published number came
+    from 1.29.0 - so the ship gate could compare figures from different
+    machines without anything saying so.
+    """
+    import re
+
+    pinned = set()
+    for kernel in ALL_KERNELS + GPU_PROBES:
+        for match in re.finditer(r'"onnxruntime([=><]{1,2})([\d.]+)"', source(kernel)):
+            operator, version = match.groups()
+            assert operator == "==", (
+                f"{kernel} installs onnxruntime{operator}{version}; it must be pinned"
+            )
+            pinned.add(version)
+
+    assert len(pinned) == 1, f"kernels disagree about the runtime: {sorted(pinned)}"
+
+
+def test_the_service_and_the_kernels_agree_about_the_runtime():
+    import re
+
+    def version_in(path):
+        text = (ML_ROOT.parent / path).read_text(encoding="utf-8")
+        found = re.search(r"^onnxruntime==([\d.]+)$", text, re.MULTILINE)
+        assert found, f"{path} does not pin onnxruntime"
+        return found.group(1)
+
+    service = version_in("service/requirements.txt")
+    bench = version_in("service/bench/requirements.txt")
+    assert service == bench, (
+        f"the service runs {service} and its bench measures on {bench}; a latency "
+        "number from the bench would not describe the service"
+    )
+
+    import re as _re
+    kernel = _re.search(r'"onnxruntime==([\d.]+)"', source("bench_latency")).group(1)
+    assert kernel == service, (
+        f"the Kaggle bench installs {kernel} and the service runs {service}"
+    )

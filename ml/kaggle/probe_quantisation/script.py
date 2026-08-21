@@ -119,7 +119,7 @@ def install_dependencies() -> None:
     )
     subprocess.check_call(
         [sys.executable, "-m", "pip", "install", "-q",
-         "onnx>=1.16.0", "onnxruntime>=1.18.0", "onnxconverter-common>=1.14.0",
+         "onnx>=1.16.0", "onnxruntime==1.29.0", "onnxconverter-common>=1.14.0",
          "huggingface_hub>=1.2.0", "pyyaml"]
     )
     log("dependencies installed (ultralytics pinned to v1's 8.4.121)")
