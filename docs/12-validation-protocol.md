@@ -783,14 +783,31 @@ work rather than after it:
 | Role | Repo | Pinned | Contract |
 |---|---|---|---|
 | **validator** | `arudaev/smart-bin-detect` | `8666aa23ff1a…` | 18 954 frames = 17 474 background + 1 480 positive (370 legacy + 1 110 Open Images); 403 legacy boxes, 1 936 Open Images boxes |
-| **identifier** | `arudaev/smart-bin-identify` | **unpinned** | **none yet, deliberately** |
+| **identifier** | `arudaev/smart-bin-identify` | `cda374c9a55d…` | 370 frames, 403 boxes, **403 crops, all 403 adjudicated, 0 pending, 0 rejected** — and the per-class counts: `wheelie_small` 247, `wheelie_large` 115, `igloo` 40, `street_basket` 1 |
 
 The two roles do not share a dataset, a builder or a shape — the validator gets
 a YOLO detection tree from `build_yolo_tree`, the identifier a classification
-tree from `build_classification_tree` over **adjudicated crops**, of which there
-are currently none. Writing the identifier a contract today would be asserting a
-composition nobody has produced. It gets one when its dataset exists, pinned in
-the same commit as the pin.
+tree from `build_classification_tree` over **adjudicated crops**.
+
+**The identifier's contract landed 2026-08-21, in the same commit as its pin**,
+which is what this section promised it would wait for. Until then it asserted
+nothing, because the crops did not exist and describing them would have been
+inventing evidence.
+
+**It asserts labels, not just arithmetic**, and that is the whole reason it is a
+separate check from `check_composition`. 403 crops can remain 403 crops, all 403
+still adjudicated, while every form factor underneath them changes — a re-run of
+`adjudicate.py`, a half-applied decision file, a merged class — and the
+identifier would train on the difference without a word. So
+`check_crop_composition` compares the **per-form-factor counts** and refuses on a
+single crop moving between classes. `street_basket` is asserted at n=1 because it
+*exists*: keeping it out of a class list is a coverage-gap decision, and
+forgetting it is a different thing entirely.
+
+A crop's `form_factor` is only counted once a human has decided it. The pool
+ships a stream → shape *proposal* on every crop, and counting that would let the
+guess satisfy a contract about the human pass — the proposal is wrong on 116 of
+403.
 
 **On the two negative ratios.** Both are correct and they answer different
 questions: **15.7:1** within the Open Images subset (17 474 backgrounds against

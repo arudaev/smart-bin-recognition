@@ -30,13 +30,26 @@ def test_main_resolves_to_the_pin(pinned):
     assert resolve_revision("arudaev/smart-bin-detect", "main", strict=True) == SHA
 
 
-def test_strict_run_against_an_unpinned_repo_is_an_error():
+#: A repo whose pin slot exists and is empty. Named through a fixture rather
+#: than hard-coded, because these two tests used to name `smart-bin-identify`
+#: and started failing the day it was pinned - which tested the fixture, not the
+#: behaviour.
+UNPINNED = "arudaev/some-unpinned-repo"
+
+
+@pytest.fixture
+def unpinned(monkeypatch):
+    monkeypatch.setitem(hub.PINS, UNPINNED, "")
+    return UNPINNED
+
+
+def test_strict_run_against_an_unpinned_repo_is_an_error(unpinned):
     with pytest.raises(UnpinnedRevisionError, match="no pinned revision"):
-        resolve_revision("arudaev/smart-bin-identify", "main", strict=True)
+        resolve_revision(unpinned, "main", strict=True)
 
 
-def test_lenient_run_against_an_unpinned_repo_warns_and_uses_main(caplog):
-    assert resolve_revision("arudaev/smart-bin-identify", "main") == "main"
+def test_lenient_run_against_an_unpinned_repo_warns_and_uses_main(unpinned, caplog):
+    assert resolve_revision(unpinned, "main") == "main"
     assert "unpinned" in caplog.text
 
 

@@ -58,8 +58,14 @@ PINS: dict[str, str] = {
     # the generalisation number is NOT available from this data.
     # Previous, legacy only: 581eedae78c69fbaa02c2db77687d030e309b5ed
     "arudaev/smart-bin-detect": "8666aa23ff1a8572cd57349a8c5bd1f0b2d88285",
-    # Needs the human pass first - there are no adjudicated crops yet.
-    "arudaev/smart-bin-identify": "",
+    # The identifier's crop pool. Pushed 2026-08-21, PRIVATE: the same legacy
+    # pool as `smart-bin-detect`'s `legacy` subset, with `crops/` included and
+    # the human pass folded into the manifest. 370 frames, 403 boxes, 403 crops,
+    # all 403 adjudicated blind by reviewer `alex` - `wheelie_small` 247,
+    # `wheelie_large` 115, `igloo` 40, `street_basket` 1. Six form factors have
+    # no data at all, which is a coverage gap and is recorded as one.
+    # The composition contract landed in the same commit: sbr.dataset.expected.
+    "arudaev/smart-bin-identify": "cda374c9a55dccb7e05c2fb6b4929077f8174d6a",
     "arudaev/smart-bin-raw": "",
 }
 

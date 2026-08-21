@@ -133,6 +133,11 @@ def main() -> None:
     install_dependencies()
 
     from sbr.config import load_config
+    from sbr.dataset.expected import (
+        check_crop_composition,
+        crop_counts,
+        expectation_for,
+    )
     from sbr.dataset.prepare import build_classification_tree
     from sbr.export.onnx_export import (
         ExportReport,
@@ -181,6 +186,32 @@ def main() -> None:
         local_dir=WORKING / "pool",
         strict=True,
     )
+    # BEFORE THE GPU HOUR. A pin says which crops; it does not say what labels
+    # are on them, and the identifier's whole training signal IS those labels.
+    # Frame and box totals can hold exactly while every form factor underneath
+    # changes - a re-run of the adjudication tool, a partially applied decision
+    # file - and this run would train on the difference in silence. So the
+    # per-class counts are asserted, not just the arithmetic.
+    expectation = expectation_for(config["data"]["repo_id"])
+    if expectation is None:
+        log(f"no crop contract for {config['data']['repo_id']} - proceeding unchecked")
+    elif revision != expectation.revision:
+        raise SystemExit(
+            f"this run resolved {revision[:12]} but sbr.dataset.expected describes "
+            f"{expectation.revision[:12]}. Pinning new crops is a deliberate act: "
+            "update the contract in the same commit as the pin, with the reason "
+            "in the message."
+        )
+    else:
+        counts = {
+            name: crop_counts(json.loads((path / "manifest.json").read_text(encoding="utf-8")))
+            for name, path in (
+                (p.name, p) for p in sorted(pool.iterdir()) if (p / "manifest.json").exists()
+            )
+        }
+        check_crop_composition(counts, expectation)
+        log(f"crop contract holds for {expectation.revision[:12]}: {counts}")
+
     tree = WORKING / "crops"
     # Raises SystemExit when nothing has been adjudicated, which is the expected
     # state until the human pass has run.

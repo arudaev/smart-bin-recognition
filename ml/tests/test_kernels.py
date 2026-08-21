@@ -798,3 +798,26 @@ def test_the_report_records_the_revision_it_resolved(kernel):
         "promise to change, and a report naming it cannot be reproduced from."
     )
     assert '"revision": config["data"]["revision"],' not in text
+
+
+def test_the_identifier_checks_its_crop_contract_before_the_gpu_hour():
+    """A pin says which crops; it does not say what labels are on them.
+
+    The identifier's entire training signal IS those labels, and totals can hold
+    exactly while every form factor underneath changes. The check has to sit
+    before `model.train`, or it reports a problem after paying for it.
+    """
+    text = source("train_identifier")
+    assert "check_crop_composition(" in text
+    assert "crop_counts(" in text
+
+    checked = text.index("check_crop_composition(counts, expectation)")
+    # The CALL, not the two comments that mention it by name.
+    trained = text.index("results = model.train(")
+    assert checked < trained, "the crop contract is checked after training starts"
+
+
+def test_the_identifier_refuses_a_pin_its_contract_does_not_describe():
+    text = source("train_identifier")
+    assert "sbr.dataset.expected describes" in text
+    assert "raise SystemExit" in text
