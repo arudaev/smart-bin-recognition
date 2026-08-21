@@ -78,23 +78,42 @@ fi
 echo "### pulling the service image"
 docker pull "$IMAGE"
 
-echo "### starting the service on CPUs 0-1"
-docker rm -f sbr >/dev/null 2>&1 || true
-docker run -d --name sbr \
-  --cpus 2 --cpuset-cpus 0,1 \
-  -p 8080:8080 \
-  -e SBR_ALLOW_UNGATED=1 \
-  -e SBR_INTRA_OP_THREADS=2 \
-  -e HF_TOKEN="${HF_TOKEN:-}" \
-  "$IMAGE"
+# Start the service with a given number of FABRICATED detections per frame.
+#
+# **This is the whole reason `SBR_FORCE_CROPS` exists, and the first run of this
+# script did not use it.** `run.py --bins N` is a REPORT LABEL - its own help
+# says "for the report only - set SBR_FORCE_CROPS on the CONTAINER to make it
+# true". The client sends smooth noise, and its docstring justifies that with
+# "the validator here is untrained, so what a real bin looks like changes
+# nothing about the cost". That was true of a stock COCO graph. Against the
+# TRAINED validator it is false: noise contains no bin, the validator returns
+# nothing, no crop is cut, and the identifier never runs. The 2026-08-21 run
+# measured a validator-only frame twice and labelled the two halves "1 bin" and
+# "6 bins" - and the two curves came back identical to within 2 ms at every
+# level, which is what gave it away.
+start_service() {
+  crops="$1"
+  docker rm -f sbr >/dev/null 2>&1 || true
+  docker run -d --name sbr \
+    --cpus 2 --cpuset-cpus 0,1 \
+    -p 8080:8080 \
+    -e SBR_ALLOW_UNGATED=1 \
+    -e SBR_INTRA_OP_THREADS=2 \
+    -e SBR_FORCE_CROPS="$crops" \
+    -e HF_TOKEN="${HF_TOKEN:-}" \
+    "$IMAGE" >/dev/null
 
-echo "### waiting for health"
-for _ in $(seq 1 120); do
-  if curl -sf -m 3 http://localhost:8080/health >/dev/null; then break; fi
-  sleep 5
-done
-curl -s http://localhost:8080/health > "$RESULTS/health.json"
-echo "service up"
+  for _ in $(seq 1 120); do
+    if curl -sf -m 3 http://localhost:8080/health >/dev/null; then break; fi
+    sleep 5
+  done
+  curl -s http://localhost:8080/health > "$RESULTS/health-${crops}crop.json"
+  echo "service up with SBR_FORCE_CROPS=$crops"
+}
+
+echo "### starting the service on CPUs 0-1"
+start_service 1
+cp "$RESULTS/health-1crop.json" "$RESULTS/health.json"
 
 # --------------------------------------------------------------------------- #
 # 1. Latency, per graph, ON THIS HOST
@@ -113,6 +132,10 @@ docker run --rm --cpuset-cpus 0,1 --network host   -e HF_TOKEN="${HF_TOKEN:-}"  
 echo "### concurrency"
 for bins in 1 6; do
   echo "--- $bins bin(s) per frame"
+  # RESTART THE SERVICE for each scene size. The crop count is a property of the
+  # container, not of the client, so the two ramps must run against two
+  # differently configured services or they measure the same thing twice.
+  start_service "$bins"
   docker run --rm --cpuset-cpus 2,3 --network host \
     -v "$WORK":/lt -v "$RESULTS":/out -w /lt/loadtest \
     python:3.12-slim sh -c "
@@ -123,6 +146,7 @@ for bins in 1 6; do
         --host '$HOST_LABEL' --representative \
         --out /out/loadtest-${bins}bin.json
     " || echo "loadtest at $bins bins failed - recorded as an absence, not a zero"
+  docker logs sbr > "$RESULTS/service-${bins}bin.log" 2>&1 || true
 done
 
 docker logs sbr > "$RESULTS/service.log" 2>&1 || true
