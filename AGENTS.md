@@ -17,25 +17,40 @@ name comes from that project's own presentation, slide 3: *"Our Solution – Sma
 Bin Recognition."* Full analysis of what carried over and what did not:
 [`docs/08-legacy-audit.md`](docs/08-legacy-audit.md).
 
-**Status:** phase 1 is done. Phase 3's two halves are built and, as of
-2026-08-17, actually joined: the wire is pinned to shared byte fixtures across
-both languages, the degradation ladder runs end to end, and CI covers `ml/`,
-`service/` and `web/`. **Phase 2's latency half passes and its concurrency
-half is UNRESOLVED** — nothing has ever been observed above 8 concurrent
-scanners against a gate of 10, so it has certainly not passed, but the 4 that
-the kill criterion was recorded against is not a measurement the host could
-sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
+**Status:** phase 1 is done. Phase 3's two halves are built and joined: the wire
+is pinned to shared byte fixtures across both languages, the degradation ladder
+runs end to end, and CI covers `ml/`, `service/` and `web/`.
+
+**Phase 2's gate was measured on a controlled host on 2026-08-21
+([P12](docs/research/probes/P12-the-controlled-host.md)). Both latency halves
+PASS and the concurrency half FAILS.**
+
+| half | budget | measured, `representative: true` | verdict |
+|---|---|---|---|
+| validator @ 448 | ≤ 50 ms | **18.3 ms** p50 | **pass** |
+| identifier @ 320 per crop | ≤ 25 ms | **9.9 ms** p50 | **pass** |
+| concurrent scanners @ 1 bin | ≥ 10 | **5** | **FAIL** |
+| concurrent scanners @ 6 bins | – | **2** | the PRD's normal input |
+
+GCE `n2-standard-4`, CPU platform pinned, service on CPUs 0–1 and the load-test
+client on 2–3, three repeats within ~3 ms, box destroyed after. **These replace
+the withdrawn 4 and 1 — quote 5 and 2, and name the host.** P4's corrected
+arithmetic predicted 4.3–5.1 and 1.8–2.2; both measurements land inside.
+The frame costs 49 ms and would need ~25, with P8b's shared thread pool already
+applied, so **the gate fails on compute rather than on tuning**. Whether that
+fires the kill criterion is the maintainer's decision and is left open.
+See [`docs/07-roadmap.md`](docs/07-roadmap.md).
 
 **Two things changed on 2026-08-18, and both are about believing numbers**
 ([probe P8](docs/research/probes/P8-recovery-measurements.md)):
 
-- **The concurrency figure has no trustworthy absolute value yet.** Bracketing a
+- **The concurrency figure had no trustworthy absolute value.** Bracketing a
   measurement block with the same baseline at both ends gave **7 at 22:30 and 4
   at 23:48**. `docker run --cpus 2` is a cgroup ceiling rather than a floor, and
   the laptop was also running the development tooling, so the container was
-  starved. **Do not quote 4, or 7, or 8, as a measured ceiling** — quote the gate
-  and say it is unmet. A controlled 2-vCPU x86 host is what unblocks this, and
-  it is now the critical path rather than a contingency.
+  starved. **Superseded 2026-08-21**: the controlled host ran and the figure is
+  **5 at one bin, 2 at six**. Do not quote 4, 7 or 8 — they were never
+  measurements. Quote 5 and 2 and name the host.
 - **The training run's failure is understood, and it is not ours.** The Kaggle
   image ships **torch 2.10.0+cu128**, which dropped `sm_60`, and the platform
   allocates **P100 (sm_60)** as well as T4 (sm_75). `torch.cuda.is_available()`
@@ -53,10 +68,27 @@ sustain. See [`docs/07-roadmap.md`](docs/07-roadmap.md).
   (`sbr.utils.gpu`) stays as the belt to those braces and runs **before the
   pool is pulled**, so a bad allocation does not pay for the download.
 
-**Everything now waits on a model.** The service refuses to start without an
-artefact whose sidecar says `may_ship`, and neither role has one: the identifier
-needs the 403-crop human pass, and the validator **trained on 2026-08-18 and
-cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
+**Both models now exist, and one of them ships.**
+
+- **Identifier — `may_ship: true` as of 2026-08-21.** Three classes
+  (`wheelie_small`, `wheelie_large`, `igloo`), decided by the maintainer on
+  [P1](docs/research/probes/P1-form-factor-separability.md)'s evidence. int8
+  costs **0.0000** top-1 against a 0.02 budget, and 9.9 ms per crop against a
+  25 ms budget on representative hardware. **Its evidence is thin and says so**:
+  `test` top-1 is 1.0000 on **47 crops**, of which `igloo` is three from two
+  capture clusters, and the 95 % lower bound is 0.936. P1's 0.9834 out-of-fold
+  over all 403 crops is the better estimate.
+  [P11](docs/research/probes/P11-identifier-int8.md).
+- **Validator — still cannot ship.** Trained 2026-08-18, test mAP@0.5 0.7524,
+  specificity 0.9793 on 2 662 background frames. int8 costs it 0.727 mAP.
+
+**So the service still refuses to start on gated artefacts**, because it loads
+the validator unconditionally and the validator's sidecar says `may_ship: false`.
+Nothing is deployed, and that remains correct rather than pending.
+
+*(Retained for the record:)* The service refuses to start without an
+artefact whose sidecar says `may_ship`, and the validator **trained on
+2026-08-18 and cannot ship**. It is a real model — test mAP@0.5 0.7524, specificity 0.9793 on
 2 662 background frames — and **int8 quantisation costs it 0.727 mAP against a
 0.02 budget**, collapsing it to 0.025. The service serves int8 by construction,
 so `may_ship: false` stands and the refusal is correct.
@@ -80,14 +112,39 @@ Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
 because deploying a graph that scores 0.025 would make the product confidently
 wrong.
 
-**Phase 2's data is done and pinned**: `arudaev/smart-bin-detect` at
-`8666aa23` holds 18 954 frames — 370 legacy, 1 110 Open Images bins including
-the first 98 frames with four or more bins, and 17 474 background frames. What
-is left is the human adjudication pass (identifier only) and an int8 export
-that survives quantisation. **The validator is trained**; it is the quantised
-graph that is not shippable. The ship gate is **half answered**: both latency budgets pass, and the concurrency half is
-**unresolved** - never observed above 8 against a gate of 10, on a host that
-cannot hold a figure still ([docs/11](docs/11-phase2-results.md)).
+**Phase 2's data is done and pinned, for both roles.**
+
+- **validator** — `arudaev/smart-bin-detect` at `8666aa23`: 18 954 frames, 370
+  legacy, 1 110 Open Images bins including the only frames with four or more
+  bins, 17 474 background.
+- **identifier** — `arudaev/smart-bin-identify` at `cda374c9`, **private**: the
+  same legacy pool with `crops/` and the human pass applied. 403 crops, all 403
+  adjudicated, 0 pending, 0 rejected. Its contract asserts the **per-class
+  counts**, not just the totals, because 403 crops can stay 403 crops while
+  every label underneath them changes.
+
+**The human pass is DONE** — all 403 crops, reviewer `alex`, run `--blind`, and
+the pool's shipped stream→shape proposals are wrong on **116 of 403**. What is
+left on the validator is an int8 export that survives quantisation, and
+[P10](docs/research/probes/P10-where-the-residual-lives.md) established that no
+module outside the detection head accounts for the residual.
+
+**Coverage gap, and it does not close from data on hand.** B knows three of ten
+form factors. `street_basket` is dropped at n=1 in one cluster; six ids have no
+data at all. [research/11](docs/research/11-open-images-form-factors.md)
+surveyed 384 Open Images boxes and found **zero** `underground`, `textile_bank`
+or `wall_unit` — that corpus is 35 % `street_basket` and cannot close the gap.
+`sack` and `textile_bank` both carry Deggendorf pack rules, so a pilot there
+will meet bins B cannot name.
+
+**And a working pipeline still answers `unknown` for wheelies.** Observed
+end to end on 2026-08-21: a glass frame resolves to `glass_mixed` /
+"Glascontainer", and every wheelie resolves to nothing — because all four
+wheelie rules in the Deggendorf pack match on **`lid_color`**, which the service
+does not measure. One `Papier` bin came back with `body_color: blue`, the exact
+colour the paper rule looks for, and still answered `unknown`. That makes
+lid-vs-body separation ([docs/12 P3](docs/12-validation-protocol.md)) the
+binding constraint on the product, not a tidy-up.
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
