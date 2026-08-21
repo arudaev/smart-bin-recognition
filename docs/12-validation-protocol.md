@@ -113,6 +113,36 @@ looked at what form factors are in them. Generate crops, sample, and **report
 what is visibly present** — establish whether a second adjudication pass would
 be worth a person's time before proposing one.
 
+### The estimator, frozen 2026-08-21, before the kernel was written
+
+The amendment above fixes the *rule* and not the *estimator*, and an unstated
+estimator is one that can be chosen after seeing the number. There are enough
+degrees of freedom here — which layer, which split, which regulariser — that
+"0.75 pairwise" is not a fact until they are all nailed down. So:
+
+| | |
+|---|---|
+| **Representation** | `facebook/dinov2-base`, revision recorded in the report. CLS token, 768-d. Resize shorter side to 256, centre-crop 224, ImageNet mean/std, fp32, `eval()`, no fine-tuning |
+| **Estimator** | `LogisticRegression(penalty="l2", C=1.0, solver="lbfgs", max_iter=5000, class_weight="balanced", random_state=42)` |
+| **Scoring** | `GroupKFold(n_splits=5)` on **`capture_cluster`**. A random split over 403 crops from ~138 clusters measures memorisation, which is precisely the predecessor's mistake this project exists not to repeat |
+| **Scaling** | `StandardScaler` fitted **inside each fold**. It matters most in variant (b), where one feature has a wildly different scale from the other 768 |
+| **Variants** | **(a)** embedding alone · **(b)** embedding ⧺ relative box area, `bbox_norm` w·h, appended as one feature |
+| **Aggregation** | Out-of-fold predictions pooled across all five folds, then scored once |
+
+**What gets reported, always together.** The decision rule reads the **pairwise
+`wheelie_small`/`wheelie_large` OOF accuracy, fitted on those two classes only**.
+It is quoted beside the **majority-class baseline** and the **balanced
+accuracy**, because 0.75 on a 247/115 split is 0.68 of prevalence and a rule that
+fires on the raw number alone would mistake the class imbalance for skill.
+
+**The confusion matrix is 3×3, not 4×4.** `street_basket` at n=1 in one cluster
+cannot be fitted and cannot be held out; it is recorded beside the matrix as
+`n=1, not trainable, not evaluable` rather than occupying a row that would
+suggest it was measured.
+
+**`igloo` carries its caveat wherever it is quoted.** 17 clusters over 5 folds is
+~3 per fold. Its per-class numbers will be noisy and are never quoted clean.
+
 **Cost.** The adjudication is done. One Kaggle GPU kernel for the embeddings and
 the probe. No training.
 
