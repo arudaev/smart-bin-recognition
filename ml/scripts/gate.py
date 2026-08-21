@@ -202,6 +202,11 @@ def main() -> None:
     report.median_latency_ms = measurement["median_latency_ms"]
     report.p95_latency_ms = measurement["p95_latency_ms"]
     report.latency_hardware = hardware["label"]
+    # Carried into the sidecar so `check_gates` can act on it. Passing
+    # --allow-unrepresentative-hardware buys the right to RECORD a proxy figure;
+    # it does not turn that figure into a service measurement, and the gate now
+    # says so rather than leaving it to the label text.
+    report.latency_representative = bool(hardware.get("representative"))
 
     logger.info(
         "p50 %.1f ms, p95 %.1f ms on %s (budget %.0f ms)",

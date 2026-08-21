@@ -85,6 +85,8 @@ def _report(role: str = "validator", **overrides) -> ExportReport:
         quantised=True,
         median_latency_ms=40.0,
         latency_hardware="HF Space CPU-basic, 2 vCPU",
+        # The deployment target. A proxy measurement is its own test below.
+        latency_representative=True,
     )
     if role == "identifier":
         base |= {
@@ -245,3 +247,36 @@ def test_identifier_ignores_map_and_reads_top1():
     report = _report("identifier", map50_fp32=0.10, map50_int8=0.99)
     assert report.accuracy_drop == pytest.approx(0.01)
     assert check_gates(report, Gates.for_role("identifier")).may_ship
+
+
+def test_a_proxy_latency_does_not_close_the_gate():
+    """Every document in this project says a proxy does not close it. Until
+    2026-08-21 nothing enforced that.
+
+    `check_gates` required only that the hardware be NAMED, so a Kaggle
+    kernel's figure - free, x86, explicitly `representative: false` - could
+    carry an artefact to may_ship. The budget is stated on service CPU, and a
+    number from somewhere else does not answer it.
+    """
+    result = check_gates(
+        _report(
+            median_latency_ms=34.4,
+            latency_hardware="Kaggle CPU kernel, 2 of 4 vCPU [PROXY, not the service]",
+            latency_representative=False,
+        ),
+        Gates.for_role("validator"),
+    )
+    assert not result.may_ship
+    # UNMEASURED, not a failure: 34.4 ms may well be fine, and nobody has
+    # measured it where the budget is stated. The evidence is missing, which is
+    # a different statement from the model being too slow.
+    assert not result.failures
+    assert any("not the service" in u for u in result.unmeasured)
+
+
+def test_an_unrecorded_representativeness_is_not_assumed_either_way():
+    result = check_gates(
+        _report(latency_representative=None), Gates.for_role("validator")
+    )
+    assert not result.may_ship
+    assert any("not the service" in u for u in result.unmeasured)

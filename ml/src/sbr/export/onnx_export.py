@@ -191,6 +191,20 @@ class ExportReport:
     p95_latency_ms: float | None = None
     latency_hardware: str | None = None
 
+    #: Was that machine the deployment target? ``sbr.bench.Hardware.representative``.
+    #:
+    #: **This is what makes "a proxy does not close the latency gate" a rule
+    #: rather than a sentence.** Every document in this project says it; until
+    #: 2026-08-21 nothing enforced it. `check_gates` required only that the
+    #: hardware be *named*, so a Kaggle kernel's number - free, x86, and
+    #: explicitly `representative: false` - could carry an artefact to
+    #: `may_ship: true`. The budget is stated *on service CPU*, and a number
+    #: from somewhere else does not answer it.
+    #:
+    #: ``None`` means nobody recorded it, which is treated as "not established"
+    #: rather than assumed either way.
+    latency_representative: bool | None = None
+
     #: Measurements answering ``export.targets``, keyed by target name. A target
     #: with no key here is reported *unmeasurable* rather than skipped – see
     #: :class:`TargetResult`.
@@ -267,6 +281,19 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
         failures.append(
             "median latency was recorded without naming the hardware it was "
             "measured on; an unattributed latency number is not evidence"
+        )
+    elif not report.latency_representative:
+        # UNMEASURED, not a failure, and the distinction is the whole point: the
+        # graph may well be fast enough, and nobody has measured it where the
+        # budget is stated. `unmeasured` says "the evidence is still missing",
+        # which is exactly true, and it blocks may_ship just as firmly.
+        unmeasured.append(
+            f"median latency for the {report.role} was measured on "
+            f"{report.latency_hardware!r}, which is not the service. It read "
+            f"{report.median_latency_ms:.1f} ms against a "
+            f"{gates.max_median_latency_ms:.0f} ms budget, and that is a proxy "
+            "figure - the budget is stated on service CPU. A controlled host is "
+            "what closes this"
         )
     elif report.median_latency_ms > gates.max_median_latency_ms:
         failures.append(
