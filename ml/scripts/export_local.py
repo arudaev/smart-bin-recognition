@@ -72,6 +72,44 @@ def fetch_weights(repo: str, version: int, into: Path) -> Path:
     return Path(path)
 
 
+def class_list(role: str, weights: Path, config: dict) -> list[str]:
+    """The class order the SERVED graph actually has.
+
+    **Not the config's order, and this is a real trap rather than a hypothetical
+    one.** Ultralytics builds a classification dataset from directory names, so
+    the identifier's head is indexed **alphabetically over the classes that had
+    crops** - `["igloo", "wheelie_large", "wheelie_small"]` - while
+    `identifier.yaml` lists them as `["wheelie_small", "wheelie_large",
+    "igloo"]`. A sidecar carrying the config's order would relabel every
+    prediction: an igloo would be served as a small wheelie.
+
+    So it is read back from the checkpoint, exactly as the training kernel does.
+    The form-factor ids are canonical and permanent; their position in this
+    particular head is incidental, and the sidecar is what the service trusts.
+
+    The validator is a single class and has no such problem.
+    """
+    if role == "validator":
+        return ["bin"]
+
+    try:
+        from ultralytics import YOLO
+
+        names = YOLO(str(weights)).names
+        return [names[index] for index in sorted(names)]
+    except Exception as error:  # noqa: BLE001 - fall back, but say so loudly
+        logger.warning(
+            "could not read the class order from %s (%s); falling back to the "
+            "config, which may not match the head",
+            weights, type(error).__name__,
+        )
+
+    data = config.get("data", {})
+    if data.get("classes_from_taxonomy"):
+        return load_taxonomy().detector_classes
+    return list(data["classes"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -103,9 +141,7 @@ def main() -> None:
     if fp32.resolve() != served.resolve():
         served.write_bytes(fp32.read_bytes())
 
-    classes = ["bin"] if args.role == "validator" else list(config["data"]["classes"])
-    if args.role == "identifier" and config["data"].get("classes_from_taxonomy"):
-        classes = load_taxonomy().detector_classes
+    classes = class_list(args.role, weights, config)
 
     measured = MEASURED.get(args.role, {})
     report = ExportReport(

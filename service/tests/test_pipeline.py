@@ -332,3 +332,34 @@ def test_the_lid_colour_is_not_guessed(jpeg):
     # explicitly out of scope for P3. None, not a guess.
     response = pipeline().run(DetectRequest(seq=1, geohash6="u2853x"), jpeg)
     assert all(d.lid_color is None for d in response.detections)
+
+
+def test_softmax_leaves_a_quantised_normalised_head_alone():
+    """The bug this tolerance exists for, in the numbers it actually produced.
+
+    The identifier's graph ends `Softmax -> QuantizeLinear -> DequantizeLinear`,
+    so its probabilities are re-quantised after being normalised: a row that
+    should be `[1.0, 0.0, 0.0]` comes back as `[0.99608, 0.0, 0.0]`, out by one
+    int8 step. At `atol=1e-3` the guard missed by 4x, softmax ran twice, and
+    every served confidence was squashed from 0.996 to 0.5752 - just above the
+    0.55 `unknown_threshold`, so the product's "I do not know" decision was
+    being made on a wrong number.
+
+    No accuracy gate could have caught it: a second softmax is monotonic, so
+    argmax and top-1 are unchanged.
+    """
+    quantised = np.array([[0.99608, 0.0, 0.0]], dtype=np.float32)
+    assert abs(quantised.sum() - 1.0) > 1e-3, "this row must defeat the old tolerance"
+    assert np.allclose(softmax(quantised), quantised)
+    assert float(softmax(quantised).max()) > 0.99
+
+
+def test_softmax_still_normalises_logits_that_happen_to_sum_near_one():
+    # The upper bound earns its place: without it a logit vector summing to ~1
+    # would be passed through unnormalised.
+    logits = np.array([[6.0, -3.0, -2.0]], dtype=np.float32)
+    assert abs(logits.sum() - 1.0) < 0.02
+    rows = softmax(logits)
+    assert np.isclose(rows.sum(), 1.0)
+    assert rows.max() < 1.0
+    assert not np.allclose(rows, logits)

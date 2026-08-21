@@ -219,13 +219,51 @@ def crop_for(frame: np.ndarray, box: Box, padding: float) -> np.ndarray:
     return frame[y1:y2, x1:x2]
 
 
+#: How far a row of probabilities may sum from 1.0 and still be recognised as
+#: probabilities.
+#:
+#: **This has to clear one int8 quantisation step, and at 1e-3 it did not.**
+#: The identifier's graph ends `Softmax -> QuantizeLinear -> DequantizeLinear`,
+#: so the probabilities are re-quantised *after* being normalised. A row that
+#: should read `[1.0, 0.0, 0.0]` comes back as `[0.99608, 0.0, 0.0]` - out by
+#: 1/255 = 0.00392, which is **four times** the old tolerance. The guard missed,
+#: softmax ran a second time, and every served confidence was squashed from
+#: 0.996 to **0.5752**.
+#:
+#: That mattered more than a cosmetic number. `unknown_threshold` is 0.55, so
+#: every crop landed just above it by 0.025: the threshold that decides whether
+#: the product says "I do not know" was being applied to a number that was
+#: wrong, and a slightly less certain model would have answered `unknown` for
+#: everything.
+#:
+#: **No gate caught it**, and none could have: a second softmax is monotonic, so
+#: `argmax` is unchanged and top-1 accuracy is identical. docs/12 P11 measured
+#: an int8 drop of 0.0000 and was right to. It was found by looking at what a
+#: scan actually returns.
+#:
+#: 0.02 is five int8 steps - loose enough for any 8-bit output tensor, and far
+#: tighter than a logit vector could sum to by accident.
+PROBABILITY_SUM_TOLERANCE = 0.02
+
+
 def softmax(logits: np.ndarray) -> np.ndarray:
-    """Only if the head did not already do it. Ultralytics classify heads emit
-    probabilities; a raw-logit export must not be read as one."""
+    """Only if the head did not already do it.
+
+    Ultralytics classify heads emit probabilities; a raw-logit export must not
+    be read as one, and a **quantised** probability export must not be softmaxed
+    a second time. See :data:`PROBABILITY_SUM_TOLERANCE`.
+    """
     if logits.ndim == 1:
         logits = logits[None, :]
     total = logits.sum(axis=1)
-    if np.all(logits >= 0) and np.allclose(total, 1.0, atol=1e-3):
+    already_probabilities = (
+        np.all(logits >= 0)
+        # Bounded above as well as below: a logit vector that happened to sum
+        # near 1.0 would otherwise be passed through unnormalised.
+        and np.all(logits <= 1.0 + PROBABILITY_SUM_TOLERANCE)
+        and np.allclose(total, 1.0, atol=PROBABILITY_SUM_TOLERANCE)
+    )
+    if already_probabilities:
         return logits
     shifted = logits - logits.max(axis=1, keepdims=True)
     exponentiated = np.exp(shifted)
