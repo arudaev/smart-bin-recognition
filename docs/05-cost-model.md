@@ -262,29 +262,38 @@ on two pinned threads it is arithmetic-bound and there is no per-call overhead t
 amortise. The service batches anyway; the cost model may not lean on it. See
 [01 § 4](01-architecture.md#latency-budget).
 
-What is left, in order of cheapness: **drop the validator to 384 px** (it is a
-third of a one-bin frame); **find the 15–40 ms per frame that belongs to neither
-graph** and is most likely session switching; **cap crops harder** than the
-default six, with the remainder deferred to the next frame.
+What is left, in order of cheapness — **and two of these three are now closed**:
+
+- ~~**find the 15–40 ms per frame that belongs to neither graph**~~ — **FOUND
+  and FIXED.** It was two onnxruntime sessions with two spinning thread pools on
+  two cores; one shared pool removed it (P8b). It was **already active** for
+  P12's measurement, so the 5 scanners is the figure *with* this applied.
+- **drop the validator to 384 px** — still unmeasured. On P12's numbers it is
+  worth at best ~6 ms of a 49 ms frame.
+- ~~**cap crops harder**, with the remainder deferred to the next frame~~ —
+  **the deferral was never built**, and `service/pipeline.py` says so where the
+  cap is applied. The honest reading of the cap is that it trades coverage for
+  cost: at a six-container bank a cap of three leaves three containers
+  permanently unidentified. It also does nothing at one bin per frame, which is
+  the level the gate is stated at.
 
 The cadence figure is ~3 fps *achieved* against the **4 fps cap** in 01 § 4: the
 cap is the guarantee, 3 is the average once the motion gate is working.
 
-Four people scanning **at the same instant**, at one bin each. That sounds worse
-than it is, because a scan is short:
+**Five** people scanning **at the same instant**, at one bin each. That sounds
+worse than it is, because a scan is short:
 
 - one scan ≈ 5 s of streaming, then the **result lock** stops it
-- 4 concurrent × 5 s ⇒ ~2 900 scans/hour of headroom
+- 5 concurrent × 5 s ⇒ ~3 600 scans/hour of headroom
 - at ~2 scans/user/month ⇒ still **thousands to low tens of thousands of monthly
   users**, provided they are not all scanning simultaneously
 
-At six bins per frame the same arithmetic gives one concurrent scanner and
-~720 scans/hour, which is a pilot in one town and nothing beyond it.
+At six bins per frame the same arithmetic gives **two** concurrent scanners and
+~1 400 scans/hour, which is a pilot in one town and nothing beyond it.
 
 So: **the headroom is real for a pilot in one town** – on 2 vCPU from whichever
-host § 3 settles on. It was never real for a launch spike, and at four concurrent
-scanners it would not survive being posted somewhere popular at 9 a.m. by a wider
-margin than this document previously claimed.
+host § 3 settles on. It was never real for a launch spike, and at five concurrent
+scanners it would not survive being posted somewhere popular at 9 a.m.
 
 This is why the client-side gates in
 [01-architecture § 4](01-architecture.md#client-side-gating--the-thing-that-controls-cost)

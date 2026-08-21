@@ -157,10 +157,18 @@ History API router, the theme on `<html>`, `100dvh` and safe-area insets rather
 than a drawn phone, and the state director dynamically imported so it leaves
 the production bundle entirely.
 
-The client still runs against the in-process mock and says so on the settings
-screen, because there is no model for the service to serve — not because the
-service is missing. The loop that mock drives is the same loop a socket drives,
-and swapping one for the other is one environment variable.
+The client defaults to the in-process mock and **says so on the settings
+screen** — the transport is named there, `mock` or `rest` or `socket`. Swapping
+one for the other is one environment variable.
+
+**It has now been run against the real thing.** On 2026-08-21, with
+`VITE_DETECT_URL` pointed at a local service serving the real validator and the
+gated identifier, the settings screen named **`rest`** and the browser reached
+`/detect` from `http://localhost:5173` over CORS. Real Deggendorf frames through
+that path return real detections — a glass bank resolves to
+`glass_mixed` / "Glascontainer"; a wheelie is detected and named and then
+resolves to `unknown`, because the pack's wheelie rules need a lid colour
+nothing measures. Nothing is deployed, and the default is still the mock.
 
 ## The three decisions that define this repo
 

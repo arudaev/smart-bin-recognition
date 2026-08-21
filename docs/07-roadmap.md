@@ -476,19 +476,19 @@ Built in the same pass, beyond what this phase originally listed:
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
 gets a correct answer in Ukrainian.
 
-No longer blocked on the service — that exists. Blocked on four things, and it
+No longer blocked on the service — that exists. Blocked on five things, and it
 is worth being exact about which, because they have different owners:
 
 | Blocker | Owner | Note |
 |---|---|---|
-| **No model at all** | the maintainer, then this phase | Was "no identifier". It is now both: the identifier still needs the 403-crop human pass in `data/legacy/pool/crops/`, and the validator run failed on 2026-08-17 with no log. Until one artefact passes its gates the service will not start, so nothing can be deployed that serves. |
-| **Nothing is deployed** | this phase, *behind the above* | The Cloud Run path is built, budgeted and documented; it has nothing to serve. One command once a model exists. |
+| **The validator cannot ship** | this phase | Was "no model at all", and before that "no identifier". **Both models now exist**: the human pass is done (403 crops, blind) and the identifier passes every gate. The validator is trained and real — test mAP@0.5 0.7524 — and int8 costs it 0.727 mAP, which [P10](research/probes/P10-where-the-residual-lives.md) could not attribute to any module outside the detection head. **The service loads the validator unconditionally and refuses it**, so nothing can be deployed that serves. |
+| **Nothing is deployed** | this phase, *behind the above* | The Cloud Run path is built, budgeted and documented; it has nothing it may serve. One command once the validator ships. |
+| **Wheelies resolve to `unknown`** | this phase | New, and it is the one that decides whether the exit criterion is *useful* rather than whether it is reachable. All four wheelie rules in the Deggendorf pack match on `lid_color`; the service measures body colour only. Glass resolves end to end; every wheelie does not. See [docs/12 P3](12-validation-protocol.md). |
 | **The Ukrainian bundle** | this phase | `en` is complete at 422 keys; `de`/`ar` are at 271 (64 %); six locales including `uk` are not started |
-| **The Deggendorf pack is `draft`** | this phase | Every source now carries a deep link and a retrieval date, so `is_publishable` is true — that is the *sourcing* bar and nothing more. The 2026-08-17 pass found the operator routes packaging to a **Wertstoffinsel**, contradicting both packaging rules, and that no source states any container colour. It stays draft until a human resolves that. |
+| **The Deggendorf pack is `draft`** | **the maintainer** | Every source carries a deep link and a retrieval date, so `is_publishable` is true — the *sourcing* bar and nothing more. The 2026-08-17 pass found the operator routes packaging to a **Wertstoffinsel**, contradicting both packaging rules. **Evidence gathered 2026-08-21** ([research/12](research/12-deggendorf-packaging-evidence.md)): no source found says a Gelber Sack exists anywhere in the ZAW area, LVP goes to recycling centres by association decision until end-2027, and a Gelbe Tonne is possible only from 2028. That same pass found a source that **does** state the container colours, which the pack's notes said none did. Resolving the rules is the maintainer's. |
 
-The first is the one that decides whether the exit criterion is reachable on
-any particular date, and half of it is the only one no amount of engineering
-shortens.
+The first decides whether the exit criterion is *reachable*; the third decides
+whether reaching it is *useful*. Neither is shortened by engineering the client.
 
 ---
 

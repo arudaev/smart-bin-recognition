@@ -28,9 +28,16 @@ mAP. So the pre-registered sweep **never ran**, and no other configuration was
 tried. That is the rule working: a sweep is what you do when the reference
 misses.
 
-**The accuracy gate passes. The artefact still may not ship**, because latency
-is unmeasured — `may_ship: false` in the sidecar, with `unmeasured` naming the
-bench. That is the correct verdict and not a failure.
+**The accuracy gate passes.** At the time this probe ran the artefact still
+could not ship, because latency was unmeasured — `may_ship: false` with
+`unmeasured` naming the bench, which was the correct verdict and not a failure.
+
+**That closed the same day.** [P12](P12-the-controlled-host.md) measured the
+identifier at **9.9 ms per crop** against a 25 ms budget on hardware recorded as
+`representative: true`, and `gate.py` returned *all ship gates passed*. **The
+identifier passes every gate.** Its sidecar in the model repo has not been
+updated — publishing that verdict is the maintainer's — so the *published*
+artefact still reads `may_ship: false`.
 
 ## This is consistent with P9's diagnosis, and it is not proof of it
 
@@ -128,4 +135,7 @@ will meet bins B cannot name. That is a product consequence, recorded here.
   are quoted.
 - **`identifier.yaml`** keeps its shipped export defaults; nothing needed pinning
   because nothing was changed.
-- **The identifier's remaining blocker is latency**, and only that.
+- **The identifier has no remaining gate blocker.** Latency was measured the
+  same day and passes; see [P12](P12-the-controlled-host.md). What is left is a
+  decision, not a measurement: whether to publish the `may_ship: true` sidecar
+  to the model repo.
