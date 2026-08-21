@@ -115,11 +115,61 @@ def configure_hf_runtime() -> None:
 
 
 def on_kaggle() -> bool:
-    return Path("/kaggle").exists()
+    """Are we inside a Kaggle kernel?
+
+    **The environment variable is the answer and the path is only a fallback**,
+    because on Windows ``Path("/kaggle")`` is not an absolute path - it is
+    drive-relative, and resolves to ``C:\\kaggle``. That made this function
+    return True on a developer laptop, and the bug was self-perpetuating:
+    :func:`configure_hf_runtime` believed it, pointed ``HF_HOME`` at
+    ``/kaggle/working/hf_home``, and **created the very directory the next call
+    would detect**. Once it had run locally once it was wrong forever, and the
+    visible symptom was somewhere else entirely - ``.env`` never being read, so
+    every local upload failed with "cannot upload without a Hugging Face token"
+    beside a file that contained one.
+
+    The path fallback is kept for a POSIX kernel whose environment is stripped,
+    and refused elsewhere, where the same string means something different.
+    """
+    if os.environ.get("KAGGLE_KERNEL_RUN_TYPE") or os.environ.get("KAGGLE_URL_BASE"):
+        return True
+    return os.name == "posix" and Path("/kaggle").is_dir()
+
+
+#: The repo root, from this file: sbr/utils/hub.py -> sbr -> src -> ml -> root.
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def load_repo_env() -> None:
+    """Load ``.env`` from the repo root, if there is one and we are not on Kaggle.
+
+    AGENTS.md says tokens live in ``.env`` at the repo root, and until now only
+    ``dispatch.py`` acted on that - twice, in two private copies. Every other
+    local entry point saw ``cannot upload without a Hugging Face token`` beside a
+    file that had the token in it. On Kaggle there is no ``.env`` and the secret
+    arrives through an attached dataset, so this does nothing there.
+
+    Existing environment variables win: ``load_dotenv`` does not override, which
+    keeps a deliberately exported token in charge of a file nobody remembers.
+    """
+    if on_kaggle():
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:  # not a dependency of the package, only of the workflow
+        return
+    load_dotenv(REPO_ROOT / ".env")
 
 
 def load_hf_token() -> str | None:
-    """Resolve a Hugging Face token, or return None."""
+    """Resolve a Hugging Face token, or return None.
+
+    Order: the environment, then whatever Kaggle mounted, then the repo's
+    ``.env``. The last one is last on purpose - it is the *local developer's*
+    source and the mounted secret is the *kernel's*, and a resolver that read
+    the file first would answer a question about Kaggle with an answer from a
+    laptop the moment both existed.
+    """
     token = os.environ.get("HF_TOKEN")
     if token:
         return token.strip()
@@ -145,12 +195,22 @@ def load_hf_token() -> str | None:
             len(listing), listing[:20] or "nothing",
         )
 
+    # The local developer's source, tried last. On Kaggle this is a no-op.
+    load_repo_env()
+    token = os.environ.get("HF_TOKEN")
+    if token:
+        logger.info("token read from %s", REPO_ROOT / ".env")
+        return token.strip()
+
     try:
         from kaggle_secrets import UserSecretsClient
 
         return UserSecretsClient().get_secret("HF_TOKEN")
     except Exception:  # noqa: BLE001 – absent outside interactive Kaggle
-        logger.warning("no Hugging Face token found")
+        logger.warning(
+            "no Hugging Face token found: not in HF_TOKEN, not in any attached "
+            "Kaggle dataset, and not in %s", REPO_ROOT / ".env",
+        )
         return None
 
 
