@@ -1,0 +1,1046 @@
+{
+  "measured": "2026-08-21 13:02:17",
+  "label": "gce-n2-standard-4",
+  "url": "http://localhost:8080/detect",
+  "hardware": "GCE n2-standard-4, service pinned to 2 of 4 vCPU, Intel Cascade Lake, europe-west3-a, docker --cpus 2 --cpuset-cpus 0,1",
+  "representative": true,
+  "bins_per_frame": 1,
+  "budget_p95_ms": 250.0,
+  "scanner_fps": 3.0,
+  "hold_seconds": 20.0,
+  "repeats": 3,
+  "levels_requested": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "debug_requested": false,
+  "frame_bytes": 36560,
+  "verdict_rule": "largest N such that every level up to N stayed within the p95 budget with no errors, in every repeat",
+  "concurrent_scanners_within_budget": 10,
+  "health": {
+    "ok": true,
+    "service": "smart-bin-recognition inference",
+    "retention": "none - frames are processed in memory and discarded",
+    "gated": false,
+    "artefacts": {
+      "validator": {
+        "role": "validator",
+        "version": 1,
+        "onnx": "validator-v1.onnx",
+        "imgsz": 448,
+        "classes": 1,
+        "quantised": true,
+        "dynamic_batch": false,
+        "source": "arudaev/smart-bin-detect@main [UNGATED]",
+        "gate_result": {
+          "failures": [
+            "int8 quantisation cost 0.727 map50 (max 0.02)"
+          ],
+          "unmeasured": [
+            "median latency for the validator has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench"
+          ],
+          "may_ship": false
+        },
+        "target_result": {
+          "met": {
+            "min_precision_on_negatives": 0.9793
+          },
+          "missed": {},
+          "unmeasurable": [
+            "min_recall_heldout_city"
+          ]
+        },
+        "latency_hardware": null
+      },
+      "identifier": {
+        "role": "identifier",
+        "version": 1,
+        "onnx": "identifier-v1.onnx",
+        "imgsz": 320,
+        "classes": 3,
+        "quantised": true,
+        "dynamic_batch": true,
+        "source": "arudaev/smart-bin-detect@main [UNGATED]",
+        "gate_result": {
+          "failures": [],
+          "unmeasured": [
+            "median latency for the identifier has not been measured on the service CPU \u2013 run ml/scripts/gate.py against the bench"
+          ],
+          "may_ship": false
+        },
+        "target_result": {
+          "met": {},
+          "missed": {},
+          "unmeasurable": [
+            "min_formfactor_acc_heldout_city"
+          ]
+        },
+        "latency_hardware": null
+      }
+    },
+    "missing": {},
+    "pipeline": {
+      "batched_crops": true,
+      "max_crops": 6,
+      "crop_padding": 0.12,
+      "min_box_px": 64,
+      "unknown_threshold": 0.55,
+      "nms": {
+        "score": 0.35,
+        "iou": 0.45
+      },
+      "region_packs": [
+        {
+          "region_id": "de-by-deggendorf",
+          "status": "draft",
+          "publishable": true,
+          "geohash_tiles": [
+            "u2853",
+            "u2856"
+          ]
+        }
+      ]
+    },
+    "colour": {
+      "method": "illuminant from the whole frame (shades-of-gray p=6), applied to a centre-weighted sample inside the box, named by CIEDE2000 in CIELAB",
+      "status": "PROVISIONAL - docs/12 probe P3 has not run",
+      "max_delta_e": 20.0,
+      "centre_fraction": 0.5,
+      "lid_colour": "not measured - lid/body separation is an open problem (research/06 \u00a7 3)",
+      "sam": "not used - P3 has not shown a mask is needed"
+    },
+    "load": {
+      "depth": 0,
+      "peak_depth": 0,
+      "shed": 0,
+      "frame_cost_ms": 65.0,
+      "thresholds": {
+        "slow": 4,
+        "tap": 8,
+        "queue": 16
+      }
+    },
+    "settings": {
+      "model_repo": "arudaev/smart-bin-detect",
+      "revision": "main",
+      "artefact_dir": null,
+      "intra_op_threads": 2,
+      "identifier_threads": null,
+      "ort_spinning": true,
+      "ort_shared_pool": null,
+      "inference_slots": 1,
+      "max_crops": 6,
+      "allow_ungated": true,
+      "force_crops": null,
+      "shed_thresholds": {
+        "slow": 4,
+        "tap": 8,
+        "queue": 16
+      },
+      "ort_shared_pool_effective": true
+    }
+  },
+  "repeats_detail": [
+    [
+      {
+        "scanners": 1,
+        "repeat": 0,
+        "frames": 45,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 2.24,
+        "p50_ms": 29.4,
+        "p95_ms": 30.8,
+        "p99_ms": 35.2,
+        "mean_ms": 29.5,
+        "decomposition": {
+          "server_ms": 25.0,
+          "wall_ms": 29.4,
+          "outside_pipeline_ms": 4.4,
+          "outside_pipeline_is": "network only"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 2,
+        "repeat": 0,
+        "frames": 90,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 4.46,
+        "p50_ms": 31.8,
+        "p95_ms": 58.8,
+        "p99_ms": 61.6,
+        "mean_ms": 36.0,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 31.8,
+          "outside_pipeline_ms": 5.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 3,
+        "repeat": 0,
+        "frames": 135,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 6.69,
+        "p50_ms": 31.2,
+        "p95_ms": 82.3,
+        "p99_ms": 85.4,
+        "mean_ms": 39.6,
+        "decomposition": {
+          "server_ms": 25.0,
+          "wall_ms": 31.2,
+          "outside_pipeline_ms": 6.2,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 4,
+        "repeat": 0,
+        "frames": 180,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 8.9,
+        "p50_ms": 35.9,
+        "p95_ms": 107.8,
+        "p99_ms": 114.6,
+        "mean_ms": 46.5,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 35.9,
+          "outside_pipeline_ms": 9.9,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 5,
+        "repeat": 0,
+        "frames": 225,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 15,
+        "advice_tap": 0,
+        "throughput_fps": 11.11,
+        "p50_ms": 35.6,
+        "p95_ms": 131.2,
+        "p99_ms": 134.1,
+        "mean_ms": 50.1,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 35.6,
+          "outside_pipeline_ms": 9.6,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 6,
+        "repeat": 0,
+        "frames": 270,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 30,
+        "advice_tap": 0,
+        "throughput_fps": 13.31,
+        "p50_ms": 37.0,
+        "p95_ms": 153.6,
+        "p99_ms": 163.4,
+        "mean_ms": 55.6,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.0,
+          "outside_pipeline_ms": 11.0,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 7,
+        "repeat": 0,
+        "frames": 315,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 45,
+        "advice_tap": 0,
+        "throughput_fps": 15.51,
+        "p50_ms": 39.0,
+        "p95_ms": 169.1,
+        "p99_ms": 190.3,
+        "mean_ms": 60.8,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.0,
+          "outside_pipeline_ms": 13.0,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 8,
+        "repeat": 0,
+        "frames": 360,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 0,
+        "throughput_fps": 17.71,
+        "p50_ms": 35.6,
+        "p95_ms": 189.8,
+        "p99_ms": 211.7,
+        "mean_ms": 63.1,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 35.6,
+          "outside_pipeline_ms": 9.6,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 9,
+        "repeat": 0,
+        "frames": 405,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 15,
+        "throughput_fps": 19.9,
+        "p50_ms": 37.5,
+        "p95_ms": 210.5,
+        "p99_ms": 235.3,
+        "mean_ms": 68.4,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.5,
+          "outside_pipeline_ms": 11.5,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 10,
+        "repeat": 0,
+        "frames": 450,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 30,
+        "throughput_fps": 22.08,
+        "p50_ms": 39.7,
+        "p95_ms": 239.7,
+        "p99_ms": 270.5,
+        "mean_ms": 74.9,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.7,
+          "outside_pipeline_ms": 13.7,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 11,
+        "repeat": 0,
+        "frames": 495,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 61,
+        "advice_tap": 44,
+        "throughput_fps": 24.26,
+        "p50_ms": 38.1,
+        "p95_ms": 256.5,
+        "p99_ms": 285.9,
+        "mean_ms": 77.5,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 38.1,
+          "outside_pipeline_ms": 12.1,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 12,
+        "repeat": 0,
+        "frames": 540,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 60,
+        "throughput_fps": 26.42,
+        "p50_ms": 40.8,
+        "p95_ms": 280.4,
+        "p99_ms": 310.6,
+        "mean_ms": 83.5,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 40.8,
+          "outside_pipeline_ms": 14.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 13,
+        "repeat": 0,
+        "frames": 585,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 218,
+        "advice_tap": 245,
+        "throughput_fps": 27.58,
+        "p50_ms": 202.5,
+        "p95_ms": 356.6,
+        "p99_ms": 366.8,
+        "mean_ms": 207.3,
+        "decomposition": {
+          "server_ms": 27.0,
+          "wall_ms": 202.5,
+          "outside_pipeline_ms": 175.5,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 14,
+        "repeat": 0,
+        "frames": 630,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 85,
+        "advice_tap": 479,
+        "throughput_fps": 28.5,
+        "p50_ms": 359.3,
+        "p95_ms": 380.4,
+        "p99_ms": 382.5,
+        "mean_ms": 294.0,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 359.3,
+          "outside_pipeline_ms": 333.3,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      }
+    ],
+    [
+      {
+        "scanners": 1,
+        "repeat": 1,
+        "frames": 45,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 2.24,
+        "p50_ms": 28.7,
+        "p95_ms": 29.7,
+        "p99_ms": 30.3,
+        "mean_ms": 28.9,
+        "decomposition": {
+          "server_ms": 25.0,
+          "wall_ms": 28.7,
+          "outside_pipeline_ms": 3.7,
+          "outside_pipeline_is": "network only"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 2,
+        "repeat": 1,
+        "frames": 90,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 4.46,
+        "p50_ms": 32.4,
+        "p95_ms": 56.3,
+        "p99_ms": 57.9,
+        "mean_ms": 36.3,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 32.4,
+          "outside_pipeline_ms": 6.4,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 3,
+        "repeat": 1,
+        "frames": 135,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 6.69,
+        "p50_ms": 34.2,
+        "p95_ms": 82.7,
+        "p99_ms": 85.7,
+        "mean_ms": 41.4,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 34.2,
+          "outside_pipeline_ms": 8.2,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 4,
+        "repeat": 1,
+        "frames": 180,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 8.9,
+        "p50_ms": 34.9,
+        "p95_ms": 107.6,
+        "p99_ms": 112.7,
+        "mean_ms": 46.1,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 34.9,
+          "outside_pipeline_ms": 8.9,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 5,
+        "repeat": 1,
+        "frames": 225,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 15,
+        "advice_tap": 0,
+        "throughput_fps": 11.11,
+        "p50_ms": 36.6,
+        "p95_ms": 128.4,
+        "p99_ms": 133.9,
+        "mean_ms": 50.2,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 36.6,
+          "outside_pipeline_ms": 10.6,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 6,
+        "repeat": 1,
+        "frames": 270,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 30,
+        "advice_tap": 0,
+        "throughput_fps": 13.32,
+        "p50_ms": 37.1,
+        "p95_ms": 155.0,
+        "p99_ms": 160.6,
+        "mean_ms": 55.0,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.1,
+          "outside_pipeline_ms": 11.1,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 7,
+        "repeat": 1,
+        "frames": 315,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 45,
+        "advice_tap": 0,
+        "throughput_fps": 15.51,
+        "p50_ms": 39.8,
+        "p95_ms": 160.3,
+        "p99_ms": 181.9,
+        "mean_ms": 60.5,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.8,
+          "outside_pipeline_ms": 13.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 8,
+        "repeat": 1,
+        "frames": 360,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 0,
+        "throughput_fps": 17.71,
+        "p50_ms": 37.5,
+        "p95_ms": 185.7,
+        "p99_ms": 213.3,
+        "mean_ms": 64.4,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.5,
+          "outside_pipeline_ms": 11.5,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 9,
+        "repeat": 1,
+        "frames": 405,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 15,
+        "throughput_fps": 19.9,
+        "p50_ms": 37.7,
+        "p95_ms": 208.7,
+        "p99_ms": 234.3,
+        "mean_ms": 69.2,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.7,
+          "outside_pipeline_ms": 11.7,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 10,
+        "repeat": 1,
+        "frames": 450,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 30,
+        "throughput_fps": 22.06,
+        "p50_ms": 42.7,
+        "p95_ms": 228.9,
+        "p99_ms": 267.0,
+        "mean_ms": 75.6,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 42.7,
+          "outside_pipeline_ms": 16.7,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 11,
+        "repeat": 1,
+        "frames": 495,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 45,
+        "throughput_fps": 24.27,
+        "p50_ms": 38.8,
+        "p95_ms": 252.3,
+        "p99_ms": 285.1,
+        "mean_ms": 77.2,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 38.8,
+          "outside_pipeline_ms": 12.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 12,
+        "repeat": 1,
+        "frames": 540,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 60,
+        "throughput_fps": 26.41,
+        "p50_ms": 39.8,
+        "p95_ms": 279.8,
+        "p99_ms": 307.6,
+        "mean_ms": 81.7,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.8,
+          "outside_pipeline_ms": 13.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 13,
+        "repeat": 1,
+        "frames": 585,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 227,
+        "advice_tap": 226,
+        "throughput_fps": 27.8,
+        "p50_ms": 191.9,
+        "p95_ms": 342.2,
+        "p99_ms": 349.6,
+        "mean_ms": 192.3,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 191.9,
+          "outside_pipeline_ms": 165.9,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 14,
+        "repeat": 1,
+        "frames": 630,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 102,
+        "advice_tap": 466,
+        "throughput_fps": 28.75,
+        "p50_ms": 351.1,
+        "p95_ms": 376.8,
+        "p99_ms": 381.4,
+        "mean_ms": 284.1,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 351.1,
+          "outside_pipeline_ms": 325.1,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      }
+    ],
+    [
+      {
+        "scanners": 1,
+        "repeat": 2,
+        "frames": 45,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 2.24,
+        "p50_ms": 28.5,
+        "p95_ms": 30.0,
+        "p99_ms": 30.1,
+        "mean_ms": 28.7,
+        "decomposition": {
+          "server_ms": 25.0,
+          "wall_ms": 28.5,
+          "outside_pipeline_ms": 3.5,
+          "outside_pipeline_is": "network only"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 2,
+        "repeat": 2,
+        "frames": 90,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 4.46,
+        "p50_ms": 32.4,
+        "p95_ms": 58.8,
+        "p99_ms": 59.4,
+        "mean_ms": 36.7,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 32.4,
+          "outside_pipeline_ms": 6.4,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 3,
+        "repeat": 2,
+        "frames": 135,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 6.69,
+        "p50_ms": 30.7,
+        "p95_ms": 80.6,
+        "p99_ms": 87.0,
+        "mean_ms": 39.0,
+        "decomposition": {
+          "server_ms": 25.0,
+          "wall_ms": 30.7,
+          "outside_pipeline_ms": 5.7,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 4,
+        "repeat": 2,
+        "frames": 180,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 0,
+        "advice_tap": 0,
+        "throughput_fps": 8.9,
+        "p50_ms": 33.2,
+        "p95_ms": 108.5,
+        "p99_ms": 112.9,
+        "mean_ms": 45.1,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 33.2,
+          "outside_pipeline_ms": 7.2,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 5,
+        "repeat": 2,
+        "frames": 225,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 15,
+        "advice_tap": 0,
+        "throughput_fps": 11.11,
+        "p50_ms": 36.3,
+        "p95_ms": 130.5,
+        "p99_ms": 136.1,
+        "mean_ms": 51.2,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 36.3,
+          "outside_pipeline_ms": 10.3,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 6,
+        "repeat": 2,
+        "frames": 270,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 30,
+        "advice_tap": 0,
+        "throughput_fps": 13.32,
+        "p50_ms": 35.7,
+        "p95_ms": 152.7,
+        "p99_ms": 165.1,
+        "mean_ms": 54.9,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 35.7,
+          "outside_pipeline_ms": 9.7,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 7,
+        "repeat": 2,
+        "frames": 315,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 45,
+        "advice_tap": 0,
+        "throughput_fps": 15.51,
+        "p50_ms": 38.3,
+        "p95_ms": 162.0,
+        "p99_ms": 183.2,
+        "mean_ms": 59.0,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 38.3,
+          "outside_pipeline_ms": 12.3,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 8,
+        "repeat": 2,
+        "frames": 360,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 0,
+        "throughput_fps": 17.71,
+        "p50_ms": 39.4,
+        "p95_ms": 190.8,
+        "p99_ms": 213.2,
+        "mean_ms": 64.7,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.4,
+          "outside_pipeline_ms": 13.4,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 9,
+        "repeat": 2,
+        "frames": 405,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 61,
+        "advice_tap": 14,
+        "throughput_fps": 19.89,
+        "p50_ms": 39.3,
+        "p95_ms": 214.5,
+        "p99_ms": 237.4,
+        "mean_ms": 70.0,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.3,
+          "outside_pipeline_ms": 13.3,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 10,
+        "repeat": 2,
+        "frames": 450,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 30,
+        "throughput_fps": 22.07,
+        "p50_ms": 44.3,
+        "p95_ms": 233.9,
+        "p99_ms": 260.4,
+        "mean_ms": 75.2,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 44.3,
+          "outside_pipeline_ms": 18.3,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 11,
+        "repeat": 2,
+        "frames": 495,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 45,
+        "throughput_fps": 24.25,
+        "p50_ms": 39.5,
+        "p95_ms": 253.6,
+        "p99_ms": 284.0,
+        "mean_ms": 77.3,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 39.5,
+          "outside_pipeline_ms": 13.5,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 12,
+        "repeat": 2,
+        "frames": 540,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 60,
+        "advice_tap": 60,
+        "throughput_fps": 26.43,
+        "p50_ms": 37.1,
+        "p95_ms": 279.7,
+        "p99_ms": 309.2,
+        "mean_ms": 80.9,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 37.1,
+          "outside_pipeline_ms": 11.1,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 13,
+        "repeat": 2,
+        "frames": 585,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 277,
+        "advice_tap": 178,
+        "throughput_fps": 27.82,
+        "p50_ms": 181.9,
+        "p95_ms": 344.9,
+        "p99_ms": 352.6,
+        "mean_ms": 187.6,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 181.9,
+          "outside_pipeline_ms": 155.9,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      },
+      {
+        "scanners": 14,
+        "repeat": 2,
+        "frames": 630,
+        "errors": 0,
+        "refused_503": 0,
+        "advice_slow": 90,
+        "advice_tap": 478,
+        "throughput_fps": 28.56,
+        "p50_ms": 357.8,
+        "p95_ms": 376.8,
+        "p99_ms": 380.7,
+        "mean_ms": 293.6,
+        "decomposition": {
+          "server_ms": 26.0,
+          "wall_ms": 357.8,
+          "outside_pipeline_ms": 331.8,
+          "outside_pipeline_is": "queueing for the inference slot, plus network"
+        },
+        "first_error": null
+      }
+    ]
+  ],
+  "raw": null
+}

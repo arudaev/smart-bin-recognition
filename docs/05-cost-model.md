@@ -47,6 +47,42 @@ query, at any traffic level.
 
 ## 3. The concurrency ceiling – the number that matters
 
+> ## ANSWERED 2026-08-21, on a host that counts
+>
+> | bins per frame | concurrent scanners within a 250 ms p95 | gate |
+> |---:|---:|---|
+> | **1** | **5** | ≥ 10 — **FAIL** |
+> | 6 | **2** | – |
+>
+> GCE `n2-standard-4` in `europe-west3-a`, CPU platform pinned to Intel Cascade
+> Lake, the service pinned to CPUs 0–1 with `--cpus 2 --cpuset-cpus 0,1` and the
+> load-test client on 2–3 so it cannot steal the cores the number is about.
+> onnxruntime 1.29.0, **`representative: true`**, three repeats agreeing to
+> within ~3 ms at every level. Created for the measurement, destroyed after,
+> about USD 0.38. Full account: [P12](research/probes/P12-the-controlled-host.md).
+>
+> **This is the first admissible absolute concurrency figure this project has
+> had**, and it supersedes every number in the blocks below — including the 4
+> and the 1 of 2026-08-17, which came from a laptop
+> [P8](research/probes/P8-recovery-measurements.md) showed could not hold a
+> figure still.
+>
+> **The arithmetic in this section was right.** P4 derived 4.3–5.1 at one bin and
+> 1.8–2.2 at six. Measured: 5 and 2, both inside their predicted range.
+>
+> **The frame costs 49 ms and would need to cost ~25 ms** to reach ten scanners.
+> The validator is 18.3 ms of it, the identifier 9.9 ms, and ~21 ms is decode,
+> letterbox, colour and the wire. P8b's shared onnxruntime thread pool was
+> **already active** for this run, so 5 is the figure with the one working
+> recovery applied. Of the two still unmeasured, 384 px takes at best ~6 ms off
+> 49 and capping crops does nothing at one bin per frame. **The gate fails on
+> compute, not on tuning.**
+>
+> Everything from here to the end of the section is the record of how the
+> project got here. The reasoning is still the right reasoning; only its inputs
+> have been replaced.
+
+
 > **Two hosts, not one.** They get discussed together and they are separate
 > decisions:
 >
@@ -191,10 +227,23 @@ concurrent scanners ≈  4-5      at ONE bin per frame
                     ≈  2        at the six-container bank the PRD calls normal
 ```
 
-**The honest headline is 1 to 4 concurrent scanners, not 3 to 10.** The phase-2
-gate asks for ≥ 10 at one bin per frame; the measured figure is **4**, and at the
-six-container bank the PRD calls a normal input it is **1**. Out by a factor of
-2.5 at the easy end and by an order of magnitude at the realistic one.
+**The honest headline is 2 to 5 concurrent scanners, not 3 to 10.** The phase-2
+gate asks for ≥ 10 at one bin per frame; **measured on a controlled host on
+2026-08-21 it is 5**, and at the six-container bank the PRD calls a normal input
+it is **2**. Out by a factor of two at the easy end and by five at the realistic
+one.
+
+> **These replace the withdrawn 4 and 1.** Those came from the laptop P8 showed
+> could not hold a figure still. The new pair comes from a GCE `n2-standard-4`
+> with the service pinned to two vCPU and the load-test client on the other two,
+> CPU platform pinned, `representative: true`, three repeats agreeing to within
+> ~3 ms — see [P12](research/probes/P12-the-controlled-host.md). The old figures
+> were not wildly wrong; they were unreproducible, which is a different fault.
+>
+> **And the prediction in this section was right.** P4 derived 4.3–5.1 at one
+> bin and 1.8–2.2 at six. Both measurements land inside their predicted range,
+> which is the strongest evidence yet that the corrected arithmetic below — the
+> version that stopped double-counting the vCPUs — describes the real service.
 
 The prediction and the measurement agree closely enough that neither rescues the
 other. Ranges above are ranges because the *predicting* host was a shared Kaggle
@@ -384,11 +433,14 @@ docs/12 P8, it is also the one with something measured in it.
   load-bearing UI, and a cheap cron ping during likely hours is the mitigation.
 - **Frames leave the device.** Requires the privacy handling in
   [01-architecture § 7](01-architecture.md#7-privacy) to be real, not decorative.
-- **Concurrency is a hard ceiling, not a soft one.** Measured on a pinned
-  2-vCPU container 2026-08-17: **four** simultaneous scanners at one bin per
-  frame, and **one** at the bank of six the PRD calls a normal input. Not the
-  ten this document asserted for a year, and not the four-to-five predicted
-  from single-stream latency the day before. Plan launches around it.
+- **Concurrency is a hard ceiling, not a soft one.** Measured 2026-08-21 on a
+  controlled 2-vCPU x86 host, `representative: true`: **five** simultaneous
+  scanners at one bin per frame, and **two** at the bank of six the PRD calls a
+  normal input. Not the ten this document asserted for a year. Plan launches
+  around it. ([P12](research/probes/P12-the-controlled-host.md); this supersedes
+  the 2026-08-17 figures of four and one, which came from a host
+  [P8](research/probes/P8-recovery-measurements.md) showed could not hold a
+  number still.)
 
 Never: ads, selling user data, or paywalling the disposal rules. The rules are the
 public good; behind a wall, the project has failed at its purpose.
