@@ -45,10 +45,17 @@ SMOKE_KERNELS = (
     "smoke_gpu",          # what GPU, and can the IMAGE'S own torch use it?
 )
 
-#: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
-BUNDLED_KERNELS = (*KERNELS, *CPU_KERNELS, *[k for k in SMOKE_KERNELS if k != "smoke_bare"])
+#: Probes that need a GPU. P1 embeds 403 crops with DINOv2; it is not training,
+#: but it is not two-threads-of-CPU either.
+GPU_PROBES = ("probe_separability",)
 
-ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
+#: Every kernel that unpacks the bundle. `smoke_bare` deliberately does not.
+BUNDLED_KERNELS = (
+    *KERNELS, *CPU_KERNELS, *GPU_PROBES,
+    *[k for k in SMOKE_KERNELS if k != "smoke_bare"],
+)
+
+ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *GPU_PROBES, *SMOKE_KERNELS)
 
 #: Kernels that read from or write to the Hub, and therefore need the token the
 #: secrets dataset carries. ``probe_latency`` is deliberately not one: it builds
@@ -57,7 +64,8 @@ ALL_KERNELS = (*KERNELS, *CPU_KERNELS, *SMOKE_KERNELS)
 #: ``probe_quantisation`` IS one - it reads ``v1/best.pt`` - even though it
 #: uploads nothing.
 HUB_KERNELS = (
-    *KERNELS, "build_negatives", "bench_latency", "probe_quantisation", "probe_residual",
+    *KERNELS, *GPU_PROBES,
+    "build_negatives", "bench_latency", "probe_quantisation", "probe_residual",
 )
 
 
@@ -395,7 +403,7 @@ def test_the_device_is_decided_by_capability_not_availability(kernel):
     assert 'device=0 if torch.cuda.is_available()' not in text
 
 
-GPU_KERNELS = (*KERNELS, "smoke_train", "smoke_gpu")
+GPU_KERNELS = (*KERNELS, *GPU_PROBES, "smoke_train", "smoke_gpu")
 
 
 @pytest.mark.parametrize("kernel", GPU_KERNELS)
@@ -821,3 +829,57 @@ def test_the_identifier_refuses_a_pin_its_contract_does_not_describe():
     text = source("train_identifier")
     assert "sbr.dataset.expected describes" in text
     assert "raise SystemExit" in text
+
+
+# --------------------------------------------------------------------------- #
+# P1 - the estimator is the one docs/12 froze, not one chosen on the way past
+# --------------------------------------------------------------------------- #
+
+
+def test_the_separability_probe_scores_group_aware():
+    """403 crops come from ~138 capture clusters.
+
+    A random split puts two photographs of the same physical bin either side of
+    the line and reports memorisation as generalisation. That is the
+    predecessor's 95.2 %, and it is the one mistake this project exists not to
+    repeat.
+    """
+    text = source("probe_separability")
+    assert "GroupKFold" in text
+    assert "capture_cluster" in text
+    assert "train_test_split" not in text
+
+
+def test_the_separability_probe_scales_inside_each_fold():
+    # Fitting the scaler on everything leaks the test folds' distribution into
+    # the training ones - and it matters most in the box-area variant, where one
+    # feature has a wildly different scale from the other 768.
+    text = source("probe_separability")
+    assert "StandardScaler().fit(features[train])" in text
+
+
+def test_the_separability_probe_reports_a_baseline_beside_every_headline():
+    # 0.75 pairwise accuracy on a 247/115 split is 0.68 of prevalence. A rule
+    # that reads the raw number alone mistakes imbalance for skill.
+    text = source("probe_separability")
+    assert "majority_class_baseline" in text
+    assert "balanced_accuracy" in text
+
+
+def test_the_separability_probe_excludes_the_class_it_cannot_evaluate():
+    """`street_basket` is n=1 in one cluster: not trainable, not evaluable.
+
+    Recorded rather than merged, and recorded rather than silently dropped -
+    those are three different things and only one of them is honest.
+    """
+    text = source("probe_separability")
+    assert 'NOT_EVALUABLE = "street_basket"' in text
+    assert "excluded_from_every_fitted_number" in text
+    assert "coverage gap" in text
+
+
+def test_the_separability_probe_does_not_take_the_class_list_decision():
+    # docs/12 is explicit: bring the number, do not edit waste-streams.json.
+    text = source("probe_separability")
+    assert "does not take it" in text
+    assert "waste-streams.json" not in text
