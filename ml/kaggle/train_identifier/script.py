@@ -142,6 +142,7 @@ def main() -> None:
     from sbr.export.onnx_export import (
         ExportReport,
         Gates,
+        QuantSettings,
         calibration_frames,
         check_gates,
         evaluate_int8,
@@ -149,6 +150,7 @@ def main() -> None:
         quantise,
         write_sidecar,
     )
+    from sbr.export.selection import Candidate, choose_winner
     from sbr.utils.gpu import require_usable_gpu
     from sbr.utils.hub import (
         configure_hf_runtime,
@@ -255,8 +257,14 @@ def main() -> None:
     log(f"training done: {best} (final fitness {getattr(results, 'fitness', None)})")
 
     # --- evaluate ----------------------------------------------------------- #
-    metrics = model.val(data=str(tree), imgsz=config["data"]["imgsz"], split="test")
-    top1 = float(metrics.top1)
+    # `val` FIRST, and that is not decoration. docs/12 P11 fixes the
+    # partitioning: every export variant is scored on `val`, exactly one is
+    # locked, and `test` is touched once. The earlier version of this kernel
+    # scored fp32 on `test` and int8 on `test` while calibrating on `val`, so a
+    # sweep would have selected on the split it later reported.
+    val_metrics = model.val(data=str(tree), imgsz=config["data"]["imgsz"], split="val")
+    top1_val = float(val_metrics.top1)
+    log(f"PyTorch fp32 on val = {top1_val:.4f} - the reference every variant is judged against")
 
     history = {
         "role": ROLE,
@@ -266,48 +274,157 @@ def main() -> None:
             "revision": revision,
             "composition": composition,
         },
-        "test": {"top1": top1, "top5": float(metrics.top5)},
-        "unknown": unknown_rate(
-            model, tree, config["inference"]["unknown_threshold"], config["data"]["imgsz"]
-        ),
+        "partitioning": {
+            "calibration": "train",
+            "selection": "val - no candidate is ever selected on test",
+            "confirmation": "test, once, and only for a locked winner",
+        },
+        "val": {"top1": top1_val, "top5": float(val_metrics.top5)},
         "classes_trained": present,
         "classes_without_data": composition["classes_absent"],
+        # NOT gates, and labelled here so nothing downstream reads them as one.
+        # top-5 over three classes is arithmetic rather than accuracy, and the
+        # 0.55 unknown threshold is an uncalibrated guess until docs/12 P2.
+        "not_gates": ["val.top5", "test.top5", "unknown"],
         "config": config,
     }
     history_path = WORKING / config["logging"]["history_file"]
     history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
-    log(f"test top-1 = {top1:.4f}")
 
     # --- export ------------------------------------------------------------- #
     artifacts = WORKING / "artifacts"
     fp32 = export_onnx(
         best, artifacts, imgsz=config["export"]["imgsz"], opset=config["export"]["opset"], role=ROLE
     )
-    # A classification tree carries no label files, so the positive/background
-    # split a detection calibration reports is not a thing here - every crop is
-    # a bin. `stratified` still matters: it samples across the class
-    # directories rather than taking whichever class sorts first.
+    # Calibrate from TRAIN. Calibrating on `val` and then selecting on `val`
+    # lets the calibration set see the split it is judged on - the leak P9 and
+    # P10 avoided by construction. A classification tree carries no label files,
+    # so the positive/background split a detection calibration reports is not a
+    # thing here; every crop is a bin. `stratified` still matters, because it
+    # samples across the class directories rather than taking whichever class
+    # sorts first.
     calibration = calibration_frames(
         tree,
-        "val",
+        "train",
         config["export"]["calibration_images"],
         strategy="stratified",
         seed=config["project"]["seed"],
     )
     log(f"calibration set: {json.dumps(calibration.as_dict())}")
-    int8 = quantise(
-        fp32,
-        calibration,
-        artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx",
-        imgsz=config["export"]["imgsz"],
+
+    max_drop = float(config["export"]["gates"]["max_accuracy_drop"])
+    rows: list[dict] = []
+
+    def score_variant(name: str, note: str, settings) -> dict:
+        """Export one configuration and score it on `val`. Never on `test`."""
+        path = artifacts / f"{name}.onnx"
+        row = {
+            "variant": name, "note": note, "split": "val",
+            "settings": settings.as_dict() if settings else None,
+        }
+        try:
+            quantise(
+                fp32, calibration, path,
+                imgsz=config["export"]["imgsz"], settings=settings,
+            )
+            row["size_bytes"] = path.stat().st_size
+            row["top1"] = evaluate_int8(
+                path, role=ROLE, data=tree,
+                imgsz=config["data"]["imgsz"], split="val",
+            )
+            row["drop"] = top1_val - row["top1"]
+        except Exception as error:  # noqa: BLE001 - a failed variant is a result
+            row["error"] = f"{type(error).__name__}: {error}"
+        log(f"{name}: " + json.dumps({k: v for k, v in row.items() if k != "settings"}))
+        rows.append(row)
+        return row
+
+    reference = score_variant(
+        "10-reference",
+        "the shipped defaults: U8S8, per-channel, minmax, stretched calibration",
+        QuantSettings(),
     )
 
-    # Gate 3 is fp32-vs-int8, so int8 has to be scored on the SAME split the
-    # fp32 number came from - which only this machine still has.
-    top1_int8 = evaluate_int8(
-        int8, role=ROLE, data=tree, imgsz=config["data"]["imgsz"], split="test"
-    )
-    history["test"]["top1_int8"] = top1_int8
+    # docs/12 P11's sweep, ENUMERATED THERE rather than invented here. It runs
+    # only if the reference misses. `exclude_head` is deliberately absent: a
+    # yolo11s-cls has no DFL detection head, so P9's diagnosis does not transfer
+    # and a variant named for a structure this graph lacks would measure the
+    # reference under a different label.
+    if reference.get("drop") is None or reference["drop"] > max_drop:
+        log(
+            f"the reference costs {reference.get('drop')} top-1 against a budget "
+            f"of {max_drop} - running the pre-registered sweep, on val"
+        )
+        for name, note, settings in (
+            ("11-s8s8", "onnxruntime's named normal CPU choice",
+             QuantSettings(activation_type="s8", weight_type="s8")),
+            ("12-reduce-range", "its documented remedy for x86 activation saturation",
+             QuantSettings(reduce_range=True)),
+            ("13-u8u8", "the other documented remedy",
+             QuantSettings(activation_type="u8", weight_type="u8")),
+            ("14-per-tensor", "per-channel off",
+             QuantSettings(per_channel=False)),
+            ("15-preprocessed", "quant_pre_process on",
+             QuantSettings(preprocess=True)),
+            ("16-letterboxed", "calibration fitted the way inference fits",
+             QuantSettings(calibration_fit="letterbox")),
+        ):
+            score_variant(name, note, settings)
+
+    candidates = [
+        Candidate(
+            variant=row["variant"],
+            map50=row["top1"],
+            latency_ms=None,  # measured on the 2-vCPU bench, not here
+            departures=len(QuantSettings(**row["settings"]).departures),
+        )
+        for row in rows if row.get("top1") is not None and row["settings"]
+    ]
+    chosen = choose_winner(candidates, reference_map50=top1_val, max_drop=max_drop)
+    history["variants"] = rows
+    served = artifacts / f"{ROLE}-v{MODEL_VERSION}.onnx"
+
+    if chosen is None:
+        log(
+            f"NO VARIANT IS ELIGIBLE against PyTorch fp32 val {top1_val:.4f} at a "
+            f"budget of {max_drop}. test is NOT touched and stays unspent, and the "
+            "gate does not move. This is docs/12 P11's middle row."
+        )
+        scored = [r for r in rows if r.get("top1") is not None]
+        best_row = min(scored, key=lambda r: r["drop"]) if scored else rows[0]
+        # The artefact still gets written, so the sidecar can record WHY it may
+        # not ship. An ineligible export is a documented refusal, not a gap.
+        int8 = (artifacts / f"{best_row['variant']}.onnx").replace(served)
+        # The pair that WAS measured: fp32 and int8 on `val`. Handing None
+        # downstream would make check_gates report the accuracy gate as
+        # *unmeasured*, which is a different and weaker statement than what
+        # happened - it was measured and it missed. `accuracy_split` records
+        # that these are `val` numbers so they can never be quoted as `test`.
+        top1, top1_int8 = top1_val, best_row.get("top1")
+        accuracy_split = "val"
+        history["confirmed_on_test"] = False
+        history["best_on_val"] = best_row["variant"]
+    else:
+        log(f"winner by the pre-registered rule: {chosen.variant}")
+        int8 = (artifacts / f"{chosen.variant}.onnx").replace(served)
+        # The ONLY test evaluation in this file, on the locked bytes.
+        test_metrics = model.val(data=str(tree), imgsz=config["data"]["imgsz"], split="test")
+        top1 = float(test_metrics.top1)
+        top1_int8 = evaluate_int8(
+            int8, role=ROLE, data=tree, imgsz=config["data"]["imgsz"], split="test"
+        )
+        history["test"] = {
+            "top1": top1, "top5": float(test_metrics.top5),
+            "top1_int8": top1_int8, "drop": top1 - top1_int8,
+        }
+        accuracy_split = "test"
+        history["confirmed_on_test"] = True
+        history["best_on_val"] = chosen.variant
+        history["unknown"] = unknown_rate(
+            model, tree, config["inference"]["unknown_threshold"], config["data"]["imgsz"]
+        )
+        log(f"test top-1 fp32 {top1:.4f} - int8 {top1_int8:.4f} - drop {top1 - top1_int8:.4f}")
+
     history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
 
     gates = Gates.from_config(ROLE, config)
@@ -331,6 +448,10 @@ def main() -> None:
         quantised=True,
         top1_fp32=top1,
         top1_int8=top1_int8,
+        # Which split the pair above came from. `test` only when a winner was
+        # locked and confirmed; `val` when nothing was eligible and `test` was
+        # deliberately left unspent.
+        accuracy_split=accuracy_split,
         median_latency_ms=None,  # measured on the 2-vCPU bench, not here
         # docs/04 7's target. There is no held-out city to measure it on, so it
         # reports UNMEASURABLE rather than being quietly omitted - which is the

@@ -883,3 +883,74 @@ def test_the_separability_probe_does_not_take_the_class_list_decision():
     text = source("probe_separability")
     assert "does not take it" in text
     assert "waste-streams.json" not in text
+
+
+# --------------------------------------------------------------------------- #
+# docs/12 P11 - the identifier's partitioning, which goes wrong quietly
+# --------------------------------------------------------------------------- #
+
+
+def test_the_identifier_calibrates_from_train():
+    """Calibrating on `val` and then selecting on `val` lets the calibration set
+    see the split it is judged on. P9 and P10 avoided that by construction and
+    this kernel did not until docs/12 P11 said so."""
+    text = source("train_identifier")
+    assert 'calibration_frames(\n        tree,\n        "train",' in text
+
+
+def test_the_identifier_selects_on_val_and_confirms_on_test_once():
+    text = source("train_identifier")
+    # Every variant is scored on val...
+    assert 'split="val",\n            )' in text
+    assert '"selection": "val - no candidate is ever selected on test"' in text
+    # ...and exactly one int8 evaluation touches test. There are two `test`
+    # scorings in total and that is correct: the accuracy gate is fp32-vs-int8
+    # on the SAME split, so the locked winner needs both. What must never
+    # happen is a second int8-on-test, which would mean a sweep ran there.
+    assert text.count("split=\"test\"") == 2
+    int8_on_test = text.count('int8, role=ROLE, data=tree, imgsz=config["data"]["imgsz"], split="test"')
+    assert int8_on_test == 1, (
+        f"{int8_on_test} int8 evaluations on test - a sweep that touches test "
+        "more than once has selected on it"
+    )
+
+
+def test_the_identifier_leaves_test_unspent_when_nothing_is_eligible():
+    text = source("train_identifier")
+    assert "NO VARIANT IS ELIGIBLE" in text
+    assert "stays unspent" in text
+    assert 'history["confirmed_on_test"] = False' in text
+
+
+def test_the_identifier_sweep_has_no_head_to_exclude():
+    """A yolo11s-cls has no DFL detection head, so P9's diagnosis cannot
+    transfer. A variant named for a structure the graph lacks would measure the
+    reference under a different label."""
+    text = source("train_identifier")
+    # It may be NAMED in prose explaining why it is absent; it must never be
+    # passed. The prose is the point - a future reader needs to know the
+    # omission was reasoned rather than forgotten.
+    assert "QuantSettings(exclude_head" not in text
+    assert "exclude_head=True" not in text
+
+
+def test_the_identifier_sweep_is_the_pre_registered_list():
+    text = source("train_identifier")
+    for variant in ("10-reference", "11-s8s8", "12-reduce-range", "13-u8u8",
+                    "14-per-tensor", "15-preprocessed", "16-letterboxed"):
+        assert f'"{variant}"' in text, f"{variant} is in docs/12 P11 and not in the kernel"
+
+
+def test_an_accuracy_number_says_which_split_it_came_from():
+    # A number without its split is not evidence, and it matters most when
+    # nothing is eligible: the val drop that missed must not read as a test
+    # confirmation nobody is entitled to.
+    for kernel in ("train_identifier", "train_validator"):
+        assert "accuracy_split=" in source(kernel), f"{kernel} does not record its split"
+
+
+def test_the_identifier_does_not_gate_on_top5_or_the_unknown_threshold():
+    # Top-5 over three classes is arithmetic, not accuracy. 0.55 is an
+    # uncalibrated guess until docs/12 P2.
+    text = source("train_identifier")
+    assert '"not_gates"' in text

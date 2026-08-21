@@ -176,6 +176,16 @@ class ExportReport:
     top1_fp32: float | None = None
     top1_int8: float | None = None
 
+    #: Which split the accuracy pair above was measured on.
+    #:
+    #: A number without its split is not evidence, and the sidecar is what the
+    #: service and docs/11 both read. It matters most in the case that actually
+    #: happens: when no export variant is eligible, the honest record is the
+    #: `val` drop that was measured and missed - reporting it as *unmeasured*
+    #: would understate the evidence, and reporting it without saying `val`
+    #: would imply a `test` confirmation nobody is entitled to.
+    accuracy_split: str | None = None
+
     # Latency, and the machine it was measured on. Both or neither.
     median_latency_ms: float | None = None
     p95_latency_ms: float | None = None

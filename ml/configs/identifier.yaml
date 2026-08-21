@@ -27,9 +27,33 @@ model:
 data:
   repo_id: arudaev/smart-bin-identify
   imgsz: 320              # crops, not frames
-  # Classes come from data/taxonomy/waste-streams.json `form_factors`, in file
-  # order. That order is the ONNX class index – never reorder without retraining.
-  classes_from_taxonomy: true
+
+  # THREE classes, not the taxonomy's ten. Decided by the maintainer on
+  # 2026-08-21 on the evidence of docs/12 P1, which measured pairwise
+  # wheelie_small/wheelie_large separability at 0.9834 out-of-fold against a
+  # 0.6823 baseline - so the two sizes stay distinct - and on the human pass,
+  # which found six form factors with NO data and a seventh with one crop.
+  #
+  # `street_basket` has n=1 in one capture cluster. It cannot appear in train
+  # and val and test, so it can be neither trained nor evaluated. It is DROPPED
+  # and RECORDED as a coverage gap, not merged into anything on the strength of
+  # one photograph.
+  #
+  # The six ids with no data - underground, textile_bank, sack, crate,
+  # wall_unit, container_bank - KEEP THEIR IDS in waste-streams.json. An id with
+  # no training data is a coverage gap, not a deletion, and everything B has
+  # never seen resolves to `unknown`, which is a designed state with real UI.
+  # docs/research/11 establishes that Open Images cannot close that gap: zero
+  # underground, zero textile_bank, zero wall_unit in a 384-box sample.
+  #
+  # NOTE this list is NOT the served class order. Ultralytics builds a
+  # classification dataset from the directory names, so the head is indexed
+  # ALPHABETICALLY over the classes that actually had crops. The kernel reads
+  # the order back from the trained model and writes it into the sidecar, and
+  # the service reads the sidecar. The ids here are canonical and permanent;
+  # their position in any particular head is incidental.
+  classes: ["wheelie_small", "wheelie_large", "igloo"]
+  classes_from_taxonomy: false
 
   crops:
     source: validator_boxes

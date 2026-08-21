@@ -385,6 +385,7 @@ def main() -> None:
         classes=classes,
         quantised=True,
         map50_fp32=map50,
+        accuracy_split="test",
         map50_int8=map50_int8,
         # Latency alone is left to ml/scripts/gate.py, on the CPU the budget is
         # actually stated for. This machine has a GPU and somebody else's CPU.
