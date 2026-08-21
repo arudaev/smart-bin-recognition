@@ -12,7 +12,7 @@ non-zero if any of them failed or is still unmeasured.
     python ml/scripts/gate.py --role validator  --version 1
     python ml/scripts/gate.py --role identifier --version 1 --publish
 
-Two sources, because the intended one stopped being free:
+Three sources, because the intended one stopped being free:
 
 ``--source kaggle`` (default) reads ``bench-v<version>.json`` from the model
 repo, written by the ``bench_latency`` kernel. Free, x86, and reproducible, but
@@ -24,6 +24,13 @@ friction rather than an obstacle.
 a Docker Space started returning ``402 Payment Required``; it stays wired for
 whenever there is a real host (HF PRO, Cloud Run, anything else), and a
 measurement from one is accepted without argument.
+
+``--source file`` reads a JSON a host wrote about itself. A controlled VM that
+is created, measured on and destroyed has nowhere to push a result to and no
+reason to; the file it leaves behind is the artefact. See
+``service/deploy/measure-on-gce.sh``, which sets ``SBR_SERVICE_HOST`` so that
+``sbr.bench.hardware()`` reports ``representative: true`` - a deliberate act
+asserting that the box counts as the service, and the maintainer's to take.
 
 ``--publish`` writes the updated sidecar back to the model repo, because the
 inference service reads the sidecar and should never see an artefact whose
@@ -86,6 +93,35 @@ def fetch_bench(
         ) from None
 
 
+def read_measurement(path: Path | None, role: str) -> dict:
+    """Read a measurement a host wrote about itself.
+
+    The Kaggle bench and the Space bench both push their result somewhere this
+    script can fetch it. A controlled VM measured on demand and then destroyed
+    has nowhere to push to and no reason to - the file it left behind is the
+    artefact. See ``service/deploy/measure-on-gce.sh``.
+
+    The file's own ``hardware.representative`` is carried through untouched. If
+    that host said it was not the service, this does not turn it into one.
+    """
+    if path is None:
+        raise SystemExit("--source file needs --measurement <latency.json>")
+    if not path.exists():
+        raise SystemExit(f"no measurement at {path}")
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    roles = payload.get("roles") or payload
+    if role not in roles:
+        raise SystemExit(
+            f"{path} holds no measurement for {role!r} (has: {sorted(roles)})"
+        )
+    measurement = roles[role]
+    if "error" in measurement:
+        raise SystemExit(f"{path} records a failure for {role}: {measurement['error']}")
+    measurement.setdefault("hardware", payload.get("hardware", {}))
+    return measurement
+
+
 def fetch_kaggle_bench(repo: str, revision: str, role: str, version: int) -> dict:
     """Read the measurement the ``bench_latency`` kernel pushed beside the model."""
     from huggingface_hub import hf_hub_download
@@ -142,9 +178,17 @@ def main() -> None:
     parser.add_argument("--revision", default="main")
     parser.add_argument(
         "--source",
-        choices=["kaggle", "space"],
+        choices=["kaggle", "space", "file"],
         default="kaggle",
-        help="where the measurement comes from (default: the bench_latency kernel)",
+        help="where the measurement comes from (default: the bench_latency kernel). "
+             "`file` reads a JSON written by a host that measured itself - "
+             "service/deploy/measure-on-gce.sh is the one that exists",
+    )
+    parser.add_argument(
+        "--measurement",
+        type=Path,
+        default=None,
+        help="with --source file: the latency.json to read",
     )
     parser.add_argument("--bench-url", default=DEFAULT_BENCH_URL)
     parser.add_argument("--iterations", type=int, default=50)
@@ -178,7 +222,9 @@ def main() -> None:
     )
 
     # --- the measurement ---------------------------------------------------- #
-    if args.source == "kaggle":
+    if args.source == "file":
+        measurement = read_measurement(args.measurement, args.role)
+    elif args.source == "kaggle":
         measurement = fetch_kaggle_bench(repo, args.revision, args.role, args.version)
     else:
         measurement = fetch_bench(
