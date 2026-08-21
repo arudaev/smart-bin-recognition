@@ -30,6 +30,7 @@ decision it produced has no visible cause.
 | 08 | [Video as the capture format](08-video-ingestion.md) | docs/04 § 3 § 5, docs/07 phases 2 and 6, `prepare.py` |
 | 09 | [Business and market audit](09-business-and-market-context.md) | docs/business market segments, EVC and go-to-market |
 | 10 | [Product-name screen](10-name-screen.md) | docs/business name and brand |
+| 11 | [What is in the Open Images bin frames](11-open-images-form-factors.md) | docs/12 P1, the identifier's coverage gap, whether a second human pass pays |
 
 Probe results live in [`probes/`](probes/) – one file per probe from
 [docs/12-validation-protocol.md](../12-validation-protocol.md).
