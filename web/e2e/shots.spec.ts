@@ -25,7 +25,19 @@ for (const c of CASES) {
     await page.setViewportSize(c.vp);
     await page.goto("/scan");
     await page.locator("[data-testid='scan-shell']").waitFor({ state: "visible" });
-    await page.waitForTimeout(600); // the sheet's block-size transition
+    /* Wait for the loop to have ANSWERED, not for a guessed number of
+       milliseconds. 600 ms was short of the mock's first frame, so the shots
+       were of an empty sheet mid-transition - a picture of the wrong moment.
+       The marker is what the register counts, and unlike the register's own
+       words it is the same in every locale: `/in view/` matched nothing in the
+       Arabic shot and spent the whole 30 s test budget failing to. Soft and
+       short-fused, because a shot is a deliverable and must not fail a run. */
+    await page
+      .locator("[data-testid='scan-shell'] button")
+      .first()
+      .waitFor({ state: "visible", timeout: 8_000 })
+      .catch(() => {});
+    await page.waitForTimeout(1200);
     await page.screenshot({ path: `e2e/__screenshots__/scanner-${c.name}.png` });
   });
 }
