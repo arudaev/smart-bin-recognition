@@ -5,7 +5,28 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "_comment": [
+        "EVERY PATH IS THE APP, except the edge functions. app/routes.ts gives every",
+        "state a real URL over the History API, so a deep link, a shared URL and the",
+        "PWA start_url all arrive at a path with no file behind it.",
+        "",
+        "The source MUST be a NAMED parameter. This read `/((?!api/).*)` until",
+        "2026-08-22 and the rule silently never matched: `source` is parsed as",
+        "path-to-regexp, not as a raw regex, and an UNNAMED group containing a",
+        "lookahead is not valid there. The symptom is total and was invisible",
+        "until the app was deployed - / served fine while /scan, /rules,",
+        "/settings and /viewer all returned 404 on both preview and production.",
+        "",
+        "api/ is excluded explicitly rather than relying on the filesystem check",
+        "winning, so the intent is legible in the file rather than in Vercel's",
+        "routing order."
+      ],
+      "source": "/:path((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
