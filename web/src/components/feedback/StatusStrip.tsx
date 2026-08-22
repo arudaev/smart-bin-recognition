@@ -7,8 +7,13 @@ import { Icon } from "../core/Icon";
    marker while the server is being reached, stopped by reduced-motion.
    The keyframes live in tokens/base.css. */
 
+/* `demo` is a connection state and not a decoration: it is what "there is no
+   detector at the other end" looks like. It carries a warning glyph rather than
+   `live`'s shield-check on purpose - a shield-check over a camera means the
+   boxes on the frame came from that camera, and in this state they did not. */
 const stripStates = {
   live: { icon: "shield-check", dim: false },
+  demo: { icon: "triangle-alert", dim: false },
   connecting: { icon: "loader-circle", dim: true },
   waking: { icon: "clock", dim: true },
   busy: { icon: "clock", dim: true },

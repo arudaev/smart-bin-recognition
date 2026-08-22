@@ -77,5 +77,17 @@ export default defineConfig({
     // seconds; a silent false pass costs an afternoon.
     reuseExistingServer: false,
     timeout: 180_000,
+
+    /* NO ENDPOINT, DELIBERATELY, AND FORCED RATHER THAN ASSUMED.
+     *
+     * CI has no `.env.local` - it is gitignored - so the suite there already
+     * builds against the mock. A developer's machine may have one pointing at a
+     * local service, and then the same spec exercises a different transport,
+     * which is how a suite comes to pass in one place and fail in the other for
+     * a reason nobody can see. Emptying both here makes the build under test the
+     * build that Vercel ships: the mock, and the honesty banner that goes with
+     * it (`e2e/demo-honesty.spec.ts`). Vite's own precedence does the work -
+     * a VITE_-prefixed variable in the environment beats `.env.local`. */
+    env: { VITE_DETECT_URL: "", VITE_DETECT_WS: "" },
   },
 });

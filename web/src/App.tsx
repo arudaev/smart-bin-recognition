@@ -22,7 +22,7 @@ import { Scanner } from "@/features/scan/Scanner";
 import { Settings } from "@/features/settings/Settings";
 import type { Locale } from "@/i18n";
 import { translator } from "@/i18n";
-import { MockClient, createClient } from "@/transport";
+import { MockClient, clientKind } from "@/transport";
 
 /* THE SHELL.
  *
@@ -117,7 +117,10 @@ export default function App() {
     client: ladder,
   });
 
-  const transport = useMemo(() => createClient(live.tier).kind, [live.tier]);
+  /* Named, not built. This used to construct a client and read its `kind`,
+     which for a configured socket meant standing one up on every tier change
+     just to ask what it was called. */
+  const transport = useMemo(() => clientKind(live.tier), [live.tier]);
 
   /* Nothing is placed until the probe has answered. It is one enumerateDevices
      call and resolves in a microtask, and holding one frame is much better than
@@ -251,6 +254,8 @@ export default function App() {
         session={session}
         answerOptions={{ level: director.level, forceStale: director.forceStale }}
         live={director.source === "live" ? live : null}
+        /* The camera is real and the detections are not. See Scanner's `demo`. */
+        demo={transport === "mock"}
         onBrowse={() => navigate(PATH.rules)}
         onSettings={() => navigate(PATH.settings)}
         onContribute={(n) => {

@@ -57,6 +57,24 @@ interface Props {
   answerOptions: Pick<AnswerOptions, "level" | "forceStale">;
   /** Present when a real camera is running. Absent in fixture playback. */
   live?: UseScanResult | null;
+  /* THE CAMERA IS REAL AND THE BINS ARE NOT.
+   *
+   * With no VITE_DETECT_URL and no VITE_DETECT_WS the loop runs against
+   * MockClient, which answers out of data/frames.ts - boxes measured off archive
+   * photographs of Deggendorf. Every other part of the path is genuine: the
+   * gates fire, the wire is encoded, the resolver runs, the region pack answers.
+   * So the screen shows a live camera with three markers on it and a real
+   * disposal rule under each, and none of it has anything to do with what the
+   * lens is pointed at.
+   *
+   * That is this product's worst failure - confidently wrong about which bin -
+   * arrived at through a configuration rather than through a model. It is not
+   * enough that the settings screen names the transport: nobody reads settings
+   * while holding a phone up at a bin. So the scanner says it where the claim is
+   * made, on the frame and in the sheet.
+   *
+   * The fix for a beta is to point it at a service, not to hide the banner. */
+  demo?: boolean;
   onBrowse: () => void;
   /** The only route to settings from the scanner, now that the shell draws no
    *  chrome of its own. It lives with the other controls over the frame. */
@@ -76,6 +94,7 @@ export function Scanner(p: Props) {
   const { t, region, frame, conn, camera, session, answerOptions } = p;
   const live = p.live ?? null;
   const auto = conn === "auto";
+  const demo = p.demo === true;
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [shown, setShown] = useState(0);
@@ -153,8 +172,13 @@ export function Scanner(p: Props) {
     if (bins.length === 0 && open != null) setOpen(null);
   }, [live, settled, bins.length, open]);
 
+  /* Only `live` is rewritten. Connecting, waking, busy and offline are all true
+     of the mock as well - it models them deliberately - and the one state that
+     would be a lie is the one that claims an answer came from somewhere. */
   const effConn: ConnectionState = live
-    ? live.state.connection
+    ? demo && live.state.connection === "live"
+      ? "demo"
+      : live.state.connection
     : auto
       ? phase === "connecting"
         ? "connecting"
@@ -372,6 +396,19 @@ export function Scanner(p: Props) {
           onClose={open != null ? () => setOpen(null) : undefined}
           closeLabel={t("nav.backToCamera")}
         >
+          {/* Above every branch, including the answer panel. The answer panel is
+              where a disposal rule is actually asserted, and that is the exact
+              place the caveat has to be. */}
+          {demo ? (
+            <Notice
+              tone="attention"
+              icon="triangle-alert"
+              title={t("demo.title")}
+              style={{ marginBlockEnd: "var(--space-4)" }}
+            >
+              {t("demo.body")}
+            </Notice>
+          ) : null}
           {open != null && openBin ? (
             <AnswerPanel
               bin={openBin}

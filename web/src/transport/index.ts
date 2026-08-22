@@ -43,23 +43,34 @@ export function isConfigured(): boolean {
   return Boolean(socket || rest);
 }
 
+/** Named so the settings screen can say what it is talking to, honestly. */
+export type TransportKind = "socket" | "rest" | "mock";
+
 export interface ClientChoice {
   client: DetectClient;
-  /** Named so the settings screen can say what it is talking to, honestly. */
-  kind: "socket" | "rest" | "mock";
+  kind: TransportKind;
+}
+
+/* Which transport this device would get, without building one.
+ *
+ * Two screens ask this question on every render – the settings row, and the
+ * scanner's banner, which must not say "Connected" when the answer is `mock`.
+ * Constructing a client to ask it its own name is how that used to be done, and
+ * it means opening a socket to answer a question about naming. The policy lives
+ * here once; `createClient` reads it rather than repeating it. */
+export function clientKind(tier: Tier, override?: Endpoints): TransportKind {
+  const { socket, rest } = override ?? endpoints();
+  if (tier === "scanner" && socket) return "socket";
+  if (rest) return "rest";
+  if (socket) return "socket";
+  return "mock";
 }
 
 export function createClient(tier: Tier, override?: Endpoints): ClientChoice {
   const { socket, rest } = override ?? endpoints();
+  const kind = clientKind(tier, override);
 
-  if (tier === "scanner" && socket) {
-    return { client: new SocketClient({ url: socket }), kind: "socket" };
-  }
-  if (rest) {
-    return { client: new RestClient({ url: rest }), kind: "rest" };
-  }
-  if (socket) {
-    return { client: new SocketClient({ url: socket }), kind: "socket" };
-  }
-  return { client: new MockClient(), kind: "mock" };
+  if (kind === "socket") return { client: new SocketClient({ url: socket as string }), kind };
+  if (kind === "rest") return { client: new RestClient({ url: rest as string }), kind };
+  return { client: new MockClient(), kind };
 }
