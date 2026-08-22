@@ -14,7 +14,25 @@
    returns the front camera and reports success. So the settings that came back
    are inspected rather than assumed, and a stream that turned out to be
    front-facing is reported as such – the interface then offers still capture
-   instead of a live loop, which is the `capture` tier in § 5. */
+   instead of a live loop, which is the `capture` tier in § 5.
+
+   THE THIRD, found on a Surface Pro 11 on 2026-08-21, is that "reported as such"
+   was not enough. Windows Chrome and Edge do not populate `facingMode` for UVC
+   cameras at all, so on a two-camera tablet the ideal constraint is
+   unsatisfiable, `getUserMedia` returns the system default – the SELFIE camera –
+   and `facingOf` then reads the label, correctly concludes it got a front
+   camera, and demotes a perfectly good scanner to still capture. The diagnosis
+   was right and there was nowhere to go with it.
+
+   So there is now a second attempt. Device labels are empty until permission is
+   granted, which is why this cannot be done up front: only after the first
+   `getUserMedia` resolves can `enumerateDevices` name "Surface Camera Rear".
+   When the track we opened is not environment-facing and a device whose label
+   says it is exists, we reopen on that `deviceId` and stop the first stream. If
+   the reopen fails we keep the first stream rather than leaving the caller with
+   nothing – a front camera the user can still point at a bin beats a refusal,
+   which is the same reasoning that makes the constraint `ideal` rather than
+   `exact`. */
 
 export type Facing = "environment" | "user" | "unknown";
 
@@ -84,10 +102,19 @@ export async function openCamera(options: OpenCameraOptions = {}): Promise<OpenC
     throw translateError(error);
   }
 
-  const track = stream.getVideoTracks()[0];
+  let track = stream.getVideoTracks()[0];
   if (!track) {
     stopStream(stream);
     throw new CameraUnavailableError("the camera returned no video track");
+  }
+
+  if (facing === "environment" && facingOf(track.getSettings(), track.label) !== "environment") {
+    const better = await reopenOnRearDevice(devices, stream, options);
+    if (better) {
+      stopStream(stream);
+      stream = better;
+      track = stream.getVideoTracks()[0];
+    }
   }
 
   const settings = track.getSettings();
@@ -100,6 +127,47 @@ export async function openCamera(options: OpenCameraOptions = {}): Promise<OpenC
     setTorch: torchFor(track),
     stop: () => stopStream(stream),
   };
+}
+
+/* Look for a rear camera by LABEL and reopen on its id.
+
+   Only reached when `facingMode` did not give us an environment camera, so this
+   costs nothing on the platforms that honour it. Returns null – not an error –
+   whenever it cannot do better, because "we already have a working front
+   camera" is a worse outcome to throw away than to keep. */
+async function reopenOnRearDevice(
+  devices: MediaDevices,
+  current: MediaStream,
+  options: OpenCameraOptions,
+): Promise<MediaStream | null> {
+  if (typeof devices.enumerateDevices !== "function") return null;
+
+  let cameras: MediaDeviceInfo[];
+  try {
+    cameras = (await devices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+  } catch {
+    return null;
+  }
+
+  const openId = current.getVideoTracks()[0]?.getSettings().deviceId;
+  const rear = cameras.find((d) => /back|rear|environment/i.test(d.label) && d.deviceId !== openId);
+  if (!rear) return null;
+
+  try {
+    // `exact` here, unlike the facingMode above: we picked this device by name,
+    // so silently getting a different one would be worse than failing and
+    // keeping the stream we already have.
+    return await devices.getUserMedia({
+      audio: false,
+      video: {
+        deviceId: { exact: rear.deviceId },
+        width: { ideal: options.width ?? DEFAULT_WIDTH },
+        height: { ideal: options.height ?? DEFAULT_HEIGHT },
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
 /* The permission errors are the ones the interface draws differently, so they
