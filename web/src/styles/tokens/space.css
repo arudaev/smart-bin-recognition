@@ -123,6 +123,13 @@
 
 @media (max-width: 880px) {
   :root {
+    /* The desk gutter has to come down with the column.
+       At 430px the rail takes 76 and the content column is 310, and a 40px
+       gutter each side leaves 230 for content that wants more - measured, the
+       rules browser ran 11px past its column. The viewer is reachable at this
+       width by a CAMERALESS machine with a narrow window, which is rare and
+       real. space-4 keeps the rhythm and gives the content back 32px. */
+    --gutter-desk: var(--space-4);
     --desk-rail: 76px;
     --desk-split: minmax(0, 1.1fr) minmax(0, 1fr) / minmax(0, 1fr);
     --desk-split-rev: minmax(0, 1fr) minmax(0, 1.3fr) / minmax(0, 1fr);
