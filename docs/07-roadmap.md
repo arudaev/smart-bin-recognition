@@ -563,7 +563,33 @@ validator on a training run that failed with no log.
       `npm --prefix web run check:locales` prints the gap.
 - [x] Desktop surface: map, registry browser, rules search – the surfaces are
       real, the registry behind them is fixtures until phase 4
-- [ ] Deploy to Vercel
+- [ ] **Deploy to Vercel — the client side is ready, the project is not created.**
+      **This no longer waits on a model.** With neither `VITE_DETECT_WS` nor
+      `VITE_DETECT_URL` set the client runs its in-process mock and says so on the
+      settings screen, so a preview exercises every surface, the real resolver and
+      the real Deggendorf pack with fixture frames. That is a testable beta today.
+
+      **Blocked 2026-08-22 on one permission**, not on code: the Vercel MCP
+      connector can read the `arudaev's projects` team but `create_git_project`
+      returns `403 forbidden … resource: project`. Either re-authorise the
+      connector with project-creation scope, or create the project once by hand —
+      after which the connector can manage it.
+
+      **The settings, verified against this repo:**
+
+      | setting | value | why |
+      |---|---|---|
+      | Repository | `arudaev/smart-bin-recognition` | git-connected, so every push touching `web/` rebuilds and each branch gets its own preview URL |
+      | Framework | Vite | already declared in `web/vercel.json` |
+      | **Root Directory** | **`web`** | the app is not at the repo root |
+      | **Include files outside the Root Directory** | **ON — required** | `vite.config.ts` aliases `@taxonomy` to `../data/taxonomy`, and `data/packs.ts`, `data/regions.ts` and `data/taxonomy.ts` all import through it. With this off the build fails on an unresolved import |
+      | Environment variables | **none needed** | `VERCEL_ENV` is set by Vercel and is what `__BETA__` reads |
+
+      **Preview and production differ on purpose**, and nothing has to be
+      remembered for that to hold: `vite.config.ts` derives `__BETA__` from
+      `VERCEL_ENV`, so a preview carries the metrics overlay and the Vercel
+      telemetry while production carries neither, and `check-bundle.mjs` fails in
+      **both** directions. See `web/CONVENTIONS.md`.
 
 Built in the same pass, beyond what this phase originally listed:
 
