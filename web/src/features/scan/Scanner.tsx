@@ -207,14 +207,35 @@ export function Scanner(p: Props) {
   const sheetH = open != null ? "84%" : `max(38%, calc(100% - ${peekMedia}px))`;
 
   return (
-    <div style={{ position: "relative", blockSize: "100%", background: "var(--ink-1)", overflow: "hidden" }}>
+    <div
+      data-testid="scan-shell"
+      style={{
+        position: "relative",
+        blockSize: "100%",
+        background: "var(--ink-1)",
+        overflow: "hidden",
+        /* One column on a phone, two on a tablet. The breakpoint is in
+           tokens/space.css beside the sizes it overrides; this reads one custom
+           property and never learns what the viewport is. */
+        display: "grid",
+        gridTemplateColumns: "var(--scan-columns)",
+        // What the sheet's height means while the two are stacked. Ignored side
+        // by side, where the sheet is a grid child and simply fills its column.
+        ["--scan-sheet-stacked" as string]: sheetH,
+      }}
+    >
+      {/* The camera pane. Everything pinned over the photograph lives inside it,
+          so on a tablet the status strip and the controls sit over the camera
+          rather than over the sheet beside it. */}
+      <div style={{ position: "relative", overflow: "hidden", minInlineSize: 0 }}>
       {/* The photograph is the evidence and the interface does not write on it:
           the media box keeps the frame's own aspect, so a marker sits exactly
           over the object rather than over a crop the user cannot see. */}
       <div
         style={{
           position: "absolute",
-          insetBlockStart: 0,
+          insetBlockStart: "var(--scan-media-block-start)",
+          transform: "translateY(var(--scan-media-shift))",
           insetInline: 0,
           aspectRatio: live ? "3 / 4" : frame.aspect,
           overflow: "hidden",
@@ -320,12 +341,22 @@ export function Scanner(p: Props) {
         />
       </div>
 
+      </div>
+
+      {/* The sheet. Stacked, it is an overlay rising from the block end of the
+          camera - `--scan-sheet-position: absolute` and the height computed
+          above. Side by side, those two properties resolve to `static` and
+          `100%`, and it becomes the grid's second column: no branch here, and
+          no component that has to be told which shape it is in. */}
       <div
+        data-testid="scan-sheet"
         style={{
-          position: "absolute",
+          position: "var(--scan-sheet-position)" as React.CSSProperties["position"],
           insetInline: 0,
           insetBlockEnd: 0,
-          blockSize: sheetH,
+          blockSize: "var(--scan-sheet-block-size)",
+          borderInlineStart: "var(--scan-sheet-rule)",
+          minInlineSize: 0,
           transition: "block-size var(--dur-3) var(--ease-out)",
         }}
       >

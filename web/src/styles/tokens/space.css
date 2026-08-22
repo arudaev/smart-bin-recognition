@@ -52,6 +52,34 @@
   --desk-split: minmax(0, 1fr) / minmax(0, 1fr) var(--desk-panel);
   --desk-split-rev: minmax(0, 1fr) / var(--desk-panel) minmax(0, 1fr);
 
+  /* THE SCANNER'S OWN COMPOSITION, and it is a third layout rather than a
+     variant of the two above.
+
+     Until 2026-08-22 the scanner had none: it was full-bleed absolute with no
+     max-width anywhere in the shell, so a 1440x960 tablet got a phone layout
+     stretched across it - a 16:9 camera cropped hard into a 3:2 box and a result
+     sheet 1440px wide. That is not a phone layout being SERVED to a tablet, it
+     is a phone layout with nothing telling it what a large screen is.
+
+     Below 1100 the scanner stacks, exactly as it always has: camera under the
+     whole viewport, sheet rising from the block end over it. At and above 1100
+     the camera and the sheet sit side by side, because a scanner is held up at
+     an object and the camera is the part that must stay big.
+
+     Every value a style object needs is a custom property here, because a media
+     query cannot live in a style object and a resize listener in React would
+     re-render the surface to learn something the browser already knows. Same
+     states, same URLs, same components - only where they sit changes. */
+  --scan-columns: minmax(0, 1fr) minmax(360px, var(--desk-panel));
+  --scan-sheet-position: static;
+  --scan-sheet-block-size: 100%;
+  --scan-sheet-rule: var(--border-hair) solid var(--line-hair);
+  /* Side by side, the media box is centred in a pane taller than itself, so a
+     16:9 camera is clipped evenly at both ends instead of only at the bottom.
+     Stacked, it stays pinned to the block start exactly as it always was. */
+  --scan-media-block-start: 50%;
+  --scan-media-shift: -50%;
+
   /* The rule between the two panes moves with them: down the inline edge while
      they sit side by side, along the block edge once they stack. Declared as a
      pair so a pane names both and the breakpoint decides which one is drawn. */
@@ -80,6 +108,19 @@
 /* Below this the rail keeps its icons and drops its labels, and the side panels
    stop being side panels: a 340px pane against 300px of content is two things
    that are both too narrow rather than one that is wide enough. */
+/* The scanner stacks below the same 1100 the viewer's panels do. One
+   breakpoint for "there is room for two columns" rather than two that drift. */
+@media (max-width: 1100px) {
+  :root {
+    --scan-columns: minmax(0, 1fr);
+    --scan-sheet-position: absolute;
+    --scan-sheet-block-size: var(--scan-sheet-stacked);
+    --scan-sheet-rule: 0;
+    --scan-media-block-start: 0;
+    --scan-media-shift: 0;
+  }
+}
+
 @media (max-width: 880px) {
   :root {
     --desk-rail: 76px;

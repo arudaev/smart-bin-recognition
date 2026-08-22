@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:shots": "playwright test e2e/shots.spec.ts",
     "check:locales": "node scripts/check-locales.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "build:icons": "node scripts/build-icons.mjs",
@@ -22,6 +24,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
