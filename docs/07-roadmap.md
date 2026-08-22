@@ -19,7 +19,7 @@ has done — and this project has been mistaking the first for the second.
 | # | Decision | Evidence sitting in front of it | What it unblocks | Cost of not deciding |
 |---|---|---|---|---|
 | **D1** | Move the Deggendorf wheelie rules from `lid_color` to `body_color` | [P3 second act](research/probes/P3-colour-measurement.md): 0 % → **95 % correct stream**; [research/12](research/12-deggendorf-packaging-evidence.md): the municipality names the **bin** grey/brown/blue, not the lid | **The product's core answer.** 362 of 403 crops | Wheelies answer `unknown` forever |
-| **D2** | Calibrate colour references **for Deggendorf**, and decide separately whether the global `hex_ref` should move | P3: body agreement **0.5625 → 0.9125** leave-one-cluster-out; real green igloos sit nearer the `metal` swatch than `green`. **But this is one city, one week, one camera** — and `glass_mixed` is 2 crops of the 119 | D1's accuracy | Colour stays a coin-flip |
+| **D2** | Colour references: leave them, move the global `hex_ref`, or build per-region ones | P3: body agreement **0.5625 → 0.9125** leave-one-cluster-out; real green igloos sit nearer the `metal` swatch than `green`. **But this is one city, one week, one camera**, and `glass_mixed` is 2 crops of 119. **Per-region is not a data edit** — see 3.3 | D1 goes 77 % → 95 % correct | D1 ships at 77 % instead of 95 % |
 | **D3** | Merge or reject `feat/fp32-ship-profile`, **then score the exported fp32 graph** | [P13](research/probes/P13-fp32-validator-viability.md): fp32 **24.6 ms vs a 50 ms budget**, costs 1 of 5 scanners, and is the only route to a validator that ships on accuracy. **Merging alone does not ship it** — the sidecar's 0.7524 is copied from the PyTorch run and the exported graph has never been scored | **Everything downstream of a running service** | Nothing can ever be deployed |
 | **D4** | Re-derive the ≥ 10 concurrency budget from pilot size **in people**, or accept 5 | [P12](research/probes/P12-the-controlled-host.md) 5 at one bin; the number 10 appears in [docs/00](00-product-requirements.md) with no derivation from users | The kill criterion, and whether to spend money | A gate fails against a number nobody chose |
 | **D5** | Whether 95 % correct is shippable for disposal advice, and what the floor is | P3 second act: 6 errors in 119, three of which a person could not call either | Whether D1 ships as an answer or behind a threshold | D1 lands with no policy |
@@ -604,15 +604,29 @@ and steps 1–5 are a single working session between here and an answer.
       `deg-packaging-sack`). Cite the municipal source
       ([research/12](research/12-deggendorf-packaging-evidence.md)) on each.
       *Produces:* **the single largest behaviour change available to this
-      project** — 0 % → 95 % of wheelies answering, measured end to end.
-- [ ] **3.3 — [D2] Calibrate colour references, and keep the blast radius small.**
-      **Do not replace the global swatches on this evidence.** `waste-streams.json`
-      supplies `hex_ref` to *every* region, and what has been measured is one
-      city, one week, one camera — with `glass_mixed` represented by **two crops
-      of 119**. Bavaria is not the world's colour convention, which is the entire
-      premise of phase 6. Prefer a **Deggendorf-scoped calibration** and treat a
-      global swatch change as a separate decision with its own evidence.
-      Re-run `colour_labels.py score` after.
+      project, and it is free.** Measured end to end: **0 % → 95.8 % of wheelies
+      resolving, 77.3 % to the correct stream, using the swatches exactly as they
+      ship today.** 3.3 option (b) or (c) would take that to 95.0 % correct — but
+      3.2 does not depend on 3.3 and must not wait for it.
+- [ ] **3.3 — [D2] Colour references. Three options, and the cheap-sounding one
+      is not cheap.** **Verified 2026-08-22, because an earlier version of this
+      step called a region-scoped calibration a data edit and it is not:**
+      `region-pack.schema.json` sets `additionalProperties: false` and has no
+      colour-reference property, `named_colours()` is `@lru_cache(maxsize=1)` over
+      the *global* `waste-streams.json`, and `measure_body_colour(crop, gain)`
+      takes no region at all (`service/pipeline.py:439`).
+
+      | option | cost | blast radius | worth |
+      |---|---|---|---|
+      | **(a) leave them** | zero | none | 3.2 lands at **77.3 %** correct |
+      | **(b) move the global `hex_ref`** | one file, no code | **every region, forever** | 95.0 % |
+      | **(c) per-region references** | schema change + a `region` threaded through `measure_body_colour` → `named_colours` + a cache that holds more than one | none | 95.0 % |
+
+      **Take (a) first.** It is free, it is already measured, and it makes 3.2
+      shippable on its own. (b) is the tempting one and is exactly what phase 6
+      exists to punish — Bavaria is not the world's colour convention. (c) is the
+      right answer and should be scheduled honestly as code, not smuggled in as a
+      recalibration. Re-run `colour_labels.py score` after whichever.
       *Produces:* body colour 0.5625 → 0.9125, and it is what takes 3.2 from
       77 % to 95 %. **Warning:** this changes every resolution outcome in every
       pack, so it needs the regression it does not yet have — see 3.4.
