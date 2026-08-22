@@ -46,7 +46,7 @@
       ]
     },
     "_source": "artifacts/gate/validator-v1.json",
-    "_snapshotted": "2026-08-22T08:36:38+00:00"
+    "_snapshotted": "2026-08-22T08:45:17+00:00"
   },
   "identifier": {
     "role": "identifier",
@@ -92,6 +92,14 @@
       ]
     },
     "_source": "artifacts/gate/identifier-v1.json",
-    "_snapshotted": "2026-08-22T08:36:38+00:00"
+    "_snapshotted": "2026-08-22T08:45:17+00:00"
+  },
+  "_coverage": {
+    "clusters": {
+      "igloo": 17,
+      "street_basket": 1,
+      "wheelie_large": 56,
+      "wheelie_small": 65
+    }
   }
 }

@@ -41,6 +41,7 @@ import argparse
 import html
 import json
 import logging
+import os
 import re
 from collections import Counter
 from datetime import datetime, timezone
@@ -80,7 +81,11 @@ def probe_files() -> list[dict[str, Any]]:
     something nobody predicted still lands in the right tier.
     """
     out: list[dict[str, Any]] = []
-    for path in sorted(PROBE_DATA.glob("*.json")):
+    # `key=` and not bare `sorted()`: comparing Path objects case-folds on
+    # Windows and does not on Linux, so `gate-sidecars.json` sorted before `P1-`
+    # on one and after it on the other. Sorting the NAME as a plain string is the
+    # same order everywhere.
+    for path in sorted(PROBE_DATA.glob("*.json"), key=lambda q: q.name):
         d = _load(path)
         if d is None:
             out.append({"file": path.name, "kind": "unreadable", "raw": None})
@@ -182,6 +187,21 @@ def snapshot_gates() -> dict[str, dict[str, Any]]:
             found[role]["_source"] = str(candidate.relative_to(REPO_ROOT)).replace("\\", "/")
             found[role]["_snapshotted"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             break
+
+    # Capture clusters come from `manifest.json`, which is gitignored, so they
+    # travel in the snapshot too. Without this a clean checkout renders every
+    # cluster count as unknown.
+    manifest = _load(POOL / "manifest.json")
+    adj = _load(POOL / "adjudication.json")
+    if manifest and adj:
+        crop_frame = {r["file"]: r["frame"] for r in manifest.get("crop_records", [])}
+        frame_cluster = {r["file"]: r.get("capture_cluster") for r in manifest.get("records", [])}
+        per: dict[str, set] = {}
+        for d in adj.get("decisions", []):
+            ff = d.get("form_factor")
+            if ff:
+                per.setdefault(ff, set()).add(frame_cluster.get(crop_frame.get(d["file"])))
+        found["_coverage"] = {"clusters": {k: len(v - {None}) for k, v in sorted(per.items())}}
     return found
 
 
@@ -192,17 +212,33 @@ def gate_sidecars() -> dict[str, dict[str, Any]]:
     `unknown` and says why, which is the correct behaviour for absent evidence -
     but on a clean checkout it is present, because it is committed.
     """
-    return _load(GATE_SNAPSHOT) or {}
+    snap = _load(GATE_SNAPSHOT) or {}
+    return {k: v for k, v in snap.items() if not k.startswith("_")}
 
 
 def coverage() -> dict[str, Any]:
+    """Crops and capture clusters per form factor.
+
+    **Crop counts come from `adjudication.json`, which is TRACKED** (it is one of
+    the three exceptions in `.gitignore`). **Cluster counts need
+    `manifest.json`, which is NOT** - so they come from the snapshot when the
+    manifest is absent, and render `unknown` if neither is there. CI caught this:
+    a clean checkout reported every form factor as 0 crops and 0 clusters while
+    the committed page said 247 and 65.
+    """
     tax = _load(TAXONOMY) or {}
     all_ff = [f["id"] for f in tax.get("form_factors", [])]
     adj = _load(POOL / "adjudication.json")
     manifest = _load(POOL / "manifest.json")
+    snapshot = _load(GATE_SNAPSHOT) or {}
 
     counts: Counter = Counter()
     clusters: dict[str, set] = {}
+    if adj:
+        for d in adj.get("decisions", []):
+            ff = d.get("form_factor")
+            if ff:
+                counts[ff] += 1
     if adj and manifest:
         crop_frame = {r["file"]: r["frame"] for r in manifest.get("crop_records", [])}
         frame_cluster = {r["file"]: r.get("capture_cluster") for r in manifest.get("records", [])}
@@ -210,7 +246,6 @@ def coverage() -> dict[str, Any]:
             ff = d.get("form_factor")
             if not ff:
                 continue
-            counts[ff] += 1
             clusters.setdefault(ff, set()).add(frame_cluster.get(crop_frame.get(d["file"])))
 
     trained: list[str] = []
@@ -218,10 +253,14 @@ def coverage() -> dict[str, Any]:
     if "identifier" in sidecars:
         trained = list(sidecars["identifier"].get("classes") or [])
 
+    cluster_counts = {k: len(v - {None}) for k, v in clusters.items()}
+    if not cluster_counts:
+        cluster_counts = dict((snapshot.get("_coverage") or {}).get("clusters") or {})
+
     return {
         "all": all_ff,
         "counts": dict(counts),
-        "clusters": {k: len(v - {None}) for k, v in clusters.items()},
+        "clusters": cluster_counts,
         "trained": trained,
         "have_labels": bool(adj),
     }
@@ -668,8 +707,12 @@ def _commit_stamp() -> str:
 
     try:
         out = subprocess.run(
-            ["git", "log", "-1", "--format=%cd", "--date=format:%Y-%m-%d %H:%M UTC"],
+            # `format-local:` with TZ=UTC, not `format:`. The plain form renders
+            # in the COMMITTER's offset, so the same commit read 09:42 here and
+            # 10:41 in CI while the label said UTC on both.
+            ["git", "log", "-1", "--format=%cd", "--date=format-local:%Y-%m-%d %H:%M UTC"],
             cwd=REPO_ROOT, capture_output=True, text=True, check=True, timeout=20,
+            env={**os.environ, "TZ": "UTC"},
         ).stdout.strip()
         return out or "unknown"
     except Exception:  # noqa: BLE001 - no git, no stamp; the page says so
