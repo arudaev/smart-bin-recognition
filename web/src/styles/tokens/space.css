@@ -72,7 +72,6 @@
      states, same URLs, same components - only where they sit changes. */
   --scan-columns: minmax(0, 1fr) minmax(360px, var(--desk-panel));
   --scan-sheet-position: static;
-  --scan-sheet-block-size: 100%;
   --scan-sheet-rule: var(--border-hair) solid var(--line-hair);
   /* Side by side, the media box is centred in a pane taller than itself, so a
      16:9 camera is clipped evenly at both ends instead of only at the bottom.
@@ -114,10 +113,38 @@
   :root {
     --scan-columns: minmax(0, 1fr);
     --scan-sheet-position: absolute;
-    --scan-sheet-block-size: var(--scan-sheet-stacked);
     --scan-sheet-rule: 0;
     --scan-media-block-start: 0;
     --scan-media-shift: 0;
+  }
+}
+
+/* THE ONE VALUE THAT CANNOT BE HANDED OVER AS A CUSTOM PROPERTY, and the reason
+   is worth writing down because it looked like it worked for weeks.
+
+   This used to be `--scan-sheet-block-size: var(--scan-sheet-stacked)` on
+   `:root`, read by a style object. A custom property whose value contains
+   `var()` is substituted **on the element that declares it** – here `:root` –
+   and `--scan-sheet-stacked` is set inline on the scanner's shell, far below
+   `:root`. So the substitution had nothing to substitute, the property was
+   invalid at computed-value time, it inherited as invalid, and `block-size`
+   silently fell back to `auto`.
+
+   The sheet was therefore always as tall as its content. With a three-row list
+   that passes for deliberate. With an answer panel open it is 1745px inside an
+   844px window, anchored to the block end, so the sheet's own header is off the
+   top of the screen and nothing scrolls – the scrolling box is bigger than the
+   thing it was meant to scroll.
+
+   Declared on the element itself, `var()` resolves against the value that
+   element actually inherited, which is the one the shell set. */
+.sbr-scan-sheet {
+  block-size: 100%;
+}
+
+@media (max-width: 1100px) {
+  .sbr-scan-sheet {
+    block-size: var(--scan-sheet-stacked, 60%);
   }
 }
 

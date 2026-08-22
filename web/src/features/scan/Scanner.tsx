@@ -243,6 +243,17 @@ export function Scanner(p: Props) {
            property and never learns what the viewport is. */
         display: "grid",
         gridTemplateColumns: "var(--scan-columns)",
+        /* AND A ROW THAT CANNOT GROW.
+           The implicit row is `auto`, so a column whose content is taller than
+           the viewport stretched the ROW instead of scrolling inside it. Opening
+           an answer took the sheet to 1722px in a 768px window: the bottom of
+           the panel was unreachable, `overflow-y: auto` never engaged because
+           the box was bigger than its own content, and the media box - centred
+           against that row - slid 477px down the screen, which is the camera
+           "jumping" when a bin is tapped. Same shape as the five inline-axis
+           overflows in CONVENTIONS: an `auto` track plus a content-sized child
+           removes the maximum. Pinning the row restores it. */
+        gridTemplateRows: "100%",
         // What the sheet's height means while the two are stacked. Ignored side
         // by side, where the sheet is a grid child and simply fills its column.
         ["--scan-sheet-stacked" as string]: sheetH,
@@ -374,13 +385,19 @@ export function Scanner(p: Props) {
           no component that has to be told which shape it is in. */}
       <div
         data-testid="scan-sheet"
+        /* The height lives in tokens/space.css, on this class, and the comment
+           there says why it cannot be an inline custom property like the rest
+           of this composition. Everything else here still is. */
+        className="sbr-scan-sheet"
         style={{
           position: "var(--scan-sheet-position)" as React.CSSProperties["position"],
           insetInline: 0,
           insetBlockEnd: 0,
-          blockSize: "var(--scan-sheet-block-size)",
           borderInlineStart: "var(--scan-sheet-rule)",
           minInlineSize: 0,
+          // The block-axis twin of minInlineSize: a grid item's default minimum
+          // is its content, and without this it refuses to shrink to its row.
+          minBlockSize: 0,
           transition: "block-size var(--dur-3) var(--ease-out)",
         }}
       >
