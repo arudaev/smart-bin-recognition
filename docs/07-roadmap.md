@@ -19,15 +19,24 @@ has done — and this project has been mistaking the first for the second.
 | # | Decision | Evidence sitting in front of it | What it unblocks | Cost of not deciding |
 |---|---|---|---|---|
 | **D1** | Move the Deggendorf wheelie rules from `lid_color` to `body_color` | [P3 second act](research/probes/P3-colour-measurement.md): 0 % → **95 % correct stream**; [research/12](research/12-deggendorf-packaging-evidence.md): the municipality names the **bin** grey/brown/blue, not the lid | **The product's core answer.** 362 of 403 crops | Wheelies answer `unknown` forever |
-| **D2** | Recalibrate `waste-streams.json`'s `hex_ref` to measured centroids | P3: body agreement **0.5625 → 0.9125** leave-one-cluster-out; real green igloos sit nearer the `metal` swatch than `green` | D1's accuracy, and every future region pack | Colour stays a coin-flip |
-| **D3** | Merge or reject `feat/fp32-ship-profile` | [P13](research/probes/P13-fp32-validator-viability.md): fp32 **24.6 ms vs a 50 ms budget**, costs 1 of 5 scanners, and is the only route to a validator that ships on accuracy | **Everything downstream of a running service** | Nothing can ever be deployed |
+| **D2** | Calibrate colour references **for Deggendorf**, and decide separately whether the global `hex_ref` should move | P3: body agreement **0.5625 → 0.9125** leave-one-cluster-out; real green igloos sit nearer the `metal` swatch than `green`. **But this is one city, one week, one camera** — and `glass_mixed` is 2 crops of the 119 | D1's accuracy | Colour stays a coin-flip |
+| **D3** | Merge or reject `feat/fp32-ship-profile`, **then score the exported fp32 graph** | [P13](research/probes/P13-fp32-validator-viability.md): fp32 **24.6 ms vs a 50 ms budget**, costs 1 of 5 scanners, and is the only route to a validator that ships on accuracy. **Merging alone does not ship it** — the sidecar's 0.7524 is copied from the PyTorch run and the exported graph has never been scored | **Everything downstream of a running service** | Nothing can ever be deployed |
 | **D4** | Re-derive the ≥ 10 concurrency budget from pilot size **in people**, or accept 5 | [P12](research/probes/P12-the-controlled-host.md) 5 at one bin; the number 10 appears in [docs/00](00-product-requirements.md) with no derivation from users | The kill criterion, and whether to spend money | A gate fails against a number nobody chose |
 | **D5** | Whether 95 % correct is shippable for disposal advice, and what the floor is | P3 second act: 6 errors in 119, three of which a person could not call either | Whether D1 ships as an answer or behind a threshold | D1 lands with no policy |
 | **D6** | The `deg-packaging-*` rules describe a collection that does not exist | [research/12](research/12-deggendorf-packaging-evidence.md): no Gelber Sack in the ZAW area; LVP goes to recycling centres until end-2027 | Pack `draft` → `published` | The pack cannot be published |
 
-**D1, D2, D3 and D5 are one working session between here and "a person in
-Deggendorf points a phone at a bin and gets a correct answer".** None of them
-needs new code. D1 and D2 are edits to two JSON files.
+**D1, D2, D3 and D5 are the shortest route between here and "a person in
+Deggendorf points a phone at a bin and gets a correct answer".** D1 and D2 are
+edits to JSON files and need no code at all.
+
+**D3 needs both, and an earlier version of this section said otherwise.** It said
+"none of them needs new code"; that was wrong, and an external review caught it.
+Merging the branch is not sufficient: the exported fp32 graph has never been
+scored — the sidecar's own provenance reads *"copied from the run that measured
+it, not measured here"* — so `may_ship` stays false with the honest complaint
+*"the fp32 ONNX graph has not been scored"*. That is one **CPU** Kaggle kernel,
+a near-copy of `ml/kaggle/probe_quantisation/`, which already downloads the
+pinned pool, builds the tree and calls `score_onnx` on `test`.
 
 **The one prerequisite:** D1, D2 and D5 all rest on 160 colour labels written by
 an **agent**, not a person. The pre-registered spot-check —
@@ -79,8 +88,10 @@ representative hardware, concurrency fails at 5 against 10.
 
 **P3 ran on 2026-08-22 and the answer is worse than "not yet".** It is not that
 colour has not been measured — it is that, measured, **body colour agrees with
-hand labels 0.5625 of the time and lid colour 0.1966**, and the pre-registered
-rule says do not wire the lid in. So a Deggendorf wheelie still resolves to
+the labels 0.5625 of the time and lid colour 0.1966**, and the pre-registered
+rule says do not wire the lid in. **Those labels are an agent's, not a person's**
+(`labeller: claude`, `provisional_proposals: true`), which is why P3 is recorded
+as not closed. So a Deggendorf wheelie still resolves to
 `unknown`, and now there is a number saying why rather than a gap.
 
 **Two things that changed the shape of the phase:**
@@ -594,8 +605,14 @@ and steps 1–5 are a single working session between here and an answer.
       ([research/12](research/12-deggendorf-packaging-evidence.md)) on each.
       *Produces:* **the single largest behaviour change available to this
       project** — 0 % → 95 % of wheelies answering, measured end to end.
-- [ ] **3.3 — [D2] Recalibrate `hex_ref` against measured centroids.** Eleven hex
-      values in `waste-streams.json`. Re-run `colour_labels.py score` after.
+- [ ] **3.3 — [D2] Calibrate colour references, and keep the blast radius small.**
+      **Do not replace the global swatches on this evidence.** `waste-streams.json`
+      supplies `hex_ref` to *every* region, and what has been measured is one
+      city, one week, one camera — with `glass_mixed` represented by **two crops
+      of 119**. Bavaria is not the world's colour convention, which is the entire
+      premise of phase 6. Prefer a **Deggendorf-scoped calibration** and treat a
+      global swatch change as a separate decision with its own evidence.
+      Re-run `colour_labels.py score` after.
       *Produces:* body colour 0.5625 → 0.9125, and it is what takes 3.2 from
       77 % to 95 %. **Warning:** this changes every resolution outcome in every
       pack, so it needs the regression it does not yet have — see 3.4.
