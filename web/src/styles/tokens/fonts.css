@@ -12,8 +12,25 @@
 
    TO FINISH: drop the .woff2 files into web/public/fonts/ and uncomment the
    @font-face block. Until then the stack falls through to the system UI font,
-   which is legible everywhere and costs no request. Nothing else changes –
-   every size, weight and leading token is unaffected. */
+   which is legible everywhere and costs no request.
+
+   **"Nothing else changes" was wrong, and it cost a day to find out.**
+   Measured 2026-08-22: with no webfont the app renders in whatever the OS
+   supplies - Segoe UI on Windows, DejaVu Sans on Linux - and DejaVu is wide
+   enough that a button measuring 238px here measures 331px there, overflowing
+   a 320px viewport. The same build passed every layout test locally and failed
+   the identical test in CI. Sizes and leading are indeed unaffected; the WIDTH
+   of every string is not, and layout is made of widths.
+
+   Two consequences, and the second survives finishing the TODO:
+
+   1. Until the binaries land, this app's layout depends on the reader's
+      operating system. That is the metric divergence across devices that was
+      reported from real phones.
+   2. `font-display: swap` means the fallback paints FIRST even once Plex is
+      self-hosted, so a layout that only fits in Plex is still broken for that
+      frame. Components must survive a wider font either way - see
+      web/e2e/viewport-sweep.spec.ts. */
 
 /*
 @font-face {

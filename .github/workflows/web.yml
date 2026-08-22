@@ -98,7 +98,13 @@ jobs:
 
       - name: Browser tests
         # playwright.config.ts builds and serves the app itself via webServer.
-        run: npm run test:e2e
+        # PLAYWRIGHT_HTML_REPORT makes a failure inspectable: the `github` and
+        # `list` reporters print to the log and leave no artefact, so the first
+        # CI-only layout failure had nothing to download and had to be guessed
+        # at from one string. It costs nothing on a green run.
+        env:
+          PLAYWRIGHT_HTML_REPORT: playwright-report
+        run: npm run test:e2e -- --reporter=github,list,html
 
       - name: Keep the report when it fails
         if: failure()

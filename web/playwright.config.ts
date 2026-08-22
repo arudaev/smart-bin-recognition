@@ -69,7 +69,13 @@ export default defineConfig({
   webServer: {
     command: "npm run build && npm run preview -- --port 4173 --strictPort",
     url: "http://localhost:4173",
-    reuseExistingServer: !process.env.CI,
+    // NEVER reuse. This cost two false verifications in one session: a preview
+    // server left running from an earlier build kept serving the OLD bundle, so
+    // source edits appeared to change nothing and a reverted fix appeared to
+    // still pass. A suite whose whole job is catching layout regressions must
+    // never be allowed to test a stale build. The rebuild costs about ten
+    // seconds; a silent false pass costs an afternoon.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
