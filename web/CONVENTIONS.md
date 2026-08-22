@@ -191,6 +191,18 @@ instrumentation stops being trusted. Budgets are judged at p95 (`vitals.cls` and
 `scripts/check-bundle.mjs` is the transfer budget and it exits non-zero. Either
 growth is worth it and the budget moves in the same commit, or it is not.
 
+**It also asserts the dev/beta split in both directions**, which is what keeps
+the metrics overlay out of production without anybody having to remember:
+
+| build | the `src/dev/` sentinel | exits |
+|---|---|---|
+| production – `npm run build` | must be **absent** | 1 if present |
+| beta – `npm run build:beta`, or `VERCEL_ENV=preview` | must be **present** | 1 if absent |
+
+Asserting both is the point: a check that merely *skipped* on a beta build would
+let a broken beta – one where the overlay silently failed to ship – pass as a
+clean production build. Neither mode can quietly become the other.
+
 ## Commands
 
 ```bash
@@ -237,10 +249,24 @@ names honestly when nothing is configured.
 
 - **There is no model.** If anything here imports an inference runtime it is in
   the wrong repository. Enforced in `test/discipline.test.ts`.
-- **There is no analytics.** `perf/` records to a ring buffer on the device and
-  exports a JSON file when a person asks. Nothing is sent anywhere, because
-  there is no user identity in this architecture and adding an endpoint would be
-  the first thing in the product to transmit anything about anybody.
+- **There is no analytics *in production*.** `perf/` records to a ring buffer on
+  the device and exports a JSON file when a person asks. Nothing is sent
+  anywhere, because there is no user identity in this architecture and adding an
+  endpoint would be the first thing in the product to transmit anything about
+  anybody.
+
+  **Amended 2026-08-22, narrowed rather than dropped.** Vercel Analytics and
+  Speed Insights are mounted in `app/Telemetry.tsx` behind `__BETA__`, which
+  `vite.config.ts` derives from Vercel's own `VERCEL_ENV`. They run on **preview
+  deployments only** – a beta given to named testers who know they are testing.
+  On a production build the branch folds, the dynamic import is unreachable, and
+  neither package reaches `dist`: 124.3 kB production against 131.7 kB beta, and
+  `grep vercel dist/assets/*.js` finds nothing in the former.
+
+  **Moving them to production needs a consent gate, not a code change.** Vercel
+  Analytics is cookieless but is still a transfer to a US processor, and Germany
+  is the launch market – the same reasoning that keeps Google Fonts out of
+  `tokens/fonts.css`. That is a product decision and the maintainer's.
 - **There is no surface switch.** The surface is `routes.ts:surfaceFor` applied
   to the capability probe, and nothing else – never a viewport query, never a
   user-agent. Only `tier: "viewer"` gets the viewer; `capture` gets the scanner,

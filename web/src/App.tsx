@@ -8,6 +8,7 @@ import { readPreferences, writePreferences } from "@/app/preferences";
 import { PATH, normalisePath, resolveRoute } from "@/app/routes";
 import type { Mode } from "@/app/theme";
 import { applyThemeToDocument } from "@/app/theme";
+import { Telemetry } from "@/app/Telemetry";
 import { useRouter } from "@/app/useRoute";
 import type { Tier } from "@/capture/capability";
 import { useScan } from "@/capture/useScan";
@@ -52,13 +53,23 @@ import { MockClient, createClient } from "@/transport";
  * no header, no wordmark, no switch. Every pixel belongs to a screen.
  */
 
-/* The DEV branch is the only place this module is named, so a production build
-   folds the condition away and the import becomes unreachable. What must not
-   come back is a static import: the panels return null in production, but
-   their props – every state label in the product – were built either way, and
-   ~3 kB of director copy shipped to every user. scripts/check-bundle.mjs greps
-   dist for the sentinel in that file and fails the build if it reappears. */
-const DevTools = import.meta.env.DEV ? lazy(() => import("@/dev/DevTools")) : null;
+/* This branch is the only place the module is named, so a build that fails the
+   condition folds it away and the import becomes unreachable. What must not come
+   back is a static import: the panels return null in production, but their
+   props – every state label in the product – were built either way, and ~3 kB of
+   director copy shipped to every user. scripts/check-bundle.mjs greps dist for
+   the sentinel in that file.
+
+   `__BETA__` widens the branch from "development" to "development or a Vercel
+   PREVIEW build", because a beta tester needs the metrics overlay for exactly
+   the reason a developer does: a latency budget nobody looks at is a wish, and
+   the maintainer cannot stand behind the tester's shoulder.
+
+   It does NOT widen to production. `__BETA__` is derived in vite.config.ts from
+   `VERCEL_ENV`, which Vercel sets itself - there is no flag to forget - and
+   check-bundle.mjs asserts the sentinel is PRESENT in a beta build and ABSENT in
+   a production one, so both directions fail loudly rather than one silently. */
+const DevTools = import.meta.env.DEV || __BETA__ ? lazy(() => import("@/dev/DevTools")) : null;
 
 export default function App() {
   const { path, navigate } = useRouter();
@@ -203,6 +214,7 @@ export default function App() {
           settings={settingsPanel()}
         />
         {devTools}
+        <Telemetry />
       </div>
     );
   }
@@ -292,6 +304,7 @@ export default function App() {
     <div className="sbr-app-root" style={{ background: "var(--surface-page)" }}>
       {screens[route.screen]}
       {devTools}
+      <Telemetry />
     </div>
   );
 }
