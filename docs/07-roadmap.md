@@ -582,8 +582,9 @@ validator on a training run that failed with no log.
       | Repository | `arudaev/smart-bin-recognition` | git-connected, so every push touching `web/` rebuilds and each branch gets its own preview URL |
       | Framework | Vite | already declared in `web/vercel.json` |
       | **Root Directory** | **`web`** | the app is not at the repo root |
-      | **Include files outside the Root Directory** | **ON — required** | `vite.config.ts` aliases `@taxonomy` to `../data/taxonomy`, and `data/packs.ts`, `data/regions.ts` and `data/taxonomy.ts` all import through it. With this off the build fails on an unresolved import |
+      | **Include files outside the Root Directory** | **ON — required twice over** | The **client** build aliases `@taxonomy` to `../data/taxonomy` (`data/packs.ts`, `data/regions.ts`, `data/taxonomy.ts`), and the **edge functions** reach out independently — `api/_packs.ts:16` imports `../../data/taxonomy/regions/de-by-deggendorf.json`. With this off, both halves fail on an unresolved import |
       | Environment variables | **none needed** | `VERCEL_ENV` is set by Vercel and is what `__BETA__` reads |
+      | Node | **22.x**, pinned in `web/package.json` `engines` | CI runs Node 22; leaving it unpinned lets Vercel pick a different runtime, which is how a build passes in one place and fails in the other. This project has already lost a day to exactly that class of divergence — see the font note in `tokens/fonts.css` |
 
       **Preview and production differ on purpose**, and nothing has to be
       remembered for that to hold: `vite.config.ts` derives `__BETA__` from
