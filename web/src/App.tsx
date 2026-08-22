@@ -168,6 +168,17 @@ export default function App() {
       capability={live.capability}
       transport={transport}
       onClose={onClose}
+      /* `onClose` is present on the scanner and absent on the desk - the desk
+         reaches settings through its own nav - so it is also what says which
+         surface this panel is drawn on, and therefore which way across to
+         offer. The scanner never offers itself and the desk never offers
+         itself.
+
+         `onScanner` is withheld from a viewer-TIER device: it has no camera, so
+         routes.ts would bounce /scan straight back to the map and the row would
+         be a button that appears to do nothing. */
+      onDeskView={onClose ? () => navigate(PATH.viewer) : undefined}
+      onScanner={!onClose && tier !== "viewer" ? () => navigate(PATH.scan) : undefined}
     />
   );
 

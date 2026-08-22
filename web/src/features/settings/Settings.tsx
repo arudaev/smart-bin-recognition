@@ -39,6 +39,23 @@ interface Props {
   transport: "socket" | "rest" | "mock";
   /** Phone surface only – the desk reaches settings through its own nav. */
   onClose?: () => void;
+  /* THE OTHER SURFACE, REACHABLE.
+   *
+   * `routes.ts` already honours an explicit request for the surface a device is
+   * not on – "reviewing it from a phone is legitimate", and a Surface Pro that
+   * cannot be pointed at anything is the same case from the other end. What was
+   * missing was any way to ask: nothing outside `features/desk/` mentioned
+   * /viewer, so the only route across was typing a URL, and a tablet with two
+   * cameras was locked onto the scanner.
+   *
+   * Exactly one of these is supplied, by the surface the panel is drawn on, and
+   * they are supplied in pairs so this never becomes a one-way door.
+   *
+   * This is NOT an override of the capability probe. `surfaceFor` still decides
+   * where a device LANDS – deciding that on width would be wrong the first time
+   * somebody rotated a phone. This decides only where a person may go next. */
+  onDeskView?: () => void;
+  onScanner?: () => void;
 }
 
 export function Settings(p: Props) {
@@ -139,6 +156,22 @@ export function Settings(p: Props) {
               register={t("settings.serviceRegister")}
               trailing={<Tag variant={transport === "mock" ? "outline" : "solid"}>{transport}</Tag>}
             />
+            {p.onDeskView ? (
+              <ListRow
+                title={t("settings.deskView")}
+                subtitle={t("settings.deskViewBody")}
+                register={t("settings.surfaceRegister")}
+                onClick={p.onDeskView}
+              />
+            ) : null}
+            {p.onScanner ? (
+              <ListRow
+                title={t("settings.scannerView")}
+                subtitle={t("settings.scannerViewBody")}
+                register={t("settings.surfaceRegister")}
+                onClick={p.onScanner}
+              />
+            ) : null}
             {capability.permission === "denied" ? (
               <div style={{ paddingBlockStart: "var(--space-4)" }}>
                 <Notice tone="attention" icon="camera-off" title={t("camera.deniedTitle")}>
