@@ -6,17 +6,38 @@
 `c25582d` before a single label was written**. Tooling:
 `ml/scripts/colour_labels.py`.*
 
-> ## PROVISIONAL. The labels were written by an agent.
+> ## The spot-check ran on 2026-08-22, and the agent's labels hold.
 >
-> P3 says *hand-label*, and the maintainer was away for this run. The 160 labels
-> scored below carry **`labeller: claude`** and are stored as
-> `provisional_proposals: true`. **P3 does not close on them**, and no number on
-> this page may be quoted without the word PROVISIONAL beside it.
+> The 160 labels scored below were written by an agent (**`labeller: claude`**,
+> `provisional_proposals: true`) because the maintainer was away. A **25-crop
+> blinded human spot-check** was pre-registered for their return. It ran, by
+> `alex`, blind, on the deterministic subset (seed 20260821 + 1):
 >
-> A **25-crop random spot-check** is pre-registered for the maintainer's return
-> (`colour_labels.py spot-check`), and `--label` re-runs the full blinded pass
-> over the same frozen 160 if the spot-check warrants it. Human rows win over
-> agent rows automatically wherever both exist.
+> | | human vs agent | n |
+> |---|---:|---:|
+> | **body colour** | **0.9200** | 25 |
+> | **lid colour**, wheelies only | **0.8947** | 19 |
+>
+> Four disagreements in total. **Three of the four are grey↔black**; the fourth is
+> the single `street_basket`, which the agent called brown and the human declined
+> as `unsure`. Nothing crossed a hue.
+>
+> The human also says **19 of 19 wheelie lids are visible**, against the agent's
+> 98.3 % over 117 — so the lid verdict below rests on a lid that is genuinely
+> there, and not on a cropping failure.
+>
+> **What this licenses, precisely.** The *labels* are corroborated, so the numbers
+> below may be quoted without the word PROVISIONAL. It does not make the 160 a
+> human pass, and it does not widen the corpus: every figure here is still
+> overcast Bavarian daylight over 160 crops. Reproduce with
+> `colour_labels.py concordance --reviewer alex`; raw data in
+> [`data/P3-spot-check.json`](data/P3-spot-check.json).
+>
+> One number moved the other way. Scored against the human's 25 alone, the body
+> sampler reads **0.4583** rather than 0.5625 (n=24 after one `unsure`), which is
+> inside the noise of a 24-crop proportion and is recorded here rather than
+> smoothed away. The lid reads **0.2105** against 0.1966 — the same verdict from
+> both directions.
 
 **Question.** Does illuminant normalisation beat naive sampling, is SAM needed —
 and, added on 2026-08-22 because it became the product's binding constraint, can
@@ -232,7 +253,10 @@ Three decisions, none of them taken here:
 
 ## What this probe did not do
 
-- **It did not close.** Agent labels, disclosed as such, spot-check pre-registered.
+- **It did not close on agent labels.** It closed on 2026-08-22 when the
+  pre-registered human spot-check ran and agreed at 0.92 / 0.89 — see the box at
+  the top. The distinction matters: what was validated is the *labelling*, not a
+  wider corpus.
 - **It did not touch the region pack**, `waste-streams.json`, or any form-factor id.
 - **It did not try segmentation.** Section 2 shows the failure is downstream of
   where a mask would help, so SAM would have been an expensive way to not fix it.

@@ -5,7 +5,8 @@
     python ml/scripts/colour_labels.py sheets     --pool data/legacy/pool --out <dir>
     python ml/scripts/colour_labels.py label      --pool data/legacy/pool --reviewer alex
     python ml/scripts/colour_labels.py spot-check --pool data/legacy/pool --reviewer alex -n 25
-    python ml/scripts/colour_labels.py score      --pool data/legacy/pool --labeller alex
+    python ml/scripts/colour_labels.py score       --pool data/legacy/pool --labeller alex
+    python ml/scripts/colour_labels.py concordance --pool data/legacy/pool --reviewer alex
 
 **Why this is not adjudicate.py.** That script is a localhost keystroke UI, and
 it is the right shape for a person with a screen. It is useless to an agent, and
@@ -261,6 +262,78 @@ def record_labels(pool: Path, labeller: str, rows: list[dict[str, Any]], provisi
 # --------------------------------------------------------------------------- #
 # score
 # --------------------------------------------------------------------------- #
+
+
+def concordance(pool: Path, human: str, agent: str) -> dict[str, Any]:
+    """Do the two labellers agree, on the crops they both looked at?
+
+    THIS IS THE PRE-REGISTERED GATE, and it is a different question from
+    ``score``. ``score`` asks whether the *sampler* agrees with a set of labels.
+    This asks whether the *labels themselves* can be trusted - the maintainer
+    pre-registered a 25-crop human spot-check precisely because 160 of them were
+    written by an agent while nobody was available to check.
+
+    Two things it gets right that a first pass gets wrong:
+
+      * **Only wheelies carry a human lid judgement.** ``serve`` auto-fills
+        ``lid_color=not_visible`` for every non-wheelie the moment its body is
+        answered, because there is no lid to ask about. Scoring those auto-fills
+        against an agent's guesses reads as a disagreement and is not one.
+      * **Neutrals are reported separately.** grey/metal/white are one perceptual
+        family under cloud, and a grey-vs-black swap is a different kind of
+        disagreement from brown-vs-green.
+    """
+    _crops, _frames, factors = pool_index(pool)
+    store = _load(pool / LABELS_FILE, {"labels": []})
+
+    rows: dict[str, dict[str, dict]] = {}
+    for row in store["labels"]:
+        rows.setdefault(row["file"], {})[row["labeller"]] = row
+    both = {f: v for f, v in rows.items() if human in v and agent in v}
+
+    neutrals = {"grey", "metal", "white"}
+
+    def compare(files: list[str], field: str) -> dict[str, Any]:
+        agree = same_family = n = 0
+        disagreements = []
+        for f in sorted(files):
+            a, c = both[f][human].get(field), both[f][agent].get(field)
+            if a is None or c is None:
+                continue
+            n += 1
+            if a == c:
+                agree += 1
+                same_family += 1
+            else:
+                if (a in neutrals) == (c in neutrals) and a in neutrals:
+                    same_family += 1
+                disagreements.append({"file": f, "form_factor": factors.get(f), agent: c, human: a})
+        return {
+            "n": n,
+            "agreement": round(agree / n, 4) if n else None,
+            "agreement_with_neutrals_collapsed": round(same_family / n, 4) if n else None,
+            "disagreements": disagreements,
+        }
+
+    wheelies = [f for f in both if (factors.get(f) or "").startswith("wheelie")]
+    lid = compare(wheelies, "lid_color")
+    visible = sum(1 for f in wheelies if both[f][human].get("lid_color") != NOT_VISIBLE)
+
+    return {
+        "probe": "P3",
+        "question": "are the agent's labels trustworthy? - docs/12 P3's pre-registered spot-check",
+        "human": human,
+        "agent": agent,
+        "crops_labelled_by_both": len(both),
+        "composition": dict(Counter(factors.get(f) for f in both)),
+        "body": compare(list(both), "body_color"),
+        "lid": {
+            **lid,
+            "scored_on": "wheelies only - a non-wheelie's lid is auto-filled, not judged",
+            "wheelies": len(wheelies),
+            "wheelies_the_human_says_have_a_visible_lid": visible,
+        },
+    }
 
 
 def score(pool: Path, labeller: str | None) -> dict[str, Any]:
@@ -667,7 +740,7 @@ def serve(pool: Path, reviewer: str, subset: list[str] | None, port: int = 8766)
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["sample", "sheets", "label", "spot-check", "score"])
+    parser.add_argument("command", choices=["sample", "sheets", "label", "spot-check", "score", "concordance"])
     parser.add_argument("--pool", type=Path, default=REPO_ROOT / "data/legacy/pool")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--reviewer", default="alex")
@@ -712,6 +785,15 @@ def main() -> int:
         subset = sorted(rng.sample(sample["crops"], min(args.n, len(sample["crops"]))))
         logger.info("spot-checking %d crops as %r - these overwrite nothing but your own rows", len(subset), args.reviewer)
         serve(pool, args.reviewer, subset, args.port)
+        return 0
+
+    if args.command == "concordance":
+        report = concordance(pool, args.reviewer, args.labeller or "claude")
+        out = args.out or (REPO_ROOT / "docs/research/probes/data/P3-spot-check.json")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        _save(out, report)
+        logger.info(json.dumps(report, indent=2, ensure_ascii=False))
+        logger.info("wrote %s", out)
         return 0
 
     if args.command == "score":

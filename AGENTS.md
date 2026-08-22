@@ -209,10 +209,16 @@ frozen, cluster-stratified sample:
   igloos measure closer to the `metal` swatch than to `green`. **Recalibrating
   `hex_ref` is a taxonomy decision and the maintainer's** — it changes every
   resolution outcome in every pack.
-- **P3 is PROVISIONAL and does not close.** The labels were written by an agent
-  (`labeller: claude`, `provisional_proposals: true`) because the maintainer was
-  away. A 25-crop spot-check is pre-registered:
-  `python ml/scripts/colour_labels.py spot-check`.
+- **P3 no longer says PROVISIONAL. The spot-check ran on 2026-08-22 and the
+  agent's labels held.** The 160 labels were written by an agent
+  (`labeller: claude`) because the maintainer was away; the pre-registered
+  25-crop blinded human pass agrees at **0.9200** on body and **0.8947** on lid
+  over the 19 wheelies. Three of the four disagreements are grey↔black and the
+  fourth is an `unsure`; nothing crossed a hue. The human also finds **19 of 19**
+  wheelie lids visible, so the lid verdict rests on a lid that is there.
+  Reproduce: `python ml/scripts/colour_labels.py concordance --reviewer alex`.
+  **What that licenses is the labelling, not a wider corpus** — every P3 figure is
+  still 160 crops of overcast Bavarian daylight.
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
