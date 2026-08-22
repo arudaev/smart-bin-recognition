@@ -64,6 +64,13 @@ export function Button({
       style={{
         display: block ? "flex" : "inline-flex",
         inlineSize: block ? "100%" : "auto",
+        /* An inline button must still not be wider than what holds it.
+           Without this, "Search the rules instead" plus an icon plus padding
+           measured 331px inside a 320px viewport - but only on Linux, where
+           the font is wider than on Windows. A layout that depends on font
+           metrics is one that breaks on somebody else's phone. */
+        maxInlineSize: "100%",
+        minInlineSize: 0,
         alignItems: "center",
         justifyContent: "center",
         gap: s.gap,
