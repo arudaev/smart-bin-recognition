@@ -94,7 +94,7 @@ def main() -> None:
 
     # The per-cycle ratio, which is what alternating the arms buys: each term is
     # taken under the same conditions as its partner.
-    ratios = sorted(f / i for f, i in zip(fp32_p50, int8_p50))
+    ratios = sorted(f / i for f, i in zip(fp32_p50, int8_p50, strict=True))
     paired_median = ratios[len(ratios) // 2]
 
     results = {
@@ -124,7 +124,7 @@ def main() -> None:
         },
         "ratio": {
             "paired_median": round(paired_median, 4),
-            "per_cycle": [round(f / i, 4) for f, i in zip(fp32_p50, int8_p50)],
+            "per_cycle": [round(f / i, 4) for f, i in zip(fp32_p50, int8_p50, strict=True)],
             "definition": "fp32_p50 / int8_p50, per cycle, median of those",
         },
         "budget_ms": 50.0,

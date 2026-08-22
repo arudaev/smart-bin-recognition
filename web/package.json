@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:shots": "playwright test e2e/shots.spec.ts",
+    "test:e2e:shots": "node -e \"process.env.SBR_SHOTS='1';require('child_process').execFileSync(process.platform==='win32'?'npx.cmd':'npx',['playwright','test','e2e/shots.spec.ts'],{stdio:'inherit',env:process.env})\"",
     "check:locales": "node scripts/check-locales.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "build:icons": "node scripts/build-icons.mjs",
