@@ -232,9 +232,23 @@ History API router, the theme on `<html>`, `100dvh` and safe-area insets rather
 than a drawn phone, and the state director dynamically imported so it leaves
 the production bundle entirely.
 
-The client defaults to the in-process mock and **says so on the settings
-screen** — the transport is named there, `mock` or `rest` or `socket`. Swapping
-one for the other is one environment variable.
+The client defaults to the in-process mock. The transport is named on the
+settings screen — `mock` or `rest` or `socket` — and swapping one for the other is
+one environment variable.
+
+**Naming it there was not enough, and a beta proved it on 2026-08-22.** With no
+endpoint configured the loop runs against `MockClient`, which answers out of
+`web/src/data/frames.ts` — boxes measured off archive photographs. Every other
+part of the path is genuine, so the scanner drew those markers over a live
+camera, resolved them through the real Deggendorf pack, and captioned the frame
+*Connected · Deggendorf*. A tester pointed a phone at their own living room and
+was told bin 1 was Biomüll. **That is the product's worst failure — confidently
+wrong about which bin — reached through a configuration rather than through a
+model.** The scanner now carries a `demo` connection state and a notice above
+every branch of the sheet including the answer panel; nobody reads settings
+while holding a phone up at a bin. Pinned by
+`web/src/features/scan/demo.test.ts` and `web/e2e/demo-honesty.spec.ts`.
+**The remedy for a beta is to point it at a service, not to quiet the banner.**
 
 **It has now been run against the real thing.** On 2026-08-21, with
 `VITE_DETECT_URL` pointed at a local service serving the real validator and the
@@ -370,8 +384,10 @@ npm --prefix web test             # 281 tests, no browser
 npm --prefix web run test:e2e     # 13 browser tests; needs `npx playwright install chromium`
 npm --prefix web run preview      # a real build, so the service worker registers
 
-# Point the client at a service. With neither set it uses the in-process mock
-# and says so on the settings screen.
+# Point the client at a service. With neither set it uses the in-process mock,
+# and BOTH the settings screen and the scanner itself say so - the scanner
+# because the mock's archive boxes drawn over a live camera is this product's
+# worst failure reached through configuration. See web/CONVENTIONS.md.
 #   VITE_DETECT_WS=wss://…/stream     live streaming scan
 #   VITE_DETECT_URL=https://…/detect  one frame per request
 

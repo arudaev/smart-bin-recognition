@@ -210,6 +210,34 @@ Updates are never applied on their own – a waiting worker raises a flag and
 settings offers a button. Reloading the page underneath somebody who is reading
 an answer off it is worse than being one deployment behind.
 
+### And not lying about the mock
+
+With neither `VITE_DETECT_URL` nor `VITE_DETECT_WS` set, `createClient` returns
+`MockClient`, which answers out of `data/frames.ts` – boxes measured off archive
+photographs of Deggendorf. **Every other part of the path is genuine.** The
+gates fire, the wire is encoded, the resolver runs, the region pack answers. So
+the screen shows a live camera with markers on it and a real disposal rule under
+each, and none of it has anything to do with what the lens is pointed at.
+
+That shipped. A preview went out with no endpoint configured, and a tester
+pointed a phone at their own living room and was told bin 1 was Biomüll under
+the caption *Connected · Deggendorf*. It is this product's worst failure –
+confidently wrong about which bin – arrived at through a configuration rather
+than through a model.
+
+So the rule is: **whatever names the transport must be where the claim is made.**
+The settings row was not enough; nobody reads settings while holding a phone up
+at a bin. `Scanner`'s `demo` prop takes the `live` connection state and rewrites
+it, and the notice sits above *every* branch of the sheet including the answer
+panel, because that is where a disposal rule is actually asserted.
+
+Pinned in `src/features/scan/demo.test.ts` (logic and wiring) and
+`e2e/demo-honesty.spec.ts` (what a person is actually told). The e2e config
+empties both endpoint variables so a developer's `.env.local` cannot make the
+suite pass locally for a reason CI does not share.
+
+**The fix for a beta is to point it at a service, not to quiet the banner.**
+
 ## Performance
 
 `perf/metrics.ts` holds a **closed vocabulary**: add a metric there or not at
