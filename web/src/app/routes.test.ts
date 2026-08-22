@@ -148,6 +148,26 @@ describe("a device with a camera", () => {
     }
   });
 
+  /* A tester was handed a link to /scan and the camera opened on arrival, with
+     the privacy notice and the camera explanation - first run's steps 2 and 3 -
+     never shown. A shared URL is the ordinary way somebody reaches a beta, so
+     that is the ordinary path, not an edge case. */
+  it("sends an un-onboarded device to first run before opening a camera", () => {
+    for (const tier of ["scanner", "capture"] as Tier[]) {
+      const { route, redirect } = resolveRoute(PATH.scan, { tier, onboarded: false });
+      expect(route).toEqual({ surface: "scanner", screen: "first-run" });
+      expect(redirect).toBe(PATH.firstRun);
+    }
+  });
+
+  it("lets an un-onboarded device read the rules without being intercepted", () => {
+    // These open no camera. Bouncing somebody off a rules link would be an
+    // obstacle with nothing to disclose.
+    for (const path of [PATH.rules, PATH.contribute, PATH.settings]) {
+      expect(resolveRoute(path, { tier: "scanner", onboarded: false }).redirect).toBeNull();
+    }
+  });
+
   it("is left alone on every path that is already right", () => {
     for (const path of [PATH.scan, PATH.rules, PATH.contribute, PATH.settings]) {
       expect(resolveRoute(path, { tier: "scanner", onboarded: true }).redirect).toBeNull();

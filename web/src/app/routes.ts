@@ -129,6 +129,18 @@ function place(pathname: string, where: Where): Route {
 
   if (asked.screen === "first-run" && where.onboarded) return { surface: "scanner", screen: "scan" };
 
+  /* THE CAMERA DOES NOT OPEN BEFORE THE EXPLANATION.
+     Arriving at /scan starts getUserMedia, and first run is where this product
+     says what it does with the frames: step 2 is the privacy notice, step 3 is
+     the camera and the button that asks for it. A shared link, a bookmark or a
+     home-screen shortcut must not be a way round that, so an un-onboarded
+     device asking for the scanner is sent to the beginning - once, since
+     FirstRun sets the flag on either exit.
+     Only /scan. /rules and /contribute open no camera and are legitimate places
+     to arrive cold; bouncing somebody off a rules link would be an obstacle
+     rather than a disclosure. */
+  if (asked.screen === "scan" && !where.onboarded) return { surface: "scanner", screen: "first-run" };
+
   return asked;
 }
 
