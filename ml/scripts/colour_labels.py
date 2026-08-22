@@ -226,9 +226,20 @@ def record_labels(pool: Path, labeller: str, rows: list[dict[str, Any]], provisi
 
     by_key = {(r["file"], r["labeller"]): r for r in store["labels"]}
     for row in rows:
+        # A WHEELIE'S ROW IS WRITTEN TWICE AND THE FIRST WRITE IS INCOMPLETE.
+        # `serve` saves after every keystroke - that is the whole point of the
+        # append-after-every-decision idiom - so a wheelie's row arrives here
+        # with `body_color` and no `lid_color`, and `next_task` reads exactly
+        # that absence to know the lid is still to come. Demanding both fields
+        # made the first keystroke of the human pass raise, and because it
+        # raised `SystemExit` from inside a request handler it took the whole
+        # server down with it. The agent pass never hit this: `sheets` writes
+        # complete rows in one go. So the maintainer's blinded pass has never
+        # been runnable on a wheelie, and 119 of the 160 sampled crops are one.
+        # Validate what is present; absence is a state, not an error.
         for field in ("body_color", "lid_color"):
-            if row.get(field) not in vocab:
-                raise SystemExit(f"{row['file']}: {field}={row.get(field)!r} is not in the vocabulary")
+            if field in row and row[field] not in vocab:
+                raise ValueError(f"{row['file']}: {field}={row[field]!r} is not in the vocabulary")
         row = {
             **row,
             "labeller": labeller,
@@ -602,14 +613,31 @@ def serve(pool: Path, reviewer: str, subset: list[str] | None, port: int = 8766)
             pass
 
         def do_GET(self):  # noqa: N802
-            url = urlparse(self.path)
+            # A REQUEST MUST NOT BE ABLE TO END THE SESSION.
+            # Somebody halfway through 25 blinded decisions has no way to know
+            # the process died, and the browser shows a dead tab rather than an
+            # error. One malformed URL - a `/crop` with no `f` - used to raise
+            # out of the handler; anything raising SystemExit took the server
+            # with it, because socketserver catches Exception and not
+            # BaseException. Bad input is a 4xx and the session continues.
+            try:
+                return self._route(urlparse(self.path))
+            except (KeyError, IndexError, ValueError) as exc:
+                logger.warning("bad request %s: %s", self.path, exc)
+                return self.send_error(400, "bad request")
+
+        def _route(self, url):
             q = parse_qs(url.query)
             if url.path == "/":
                 return self._send(PAGE.encode(), "text/html; charset=utf-8")
             if url.path == "/next":
                 return self._send(json.dumps(next_task()).encode(), "application/json")
             if url.path == "/crop":
-                data = cv2.imencode(".png", cv2.imread(str(pool / "crops" / q["f"][0])))[1].tobytes()
+                crop = pool / "crops" / q["f"][0]
+                image = cv2.imread(str(crop))
+                if image is None:
+                    return self.send_error(404, "no such crop")
+                data = cv2.imencode(".png", image)[1].tobytes()
                 return self._send(data, "image/png")
             if url.path == "/set":
                 f, field, v = q["f"][0], q["field"][0], q["v"][0]
