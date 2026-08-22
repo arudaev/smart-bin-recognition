@@ -34,7 +34,7 @@ import json
 import logging
 import random
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +45,36 @@ ROLES = ("validator", "identifier")
 #: Which accuracy metric each role is judged on. Not a tuning knob – it follows
 #: from the architecture (detector vs classifier), so it lives in source.
 ACCURACY_METRIC = {"validator": "map50", "identifier": "top1"}
+
+
+@dataclass(frozen=True)
+class FormatProfile:
+    """What a non-default weight format is judged against, and what it costs.
+
+    Added 2026-08-22 on docs/12 P13. The ship gate previously refused any
+    unquantised artefact outright, with a failure string that stated a reason
+    nobody had measured. P13 measured it: at 448 on Cascade Lake the fp32
+    validator is 24.6 ms against a 50 ms budget, so the refusal was enforcing a
+    proxy that had outlived its fact.
+
+    ``concurrent_scanners_at_1_bin`` is not decoration. fp32 costs one scanner -
+    5 becomes 4 - and a profile that let a format in without recording its price
+    would move a cost from a gate into a document, where nobody reads it against
+    the artefact.
+    """
+
+    max_median_latency_ms: float
+    max_accuracy_drop: float
+    concurrent_scanners_at_1_bin: int | None = None
+    measured_by: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "max_median_latency_ms": self.max_median_latency_ms,
+            "max_accuracy_drop": self.max_accuracy_drop,
+            "concurrent_scanners_at_1_bin": self.concurrent_scanners_at_1_bin,
+            "measured_by": self.measured_by,
+        }
 
 
 @dataclass(frozen=True)
@@ -60,6 +90,8 @@ class Gates:
     role: str
     max_median_latency_ms: float
     max_accuracy_drop: float
+    #: The fp32 profile, when this role has one. ``None`` means fp32 is refused.
+    fp32_profile: FormatProfile | None = None
 
     @classmethod
     def from_config(cls, role: str, config: dict[str, Any]) -> Gates:
@@ -71,10 +103,46 @@ class Gates:
             raise ValueError(
                 f"config for role {role!r} is missing export.gates: {sorted(missing)}"
             )
+
+        fp32 = gates.get("fp32")
+        profile: FormatProfile | None = None
+        if fp32 is not None:
+            drop = float(fp32.get("max_accuracy_drop", gates["max_accuracy_drop"]))
+            # THE ONE THING A PROFILE MAY NOT DO. Per-format latency budgets are
+            # the point of this mechanism; a per-format ACCURACY budget would let
+            # a format buy its way past the gate that exists to stop a
+            # confidently-wrong model shipping. P13 recommended the split and
+            # named this as non-negotiable.
+            if drop > float(gates["max_accuracy_drop"]):
+                raise ValueError(
+                    f"config for role {role!r}: export.gates.fp32.max_accuracy_drop "
+                    f"({drop}) is looser than the role's {gates['max_accuracy_drop']}. "
+                    f"A format profile may relax latency, never accuracy."
+                )
+            profile = FormatProfile(
+                max_median_latency_ms=float(
+                    fp32.get("max_median_latency_ms", gates["max_median_latency_ms"])
+                ),
+                max_accuracy_drop=drop,
+                concurrent_scanners_at_1_bin=fp32.get("concurrent_scanners_at_1_bin"),
+                measured_by=str(fp32.get("measured_by", "")),
+            )
+
         return cls(
             role=role,
             max_median_latency_ms=float(gates["max_median_latency_ms"]),
             max_accuracy_drop=float(gates["max_accuracy_drop"]),
+            fp32_profile=profile,
+        )
+
+    def for_format(self, quantised: bool) -> Gates:
+        """The gates that actually apply to an artefact of this format."""
+        if quantised or self.fp32_profile is None:
+            return self
+        return replace(
+            self,
+            max_median_latency_ms=self.fp32_profile.max_median_latency_ms,
+            max_accuracy_drop=self.fp32_profile.max_accuracy_drop,
         )
 
     @classmethod
@@ -263,6 +331,12 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
     failures: list[str] = []
     unmeasured: list[str] = []
 
+    # WHICH BUDGETS APPLY. An fp32 artefact is judged against its role's fp32
+    # profile where one exists (docs/12 P13); everything else is judged exactly
+    # as before. `for_format` returns `self` when there is no profile, so a role
+    # without one behaves identically to the pre-2026-08-22 gate.
+    gates = gates.for_format(report.quantised)
+
     # 1. The role must be one this pipeline knows how to judge.
     if report.role not in ROLES:
         failures.append(f"unknown model role {report.role!r}; expected one of {ROLES}")
@@ -315,9 +389,28 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
             f"(max {gates.max_accuracy_drop})"
         )
 
-    # 4. It must actually be quantised.
-    if not report.quantised:
-        failures.append("artefact is not quantised – it will not meet the latency budget")
+    # 4. It must be a format this role has a profile for.
+    #
+    # **This gate used to read "it must be quantised", and its failure string
+    # asserted a reason that had never been measured**: "it will not meet the
+    # latency budget". docs/12 P13 measured it on 2026-08-22, paired against int8
+    # on one Cascade Lake instance with the arms alternated, and the assertion is
+    # false at 448: fp32 is **24.6 ms against a 50 ms budget**, int8 17.9 ms.
+    #
+    # So the format is no longer a gate of its own. It selects a PROFILE, and the
+    # profile's own latency budget then decides - which is what the gate was
+    # always trying to express. An fp32 artefact that is genuinely too slow still
+    # fails, at step 2, on a measurement instead of on a proxy.
+    #
+    # What fp32 costs is real and is NOT waived: 5 concurrent scanners at one bin
+    # per frame become 4 (P13 arm C). That is carried on the profile and written
+    # into the sidecar rather than left in a document, because a gate that hides
+    # what a format costs is the kind of number AGENTS.md forbids shipping.
+    if report.quantised is False and gates.fp32_profile is None:
+        failures.append(
+            f"artefact is not quantised and the {report.role} has no fp32 profile "
+            f"– add export.gates.fp32 to its config, or quantise it"
+        )
 
     return GateResult(failures=failures, unmeasured=unmeasured)
 
