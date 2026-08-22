@@ -18,9 +18,9 @@ kaggle.json
 # Data + artefacts – never committed. Datasets live on HF Hub, models on the CDN.
 data/pool/
 
-# `data/legacy/` is 138 MB of imported imagery and is not committed - with ONE
-# exception, which is not derived data. `adjudication.json` is the record of 403
-# human form-factor decisions: who decided what, and when. Nothing can
+# `data/legacy/` is 138 MB of imported imagery and is not committed - with THREE
+# exceptions, none of which is derived data. `adjudication.json` is the record of
+# 403 human form-factor decisions: who decided what, and when. Nothing can
 # regenerate it. The legacy labels are waste STREAMS and a stream does not
 # determine a shape - measured, the stream-derived mapping is wrong on 28.8 % of
 # these very crops. Losing it means a person looking at 403 pictures again.
@@ -32,6 +32,17 @@ data/legacy/*
 !data/legacy/pool/
 data/legacy/pool/*
 !data/legacy/pool/adjudication.json
+# The other two are docs/12 P3's, and they are here for the same reason.
+# `colour-labels.json` is 160 body-and-lid decisions with a `labeller` on every
+# row - currently `claude`, marked `provisional_proposals`, awaiting the
+# maintainer's spot-check. Dropping it would throw away the pass AND the record
+# of who made it, which is the part that decides whether P3 may close.
+# `colour-sample.json` is regenerable by construction - seed 20260821, and
+# `sample` refuses to overwrite a different draw - but committing it is what
+# makes "the sample was frozen before the labels" a fact a reader can check
+# rather than a claim in a document.
+!data/legacy/pool/colour-labels.json
+!data/legacy/pool/colour-sample.json
 artifacts/
 runs/
 *.pt

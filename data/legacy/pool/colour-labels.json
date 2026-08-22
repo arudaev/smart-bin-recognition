@@ -1,0 +1,1452 @@
+{
+  "probe": "P3",
+  "labels": [
+    {
+      "file": "0019e51c_img_4926_0.jpg",
+      "index": 0,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "00abb652_img_5316_0.jpg",
+      "index": 1,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "00c1fc43_img_20250506_120651_0.jpg",
+      "index": 2,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "023780c7_img_20250603_165154_0.jpg",
+      "index": 3,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "0403538b_img_5584_0.jpg",
+      "index": 4,
+      "body_color": "grey",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "04458ef1_img_20250603_172632_0.jpg",
+      "index": 5,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "04d6255e_img_4529_0.jpg",
+      "index": 6,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "057209b0_img_5352_0.jpg",
+      "index": 7,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "063f305c_img_20250521_172626_0.jpg",
+      "index": 8,
+      "body_color": "blue",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "090d1f45_img_20250603_171029_0.jpg",
+      "index": 9,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "099212fb_img_20250603_172358_0.jpg",
+      "index": 10,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "0a76dbea_img_20250521_155059_0.jpg",
+      "index": 11,
+      "body_color": "brown",
+      "lid_color": "not_visible",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "0a8f1c09_img_4945_0.jpg",
+      "index": 12,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "11c885c5_img_4618_0.jpg",
+      "index": 13,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "1231dcb7_img_4540_0.jpg",
+      "index": 14,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "129aa233_img_20250603_172638_0.jpg",
+      "index": 15,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "12cb6b35_img_20250521_160137_0.jpg",
+      "index": 16,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "12db554d_img_4660_0.jpg",
+      "index": 17,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "15c6ead2_img_4928_0.jpg",
+      "index": 18,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "1698d93a_img_5326_0.jpg",
+      "index": 19,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "17c86183_img_5278_0.jpg",
+      "index": 20,
+      "body_color": "black",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "190920d0_img_20250521_154945_0.jpg",
+      "index": 21,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "1c64fee5_img_5583_0.jpg",
+      "index": 22,
+      "body_color": "grey",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "214cecaa_img_20250603_172651_0.jpg",
+      "index": 23,
+      "body_color": "green",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "23df1589_img_20250521_160310_0.jpg",
+      "index": 24,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "27168d08_img_4659_0.jpg",
+      "index": 25,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2832dbc1_img_4925_0.jpg",
+      "index": 26,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2a114471_img_5317_0.jpg",
+      "index": 27,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2a73f7ce_img_20250506_121929_0.jpg",
+      "index": 28,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2dd18a9d_img_5575_0.jpg",
+      "index": 29,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2ecf5026_img_5594_0.jpg",
+      "index": 30,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2f3a1b1b_img_20250603_165417_0.jpg",
+      "index": 31,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "2fc92b3d_img_20250514_111427_0.jpg",
+      "index": 32,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "339a41f0_img_5343_0.jpg",
+      "index": 33,
+      "body_color": "black",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3530362b_img_20250521_161019_0.jpg",
+      "index": 34,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3585dcf8_img_4612_0.jpg",
+      "index": 35,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3604d3e8_img_20250603_164332_0.jpg",
+      "index": 36,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3641ff80_img_4602_0.jpg",
+      "index": 37,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "36fed1a6_img_5341_0.jpg",
+      "index": 38,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "376287ac_img_4615_0.jpg",
+      "index": 39,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3775ec38_img_20250514_111801_0.jpg",
+      "index": 40,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "37f71ad8_img_20250603_172402_0.jpg",
+      "index": 41,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "38cd3942_img_20250603_171835_0.jpg",
+      "index": 42,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3b321ac7_img_5318_0.jpg",
+      "index": 43,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3b8a9353_img_20250521_172457_0.jpg",
+      "index": 44,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3e56e882_img_5596_0.jpg",
+      "index": 45,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3f73e381_img_20250514_112721_0.jpg",
+      "index": 46,
+      "body_color": "blue",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3fca21e5_img_4614_0.jpg",
+      "index": 47,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "3ff9b3b6_img_5585_0.jpg",
+      "index": 48,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "40b399a0_img_20250521_161220_0.jpg",
+      "index": 49,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "453eee2a_img_20250521_174252_0.jpg",
+      "index": 50,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4582cd94_img_4531_0.jpg",
+      "index": 51,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "487c0eb4_img_20250521_155931_0.jpg",
+      "index": 52,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4938a27b_img_5360_0.jpg",
+      "index": 53,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4a4c961d_img_20250521_155659_0.jpg",
+      "index": 54,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4c1360b4_img_20250521_174256_0.jpg",
+      "index": 55,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4ea10a6e_img_5434_0.jpg",
+      "index": 56,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "4fa57435_img_20250506_121214_0.jpg",
+      "index": 57,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5012ff48_img_20250521_160343_0.jpg",
+      "index": 58,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "51a61ef9_img_20250603_164511_0.jpg",
+      "index": 59,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "51fb07c7_img_5303_0.jpg",
+      "index": 60,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5330b92d_img_5320_0.jpg",
+      "index": 61,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5455656d_img_20250603_164502_0.jpg",
+      "index": 62,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "54b8e0c1_img_20250603_170900_0.jpg",
+      "index": 63,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "56270c6a_img_20250521_160147_0.jpg",
+      "index": 64,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "57f9c959_img_20250603_172646_0.jpg",
+      "index": 65,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5a6ab248_img_20250521_172843_0.jpg",
+      "index": 66,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5a7b9af5_img_4541_0.jpg",
+      "index": 67,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5ad9280d_img_4908_0.jpg",
+      "index": 68,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5c4519a7_img_20250521_160319_0.jpg",
+      "index": 69,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5d756930_img_20250514_111805_0.jpg",
+      "index": 70,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "5fa23c81_img_5321_0.jpg",
+      "index": 71,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "641625cb_img_20250603_172927_0.jpg",
+      "index": 72,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "6773703c_img_20250521_155800_1.jpg",
+      "index": 73,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "6cde3725_img_20250521_154042_0.jpg",
+      "index": 74,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "6d30e191_img_20250514_112412_0.jpg",
+      "index": 75,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "6d5c157e_img_20250603_172721_1.jpg",
+      "index": 76,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "6d975f4c_img_5356_0.jpg",
+      "index": 77,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "746ecad3_img_4874_0.jpg",
+      "index": 78,
+      "body_color": "black",
+      "lid_color": "not_visible",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "752be4a1_img_5304_0.jpg",
+      "index": 79,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "75ae52fc_img_5366_0.jpg",
+      "index": 80,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "788aea20_img_5588_0.jpg",
+      "index": 81,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7c52939a_img_20250603_165759_0.jpg",
+      "index": 82,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7d3551a9_img_4654_0.jpg",
+      "index": 83,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7ddf67b4_img_4532_0.jpg",
+      "index": 84,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7df76983_img_5349_0.jpg",
+      "index": 85,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7e0162d0_img_20250521_155218_0.jpg",
+      "index": 86,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "7e78855a_img_4876_0.jpg",
+      "index": 87,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "8226befe_img_20250603_172634_0.jpg",
+      "index": 88,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "84d4d8b3_img_20250603_170856_0.jpg",
+      "index": 89,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "8667825c_img_20250603_164507_0.jpg",
+      "index": 90,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "8ac57c29_img_5577_0.jpg",
+      "index": 91,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "8c482a25_img_4600_0.jpg",
+      "index": 92,
+      "body_color": "black",
+      "lid_color": "not_visible",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "922a66d8_img_20250603_172630_0.jpg",
+      "index": 93,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "945b42df_img_5340_0.jpg",
+      "index": 94,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "94cc71b4_img_20250603_165733_0.jpg",
+      "index": 95,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "9a782339_img_20250506_115957_0.jpg",
+      "index": 96,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "9adca2ff_img_5587_0.jpg",
+      "index": 97,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "a290259f_img_20250521_172726_0.jpg",
+      "index": 98,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "a3dea778_img_4929_0.jpg",
+      "index": 99,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "a4c3ec28_img_5319_0.jpg",
+      "index": 100,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "a921b900_img_4878_0.jpg",
+      "index": 101,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ab1210d7_img_20250603_164337_0.jpg",
+      "index": 102,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ad6d2b42_img_20250521_174406_0.jpg",
+      "index": 103,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ae8633d1_img_4613_0.jpg",
+      "index": 104,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "b2127eea_img_5436_0.jpg",
+      "index": 105,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "b4828a79_img_20250521_172632_0.jpg",
+      "index": 106,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "b63f0f93_img_5586_0.jpg",
+      "index": 107,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "b83e3328_img_20250603_172644_0.jpg",
+      "index": 108,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "b84cb495_img_20250603_172649_0.jpg",
+      "index": 109,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ba95c121_img_4881_0.jpg",
+      "index": 110,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "bbdd5add_img_20250603_171834_0.jpg",
+      "index": 111,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "bbfa5d0a_img_4930_0.jpg",
+      "index": 112,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "bd23838e_img_5592_0.jpg",
+      "index": 113,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "bde12709_img_5276_0.jpg",
+      "index": 114,
+      "body_color": "black",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c024c6b7_img_4658_0.jpg",
+      "index": 115,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c1acef60_img_5306_0.jpg",
+      "index": 116,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c1c3c035_img_4946_0.jpg",
+      "index": 117,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c2955398_img_20250514_112110_0.jpg",
+      "index": 118,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c2af4287_img_4872_0.jpg",
+      "index": 119,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c317d6be_img_4606_0.jpg",
+      "index": 120,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c59781e2_img_5589_0.jpg",
+      "index": 121,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c7e95c83_img_5365_0.jpg",
+      "index": 122,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c92a77ce_img_20250603_171832_0.jpg",
+      "index": 123,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c966fdeb_img_20250514_111721_0.jpg",
+      "index": 124,
+      "body_color": "blue",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "c9a24703_img_4624_0.jpg",
+      "index": 125,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "cb007a7f_img_20250514_111114_0.jpg",
+      "index": 126,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "cd80a4ef_img_20250521_174349_0.jpg",
+      "index": 127,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "cdd58014_img_20250506_121428_0.jpg",
+      "index": 128,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ce00be7d_img_20250506_115956_0.jpg",
+      "index": 129,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "d3a1e40b_img_4530_0.jpg",
+      "index": 130,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "d3c34396_img_4546_0.jpg",
+      "index": 131,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "d455bac5_img_5603_0.jpg",
+      "index": 132,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "dc59d589_img_20250514_112711_0.jpg",
+      "index": 133,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "dcb0c761_img_20250603_164504_0.jpg",
+      "index": 134,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "dd54be26_img_4526_0.jpg",
+      "index": 135,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "df5344ce_img_20250521_161218_0.jpg",
+      "index": 136,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "dffa805d_img_20250521_160317_0.jpg",
+      "index": 137,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e097c39b_img_4611_0.jpg",
+      "index": 138,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e1981a5c_img_20250506_121422_0.jpg",
+      "index": 139,
+      "body_color": "black",
+      "lid_color": "black",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e2b082cb_img_5363_0.jpg",
+      "index": 140,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e2de6fc2_img_20250603_165411_0.jpg",
+      "index": 141,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e52f3886_img_5590_0.jpg",
+      "index": 142,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e85ad017_img_20250506_120642_0.jpg",
+      "index": 143,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "e9646b37_img_20250521_161022_0.jpg",
+      "index": 144,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ed51a891_img_4622_0.jpg",
+      "index": 145,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "eebebed9_img_20250521_160306_0.jpg",
+      "index": 146,
+      "body_color": "green",
+      "lid_color": "white",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ef694b40_img_20250603_170858_0.jpg",
+      "index": 147,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f0e71724_img_20250521_172844_0.jpg",
+      "index": 148,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f2079049_img_5574_0.jpg",
+      "index": 149,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f2e3ee36_img_4616_0.jpg",
+      "index": 150,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f3df860d_img_20250521_155543_0.jpg",
+      "index": 151,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f4a951ba_img_5322_0.jpg",
+      "index": 152,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f649ef37_img_4527_0.jpg",
+      "index": 153,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "f9e786e4_img_20250521_155224_0.jpg",
+      "index": 154,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "fb88f3ab_img_5338_0.jpg",
+      "index": 155,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "fc5b0367_img_20250506_122015_0.jpg",
+      "index": 156,
+      "body_color": "blue",
+      "lid_color": "blue",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "fdeb7d34_img_5437_0.jpg",
+      "index": 157,
+      "body_color": "brown",
+      "lid_color": "brown",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "fe9d7914_img_20250603_170549_1.jpg",
+      "index": 158,
+      "body_color": "black",
+      "lid_color": "grey",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    },
+    {
+      "file": "ff3637d7_img_20250506_120649_0.jpg",
+      "index": 159,
+      "body_color": "green",
+      "lid_color": "green",
+      "labeller": "claude",
+      "provisional_proposals": true,
+      "decided": "2026-08-22T00:31:28+00:00"
+    }
+  ],
+  "updated": "2026-08-22T00:31:28+00:00",
+  "labellers": [
+    "claude"
+  ],
+  "provisional_labellers": [
+    "claude"
+  ]
+}
