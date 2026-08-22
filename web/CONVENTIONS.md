@@ -104,6 +104,35 @@ Corrections are **always `replaceState`**. A redirect written with `pushState`
 leaves the wrong URL in the history stack, and the back button lands on it and
 is bounced off again.
 
+**Every path is the app, and `web/vercel.json`'s rewrite is what makes that true
+in production:**
+
+```json
+{ "source": "/:path((?!api/).*)", "destination": "/" }
+```
+
+**The destination is `/`, not `/index.html`, and that is the whole bug.** Until
+2026-08-22 it rewrote to `/index.html` and every route except `/` returned **404
+on both preview and production** – deep links, shared URLs and the PWA start path
+all broken. `cleanUrls: true` makes `/index.html` **redirect (308)** rather than
+serve, so the rewrite pointed at a path that bounces. Verified directly: `curl
+/index.html` against the deployment returns 308.
+
+*Recorded because the first two attempts fixed the wrong half.* The `source` was
+rewritten twice on a theory that path-to-regexp rejects an unnamed lookahead
+group. That may even be true, but it is not what broke this – with a redirecting
+destination, a correctly matching rewrite 404s in exactly the same way. **Test
+the destination before rewriting the source.**
+
+Two more things not to do to that file. It is strict JSON, so **no comment
+keys**: a `_comment` inside a rewrite fails Vercel's config validation and the
+deployment errors *before the build starts*, which appears as a deployment with
+no build log at all. And keep the `api/` exclusion – measured, a bare `/(.*)`
+swallows `api/pack/[region]` and serves the SPA instead of the function.
+
+**None of this is reproducible locally.** `vite dev` and `vite preview` serve the
+SPA fallback themselves, so this routing only becomes real on a deployment.
+
 ### Filling the viewport
 
 The shell is `.sbr-app-root`: `100dvh` with a `100vh` line above it as the
