@@ -42,16 +42,36 @@ is in [`handoff/FLOW-NOTES.md`](../handoff/FLOW-NOTES.md).
 
 ## Phase 2 – Vision spike *(the gate is closed, with a fail. The phase is not.)*
 
-**Status, 2026-08-21.** Every model, dataset and probe item in this phase is
+**Status, 2026-08-22.** Every model, dataset and probe item in this phase is
 done. **The gate is closed and it did not pass**: latency passes on
-representative hardware, concurrency fails at 5 against 10. What keeps the phase
-open is **one unchecked item — colour extraction (P3)** — and this session made
-it more important rather than less: a working two-model pipeline answers
-`unknown` for every wheelie in Deggendorf, because the pack's wheelie rules
-match on `lid_color` and nothing measures a lid.
+representative hardware, concurrency fails at 5 against 10.
 
-So: **the gate has an answer; the phase has a remaining task.** Do not read
-"phase 2 closed" as "phase 2 complete".
+**P3 ran on 2026-08-22 and the answer is worse than "not yet".** It is not that
+colour has not been measured — it is that, measured, **body colour agrees with
+hand labels 0.5625 of the time and lid colour 0.1966**, and the pre-registered
+rule says do not wire the lid in. So a Deggendorf wheelie still resolves to
+`unknown`, and now there is a number saying why rather than a gap.
+
+**Two things that changed the shape of the phase:**
+
+- **The colour failure is in the vocabulary, not the geometry.** Against
+  centroids measured from real bins, body agreement goes to **0.9125**
+  leave-one-capture-cluster-out. The fix is a `hex_ref` recalibration, which is a
+  **taxonomy decision and the maintainer's**.
+- **fp32 clears the validator's latency gate** — 24.6 ms against 50 ms, measured
+  paired on one Cascade Lake host — and costs one concurrent scanner (5 → 4).
+  The ship gate's refusal of unquantised artefacts was enforcing a rationale
+  nobody had tested. [P13](research/probes/P13-fp32-validator-viability.md);
+  the gate split is staged, unmerged, on `feat/fp32-ship-profile`.
+
+So: **the gate has an answer; the phase has a remaining decision rather than a
+remaining task.** Do not read "phase 2 closed" as "phase 2 complete", and do not
+read P3 as closed — its labels are an agent's and await a spot-check.
+
+*(The 2026-08-21 status this replaces said the phase was held open by "one
+unchecked item". It is now held open by three maintainer decisions: the colour
+references, the fp32 gate split, and whether an uncorroborated wheelie rule
+should be shown to a user at all.)*
 
 
 - [x] `legacy_import.py` → resized dataset with provenance on HF Hub, pinned by
@@ -191,7 +211,33 @@ So: **the gate has an answer; the phase has a remaining task.** Do not read
 - [x] ONNX export path, role-aware, with the four gates config-driven and pinned
 - [x] The thing that makes the latency budget real: a **2-vCPU bench**,
       because "on service CPU" cannot be measured on a training GPU
-- [ ] **Colour extraction — THE ONE ITEM LEFT IN THIS PHASE, and it went up in
+- [~] **Colour extraction — RAN 2026-08-22, PROVISIONALLY, and it did not close.**
+      [P3](research/probes/P3-colour-measurement.md) measured both halves against
+      160 labels on a frozen, cluster-stratified sample. **Body agreement is
+      0.5625** against P3's ~0.75 rule, and — answering the probe's own first
+      question — **illuminant normalisation loses to naive sampling** here: the
+      plain centre sample beats Shades-of-Gray by 1.9 points and Gray World by
+      7.5, because these are overcast scenes whose estimated gains sit around
+      `[1.01, 0.97, 1.03]`. **SAM stays off the critical path.**
+      **Lid agreement is 0.1966** against a 0.60 floor, on 117 wheelies whose
+      lids were *visible in 98 % of frames* — so it is neither a cropping nor a
+      visibility failure. The pre-registered third row therefore fires and
+      **`lid_color` is deliberately NOT wired into the service**; a sampler right
+      one time in five would take the product from "answers `unknown`" to
+      "answers confidently wrong four times in five", on disposal advice.
+      **The failure is the reference swatches, not the geometry.** Scored against
+      centroids measured from real bins, leave-one-capture-cluster-out over 99
+      groups, body agreement goes **0.5625 → 0.9125** and the lid only to 0.5214.
+      Real ZAW glass igloos measure closer to the `metal` swatch than to `green`.
+      Recalibrating `hex_ref` would change every resolution outcome in every
+      pack, so it is a **taxonomy decision and the maintainer's**.
+      **Why this is `[~]` and not `[x]`: the 160 labels were written by an agent**
+      (`labeller: claude`, stored as `provisional_proposals`) because the
+      maintainer was away. A 25-crop spot-check is pre-registered before any
+      number here is quoted as settled — `colour_labels.py spot-check`.
+
+      *(The original item, kept because it is what the probe was written against:)*
+      **Colour extraction — THE ONE ITEM LEFT IN THIS PHASE, and it went up in
       priority on 2026-08-21.** Both models exist and a real Deggendorf frame
       returns a form factor; glass resolves to `glass_mixed` / "Glascontainer"
       and **every wheelie resolves to `unknown`**, because all four wheelie

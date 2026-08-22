@@ -219,6 +219,18 @@ precision target · docs/07's second kill criterion.
 
 ## P3 – Colour measurement
 
+> **RAN 2026-08-22 — [result](research/probes/P3-colour-measurement.md), and it
+> did NOT close.** Body agreement **0.5625** against the ~0.75 rule, so the
+> **third row fires**; lid agreement **0.1966** against the amendment's 0.60
+> floor, so its third row fires too and **`lid_color` is not wired in**.
+> **SAM leaves the critical path**: variant (2), the plain centre sample, is the
+> best of the four, so no mask variant was needed to retire the dependency —
+> and illuminant normalisation *loses* to naive sampling on this corpus.
+> **The failure is the reference swatches, not the geometry**: against centroids
+> measured from real bins, leave-one-capture-cluster-out, body agreement is
+> **0.9125**. **The labels are an agent's and a 25-crop spot-check is
+> pre-registered**, so every number here carries the word PROVISIONAL.
+
 **Question.** Does illuminant normalisation beat naive sampling — and **is SAM
 needed at all**?
 
@@ -1086,6 +1098,36 @@ guess satisfy a contract about the human pass — the proposal is wrong on 116 o
 questions: **15.7:1** within the Open Images subset (17 474 backgrounds against
 that subset's 1 110 bin frames) and **11.8:1** against all positives (against
 1 480). Neither may be quoted without saying which it is.
+
+## P13 – Is an fp32 validator ship profile viable?
+
+*Pre-registered at `09c6b93` on 2026-08-22, **before the measurement**, and the
+rule was not edited when the result came in.*
+
+**RAN 2026-08-22 — [result](research/probes/P13-fp32-validator-viability.md).**
+The ship gate refused any unquantised artefact with the rationale *"it will not
+meet the latency budget"*. **That rationale had never been tested**: P12's
+18.3 ms was measured on the int8 graph, as its own health report says
+(`"quantised": true`), so fp32 latency on representative hardware did not exist
+as a number.
+
+Measured, paired on one Cascade Lake instance with the arms alternated:
+**fp32 24.605 ms against a 50 ms budget, int8 17.921 ms — ratio 1.3664** — and
+fp32 costs **one concurrent scanner**, 5 → 4 at one bin per frame. The rule's
+**third row fires**: recommend the split, with the price named in scanners.
+Implemented, tested and **staged unmerged** on `feat/fp32-ship-profile`;
+`max_accuracy_drop` stays `0.02` in every profile and the config raises if one
+tries to loosen it.
+
+**The free triage nearly misled it, and the file says so.** Arm A measured the
+same ratio on the development workstation as **0.5917** — fp32 *faster* — because
+that box is a Snapdragon X Elite with no AVX-512 VNNI while the service host has
+it. **A ratio cancels host noise; it does not cancel an instruction set.** Arm A
+was still worth running: it cost nothing and correctly said "go and measure it".
+It was worth nothing as an answer.
+
+**Resolves.** `onnx_export.py`'s fourth gate · docs/05 § 7's recovery list ·
+whether `artifacts/local/validator-v1.onnx` is eligible for anything.
 
 ## What this document is not
 
