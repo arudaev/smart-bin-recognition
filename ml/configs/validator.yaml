@@ -61,6 +61,34 @@ export:
   # latency IS the budget.
   gates:
     max_median_latency_ms: 50     # service CPU (2 vCPU), single frame @ 448
+
+    # THE fp32 PROFILE. docs/12 P13, 2026-08-22.
+    #
+    # The ship gate used to refuse any unquantised artefact, with a failure
+    # string asserting "it will not meet the latency budget". Measured, paired
+    # against int8 on one Cascade Lake instance with the arms alternated, that is
+    # false at 448: fp32 is 24.6 ms p50 against this same 50 ms budget, and int8
+    # is 17.9 ms. The refusal was enforcing a proxy for a fact that had changed.
+    #
+    # It exists for the validator and NOT for the identifier, because only the
+    # validator needs it: P9 measured int8 costing the validator 0.727 mAP@0.5
+    # against a 0.02 budget, and P10 found no module outside the detection head
+    # to blame. fp32 is the only route to a validator that can ship on accuracy
+    # at all. P11 measured int8 costing the identifier 0.0000 top-1, so the
+    # identifier has nothing to gain and would only pay the concurrency.
+    fp32:
+      # SAME latency budget. This profile is not a discount - it exists so the
+      # format stops being a gate of its own and the measured latency decides.
+      max_median_latency_ms: 50
+      # SAME accuracy budget, and `Gates.from_config` raises if this is ever
+      # loosened. A per-format accuracy budget would let a format buy its way
+      # past the gate that exists to stop a confidently-wrong model shipping.
+      max_accuracy_drop: 0.02
+      # WHAT IT COSTS, carried on the artefact rather than left in a document.
+      # 5 concurrent scanners at one bin per frame become 4.
+      concurrent_scanners_at_1_bin: 4
+      measured_by: "docs/research/probes/P13-fp32-validator-viability.md, GCE n2-standard-4 Cascade Lake, 2026-08-22"
+
   # Reported, not gating. These are the docs/04 § 7 targets: a model that misses
   # one is a result to write down and act on, not a build failure – unlike the
   # gates above, which are what makes the free tier arithmetic work at all.
