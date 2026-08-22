@@ -82,6 +82,26 @@ class Hardware:
         }
 
 
+def _on_kaggle() -> bool:
+    """Whether this really is a Kaggle kernel.
+
+    **The path sentinel alone is not enough, and a wrong answer here is worse
+    than no answer.** ``Path("/kaggle")`` is absolute-from-the-drive-root on
+    Windows, so it resolves to the drive root - and a developer who has ever
+    made that directory gets every local measurement stamped
+    ``Kaggle CPU kernel``. That happened: P13 arm A was first written out
+    claiming Kaggle silicon while running on a Snapdragon X Elite, which is not
+    even the same instruction set. A project whose whole discipline is that a
+    number carries its hardware cannot guess at the hardware.
+
+    So the environment variable is authoritative, and the path is accepted only
+    on Linux, where ``/kaggle`` means what it says.
+    """
+    if os.environ.get("KAGGLE_KERNEL_RUN_TYPE"):
+        return True
+    return platform.system() == "Linux" and Path("/kaggle").exists()
+
+
 def hardware(threads: int = SERVICE_VCPUS) -> Hardware:
     """Describe the machine this is running on, and whether it is the service.
 
@@ -94,7 +114,7 @@ def hardware(threads: int = SERVICE_VCPUS) -> Hardware:
 
     if space := os.environ.get("SPACE_ID"):
         where, representative = f"HF Space {space}", True
-    elif os.environ.get("KAGGLE_KERNEL_RUN_TYPE") or Path("/kaggle").exists():
+    elif _on_kaggle():
         where, representative = "Kaggle CPU kernel", False
     elif service := os.environ.get("SBR_SERVICE_HOST"):
         where, representative = service, True
