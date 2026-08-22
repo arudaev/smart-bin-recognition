@@ -43,6 +43,16 @@ data/legacy/pool/*
 # rather than a claim in a document.
 !data/legacy/pool/colour-labels.json
 !data/legacy/pool/colour-sample.json
+
+# `data/open_images/` is the same shape and the same rule: 50 MB of imagery
+# pulled from the pinned dataset revision, which is regenerable with one
+# command, and ONE file that is not. `adjudication.json` is human form-factor
+# decisions over Open Images boxes - the corpus has no proposals at all, so
+# every row in it is somebody looking at a picture. Nothing regenerates that.
+data/open_images/*
+!data/open_images/open_images/
+data/open_images/open_images/*
+!data/open_images/open_images/adjudication.json
 artifacts/
 runs/
 *.pt
