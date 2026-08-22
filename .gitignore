@@ -74,3 +74,9 @@ web/public/photos/*.jpg
 web/node_modules/
 web/tsconfig.tsbuildinfo
 web/dist/
+
+# The phone spot-check page embeds 25 crops as data URIs - 1.9 MB of imagery
+# that `data/legacy/pool/` already excludes. It is a generated view of tracked
+# labels, regenerable from ml/scripts/build_spotcheck.py, so the generator is
+# committed and the render is not.
+docs/spot-check.html
