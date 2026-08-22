@@ -272,6 +272,12 @@ class ExportReport:
     #: ``None`` means nobody recorded it, which is treated as "not established"
     #: rather than assumed either way.
     latency_representative: bool | None = None
+    #: The **served** fp32 ONNX graph, scored on the same split, in the role's
+    #: metric. Only an unquantised artefact needs it, and only because export can
+    #: lose accuracy on its own - the reference figure beside it comes from the
+    #: PyTorch run. An int8 artefact leaves this ``None`` and is judged on the
+    #: ``*_int8`` pair instead.
+    accuracy_onnx: float | None = None
 
     #: Measurements answering ``export.targets``, keyed by target name. A target
     #: with no key here is reported *unmeasurable* rather than skipped – see
@@ -291,10 +297,31 @@ class ExportReport:
 
     @property
     def accuracy_drop(self) -> float | None:
-        fp32, int8 = self.accuracy_pair
-        if fp32 is None or int8 is None:
+        """What the SERVED graph costs against the fp32 reference.
+
+        **Format-aware since 2026-08-22, and the version before it silently asked
+        the wrong question of an fp32 artefact.** The gate's subject is *how much
+        accuracy was lost getting to the thing we actually serve*: for an int8
+        artefact that is ``fp32 - int8``, and for an fp32 artefact it is
+        ``reference - onnx``. Asking an unquantised artefact what int8 cost it
+        returns ``None`` forever, because there is no int8 measurement and never
+        will be - so ``may_ship`` could not become true however good the model
+        was. The fp32 validator hit exactly that.
+
+        **``map50_onnx`` must not default to the reference.** Export is itself a
+        transformation and can lose accuracy; the fp32 validator's sidecar
+        carries a figure *copied from the PyTorch training run*
+        (``"accuracy_is": "copied from the run that measured it, not measured
+        here"``), so the served graph has never been scored at all. ``None`` is
+        the honest answer there, and it keeps the artefact out of production
+        until somebody runs the eval.
+        """
+        reference, quantised = self.accuracy_pair
+        if reference is None:
             return None
-        return fp32 - int8
+        if self.quantised:
+            return None if quantised is None else reference - quantised
+        return None if self.accuracy_onnx is None else reference - self.accuracy_onnx
 
 
 @dataclass(frozen=True)
@@ -376,13 +403,21 @@ def check_gates(report: ExportReport, gates: Gates) -> GateResult:
             f"(measured on {report.latency_hardware})"
         )
 
-    # 3. What int8 quantisation cost, in the metric this role is judged on.
+    # 3. What the SERVED graph cost, in the metric this role is judged on.
     drop = report.accuracy_drop
     if drop is None:
-        unmeasured.append(
-            f"int8 {report.accuracy_metric} drop for the {report.role} is unmeasured "
-            f"(need both fp32 and int8 {report.accuracy_metric})"
-        )
+        if report.quantised:
+            unmeasured.append(
+                f"int8 {report.accuracy_metric} drop for the {report.role} is unmeasured "
+                f"(need both fp32 and int8 {report.accuracy_metric})"
+            )
+        else:
+            unmeasured.append(
+                f"the fp32 ONNX graph for the {report.role} has not been scored - set "
+                f"accuracy_onnx beside the reference {report.accuracy_metric}. The reference "
+                f"is the PyTorch run's and export is a transformation, so an unscored graph "
+                f"is unmeasured rather than lossless"
+            )
     elif drop > gates.max_accuracy_drop:
         failures.append(
             f"int8 quantisation cost {drop:.3f} {report.accuracy_metric} "

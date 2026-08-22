@@ -47,14 +47,58 @@ the point; a per-format *accuracy* budget would let a format buy its way past th
 gate that stops a confidently-wrong model shipping. There is a test named after
 that.
 
-7 tests changed or added; 461 pass, `ruff` and `mypy` clean.
+10 tests changed or added; 464 pass, `ruff` and `mypy` clean. **Not reviewed by
+anybody yet** — an earlier version of this memo called the branch "reviewed",
+which it was not; GitHub shows no reviews on it.
 
 ## What merging it would and would not do
 
-**Would:** make `artifacts/local/validator-v1.onnx` — real, 0.7524 mAP@0.5 on
-`test`, currently failing exactly one gate — eligible on latency. Its sidecar
-would still need a `representative: true` latency measurement written into it
-before `may_ship` flipped, which is `gate.py` against P13's number.
+> ### CORRECTION, 2026-08-22 — the first version of this memo overclaimed
+>
+> It said merging the branch plus a `gate.py` run would flip `may_ship`. **That
+> was wrong, and an external review caught it.** Tested against the real sidecar
+> rather than a fabricated one, the branch as first written returned:
+>
+> ```
+> may_ship: False
+> unmeasured: ['int8 map50 drop for the validator is unmeasured
+>              (need both fp32 and int8 map50)']
+> ```
+>
+> **The gate was asking an unquantised artefact what int8 cost it.** There is no
+> int8 measurement for an fp32 graph and never will be, so `accuracy_drop` was
+> `None` forever and `may_ship` could not become true however good the model was.
+> My own test hid this by passing `map50_int8 = map50_fp32 = 0.7524`, which is a
+> number that does not exist.
+>
+> **And the real cause is one level deeper than the review found.** The sidecar's
+> `map50_fp32: 0.7524` is *copied from the PyTorch training run* — its own
+> provenance says `"accuracy_is": "copied from the run that measured it, not
+> measured here"`. **The exported fp32 ONNX graph has never been scored at all.**
+> Export is a transformation and can lose accuracy on its own, so treating the
+> reference as the served graph's score would be inventing evidence.
+>
+> The branch now: makes the accuracy gate **format-aware** (`reference - onnx`
+> for fp32, `fp32 - int8` for int8), adds an `accuracy_onnx` field that **must
+> not** default to the reference, and pins the real artefact's behaviour in
+> `test_the_real_fp32_sidecar_is_still_blocked_on_its_own_score`.
+
+**Would:** make the artefact eligible on **latency** — 24.605 ms against a 50 ms
+budget, `representative: true`.
+
+**Would NOT:** make it ship. Verified against the artefact on disk:
+
+| | `may_ship` | why |
+|---|---|---|
+| real sidecar + P13 latency | **false** | *"the fp32 ONNX graph for the validator has not been scored"* |
+| the same, once the graph is scored at 0.7519 | **true** | drop 0.00054 against a 0.02 budget |
+
+**So merging is necessary and not sufficient. One eval run is also needed**, and
+it is small: `score_onnx` already exists and is format-agnostic, and
+`ml/kaggle/probe_quantisation/` is a **CPU** kernel (`enable_gpu: false`) that
+already downloads the pinned pool, builds the YOLO tree and calls it on `test`.
+The fp32 score is a near-copy of a kernel that has run. No GPU, so none of the
+P100/T4 allocation risk applies.
 
 **Would not:** fix the concurrency gate. 5 against 10 fails; 4 against 10 fails
 worse. **Nothing here reopens or fires the kill criterion.** It does not deploy

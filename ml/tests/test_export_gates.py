@@ -145,12 +145,58 @@ def test_an_unquantised_validator_is_judged_against_its_fp32_profile():
     24.6 ms is what P13 measured on Cascade Lake at 448. It is inside the same
     50 ms budget int8 is judged against, which is the whole finding - the old
     gate refused this artefact while asserting a reason that was never true.
+
+    Note `accuracy_onnx`, not `map50_int8`. An earlier version of this test
+    passed `map50_int8=map50_fp32` to get a zero drop, which is a fabrication:
+    an fp32 artefact has no int8 measurement and never will. That fabrication
+    made the test pass while the REAL artefact stayed `may_ship: false`, which
+    is the exact failure `test_the_real_fp32_sidecar_is_still_blocked_on_its_score`
+    below now pins.
     """
     result = check_gates(
-        _report(quantised=False, median_latency_ms=24.6, map50_fp32=0.7524, map50_int8=0.7524),
+        _report(quantised=False, median_latency_ms=24.6, map50_fp32=0.7524, accuracy_onnx=0.7519),
         Gates.for_role("validator"),
     )
     assert result.failures == []
+    assert result.may_ship is True
+
+
+def test_the_real_fp32_sidecar_is_still_blocked_on_its_own_score():
+    """The artefact on disk, not a fabricated one.
+
+    `artifacts/local/validator-v1.json` carries `map50_fp32: 0.7524` copied from
+    the PyTorch training run - its own provenance says "not measured here" - and
+    no score for the exported graph. So even with the fp32 profile and P13's
+    latency it must NOT ship, and the reason must name the missing eval rather
+    than talk about int8.
+    """
+    result = check_gates(
+        _report(
+            quantised=False,
+            median_latency_ms=24.605,
+            latency_representative=True,
+            map50_fp32=0.7524,
+            map50_int8=None,
+            accuracy_onnx=None,
+        ),
+        Gates.for_role("validator"),
+    )
+    assert result.may_ship is False
+    assert result.failures == []
+    assert any("has not been scored" in u for u in result.unmeasured)
+    assert not any("int8" in u for u in result.unmeasured), (
+        "asking an fp32 artefact what int8 cost it is the bug this branch fixes"
+    )
+
+
+def test_an_fp32_export_that_lost_accuracy_still_fails():
+    """Export is a transformation. A graph that degraded in the box fails here."""
+    result = check_gates(
+        _report(quantised=False, median_latency_ms=24.6, map50_fp32=0.7524, accuracy_onnx=0.70),
+        Gates.for_role("validator"),
+    )
+    assert any("quantisation cost" in f or "0.05" in f for f in result.failures)
+    assert result.may_ship is False
 
 
 def test_an_unquantised_validator_that_is_genuinely_slow_still_fails():
