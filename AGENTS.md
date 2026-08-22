@@ -119,6 +119,45 @@ Google Cloud is provisioned, budgeted and documented, and nothing is deployed,
 because deploying a graph that scores 0.025 would make the product confidently
 wrong.
 
+**Verified by deployment on 2026-08-22, not by reading the flag.** A
+production-equivalent private Cloud Run deploy of `detect@sha256:cd52b20b` was
+attempted and **the container refused to start**:
+`UngatedArtefactError: validator v1 ... failures: int8 quantisation cost 0.727
+map50 (max 0.02)`. That is the gate working. A separate, clearly-labelled
+*temporary* private revision with `SBR_ALLOW_UNGATED=1` then confirmed the
+infrastructure — authenticated `/health` and `/detect` return 200, anonymous
+returns **403 proven by request** — and was deleted; `gcloud run services list`
+is empty. **The web client still cannot be pointed at anything**, because
+`web/src/transport/rest.ts` sends no `Authorization` header, so it needs a
+*public* service, and a public service serving disposal answers needs a validator
+that genuinely passes.
+
+**fp32 is the open route, and it is now measured.**
+[P13](docs/research/probes/P13-fp32-validator-viability.md), 2026-08-22, both
+formats paired on one Cascade Lake instance with the arms alternated:
+
+| | int8 | fp32 | budget |
+|---|---:|---:|---:|
+| validator p50 | 17.921 ms | **24.605 ms** | ≤ 50 ms — **both pass** |
+| concurrent scanners @ 1 bin | 5 | **4** | ≥ 10 |
+| accuracy cost | −0.727 mAP | 0.0 | ≤ 0.02 |
+
+The ship gate at `ml/src/sbr/export/onnx_export.py:319` refuses unquantised
+artefacts with the rationale *"it will not meet the latency budget"*. **That
+rationale is false by a factor of two at 448 on this architecture.** The trade is
+**one concurrent scanner for a validator that is actually correct**, in a gate
+that fails either way. The split is implemented, tested and **staged unmerged on
+`feat/fp32-ship-profile`** with a memo at
+[`docs/research/FP32-PROFILE-MEMO.md`](docs/research/FP32-PROFILE-MEMO.md);
+`max_accuracy_drop` stays `0.02` in every profile and the config raises if a
+profile tries to loosen it.
+
+**Where to look without a terminal:** `python ml/scripts/build_dashboard.py`
+regenerates [`docs/dashboard.html`](docs/dashboard.html) from the repository's
+own evidence files — every artefact, gate, curve and coverage gap, each figure
+beside the split and hardware it came from, and `unknown` wherever a source file
+is missing.
+
 **Phase 2's data is done and pinned, for both roles.**
 
 - **validator** — `arudaev/smart-bin-detect` at `8666aa23`: 18 954 frames, 370
@@ -144,29 +183,78 @@ or `wall_unit` — that corpus is 35 % `street_basket` and cannot close the gap.
 `sack` and `textile_bank` both carry Deggendorf pack rules, so a pilot there
 will meet bins B cannot name.
 
-**And a working pipeline still answers `unknown` for wheelies.** Observed
-end to end on 2026-08-21: a glass frame resolves to `glass_mixed` /
-"Glascontainer", and every wheelie resolves to nothing — because all four
-wheelie rules in the Deggendorf pack match on **`lid_color`**, which the service
-does not measure. One `Papier` bin came back with `body_color: blue`, the exact
-colour the paper rule looks for, and still answered `unknown`. That makes
-lid-vs-body separation ([docs/12 P3](docs/12-validation-protocol.md)) the
-binding constraint on the product, not a tidy-up.
+**A working pipeline still answers `unknown` for wheelies, and since
+2026-08-22 there is a measurement saying why rather than a gap.**
+[P3](docs/research/probes/P3-colour-measurement.md) ran against 160 labels on a
+frozen, cluster-stratified sample:
+
+| | measured | rule | fires |
+|---|---:|---:|---|
+| body colour, best of four variants | **0.5625** | ~0.75 | P3's third row |
+| lid colour, upper band | **0.1966** | 0.60 | *do not wire it in* |
+
+- **`lid_color` is deliberately NOT wired into the service.** Lids are *visible
+  in 98 %* of the 117 scored wheelie frames and the band lands on them, so this
+  is neither a cropping nor a visibility failure. A sampler right one time in
+  five would take the product from "answers `unknown`" to "answers confidently
+  wrong four times in five", on disposal advice, in a pack whose colour halves
+  are already marked uncorroborated. `service/colour.py` has the sampler and
+  `service/tests/test_lid_colour.py` pins the omission as deliberate.
+- **Illuminant normalisation loses to naive sampling** on this corpus — 0.5625
+  plain, 0.5437 Shades-of-Gray, 0.4875 Gray World — because the gains are ~1.0
+  under flat cloud. **SAM stays off the critical path.**
+- **The failure is the reference swatches, not the geometry.** Against centroids
+  measured from real bins, leave-one-capture-cluster-out over 99 groups, body
+  agreement goes **0.5625 → 0.9125**; the lid reaches only 0.5214. Real ZAW
+  igloos measure closer to the `metal` swatch than to `green`. **Recalibrating
+  `hex_ref` is a taxonomy decision and the maintainer's** — it changes every
+  resolution outcome in every pack.
+- **P3 no longer says PROVISIONAL. The spot-check ran on 2026-08-22 and the
+  agent's labels held.** The 160 labels were written by an agent
+  (`labeller: claude`) because the maintainer was away; the pre-registered
+  25-crop blinded human pass agrees at **0.9200** on body and **0.8947** on lid
+  over the 19 wheelies. Three of the four disagreements are grey↔black and the
+  fourth is an `unsure`; nothing crossed a hue. The human also finds **19 of 19**
+  wheelie lids visible, so the lid verdict rests on a lid that is there.
+  Reproduce: `python ml/scripts/colour_labels.py concordance --reviewer alex`.
+  **What that licenses is the labelling, not a wider corpus** — every P3 figure is
+  still 160 crops of overcast Bavarian daylight.
 
 `web/` holds the design imported from Claude Design –
 the design system, both surfaces, every designed state – running against the
 real resolver and the real Deggendorf pack. On top of that it now has the
 camera, the four gates, the streaming client, a service worker with the offline
 split docs/01 § 6 states, an installable manifest, a settings surface, a
-performance budget, and 274 tests. The shell around all of it is a real
+performance budget, and **281 unit tests plus 13 browser tests**. The browser
+tests exist because two bugs reached this repository by somebody looking at a
+screen — a Surface Pro 11 opening its selfie camera, and the scanner drawn as a
+phone on a 1440-wide tablet — and neither was reachable from vitest, which has no
+layout. Both are fixed; the camera fallback is unit-tested against an injected
+`MediaDevices` because Chromium's fake device cannot emulate two *labelled*
+cameras, so the claim there is **"implemented and browser-tested, Surface
+hardware confirmation pending"** and not more. The shell around all of it is a real
 application shell as of `refactor/web-app-shell`: real URLs on a hand-rolled
 History API router, the theme on `<html>`, `100dvh` and safe-area insets rather
 than a drawn phone, and the state director dynamically imported so it leaves
 the production bundle entirely.
 
-The client defaults to the in-process mock and **says so on the settings
-screen** — the transport is named there, `mock` or `rest` or `socket`. Swapping
-one for the other is one environment variable.
+The client defaults to the in-process mock. The transport is named on the
+settings screen — `mock` or `rest` or `socket` — and swapping one for the other is
+one environment variable.
+
+**Naming it there was not enough, and a beta proved it on 2026-08-22.** With no
+endpoint configured the loop runs against `MockClient`, which answers out of
+`web/src/data/frames.ts` — boxes measured off archive photographs. Every other
+part of the path is genuine, so the scanner drew those markers over a live
+camera, resolved them through the real Deggendorf pack, and captioned the frame
+*Connected · Deggendorf*. A tester pointed a phone at their own living room and
+was told bin 1 was Biomüll. **That is the product's worst failure — confidently
+wrong about which bin — reached through a configuration rather than through a
+model.** The scanner now carries a `demo` connection state and a notice above
+every branch of the sheet including the answer panel; nobody reads settings
+while holding a phone up at a bin. Pinned by
+`web/src/features/scan/demo.test.ts` and `web/e2e/demo-honesty.spec.ts`.
+**The remedy for a beta is to point it at a service, not to quiet the banner.**
 
 **It has now been run against the real thing.** On 2026-08-21, with
 `VITE_DETECT_URL` pointed at a local service serving the real validator and the
@@ -224,6 +312,8 @@ ml/                      Python: dataset, training dispatch, export
 │   └── utils/hub.py              HF token, download, upload
 ├── kaggle/                     train_validator, train_identifier, build_negatives
 ├── scripts/                    dispatch, adjudicate, gate, push_dataset, inventory_legacy
+│   ├── colour_labels.py          docs/12 P3: sample, label, spot-check, score
+│   └── build_dashboard.py        docs/dashboard.html, from tracked evidence only
 └── tests/
 
 web/                     React + TS + Vite PWA – design imported from Claude Design
@@ -237,6 +327,7 @@ web/                     React + TS + Vite PWA – design imported from Claude D
 ├── src/capture/                capability probe, camera, the four gates, encoder, loop
 ├── src/transport/              the wire, socket, REST, mock, and __fixtures__/ -
 |                               bytes shared with service/tests/test_wire_contract.py
+├── e2e/                        Playwright: the tablet composition, both themes, RTL
 ├── src/perf/                   metric vocabulary, budgets, web vitals
 ├── src/pwa/                    registration, update flow, install prompt
 ├── src/app/                    what spans screens: routes, theme, preferences, session
@@ -261,6 +352,7 @@ service/                 FastAPI + ONNX inference service (Cloud Run)
 ├── wire.py                     the framing; pinned to web/ by shared byte fixtures
 ├── loadtest/                   the concurrency measurement – a client, not in the image
 └── deploy/                     cloudrun.sh, cloudbuild.yaml, and the runbook
+    └── gce-fp32.sh + gce-latency-paired.sh   P13: both weight formats, one host
 docs/                    Architecture, PRD, cost model, i18n, roadmap, audit
 ├── business/                   market, model, EVC, go-to-market, validation, naming
 └── research/                   dated evidence notes and probe results
@@ -294,11 +386,14 @@ handoff/                 Claude Design handoff: DESIGN-FOUNDATION.md + the two p
 npm --prefix web install
 npm --prefix web run dev          # http://localhost:5173
 npm --prefix web run verify       # typecheck, tests, locales, build, bundle budget
-npm --prefix web test             # 274 tests, no browser
+npm --prefix web test             # 281 tests, no browser
+npm --prefix web run test:e2e     # 13 browser tests; needs `npx playwright install chromium`
 npm --prefix web run preview      # a real build, so the service worker registers
 
-# Point the client at a service. With neither set it uses the in-process mock
-# and says so on the settings screen.
+# Point the client at a service. With neither set it uses the in-process mock,
+# and BOTH the settings screen and the scanner itself say so - the scanner
+# because the mock's archive boxes drawn over a live camera is this product's
+# worst failure reached through configuration. See web/CONVENTIONS.md.
 #   VITE_DETECT_WS=wss://…/stream     live streaming scan
 #   VITE_DETECT_URL=https://…/detect  one frame per request
 
@@ -316,6 +411,15 @@ python -m sbr.dataset.legacy_import --archive-dir cv_garbage --out data/legacy/p
 # The human pass: form factors for the legacy crops. Blocks the identifier only.
 python scripts/adjudicate.py --pool data/legacy/pool
 python scripts/adjudicate.py --pool data/legacy/pool --apply
+
+# docs/12 P3: body and lid colour. `sheets` is the agent's front door and
+# `label` the human's; both write to one record tagged with who wrote each row.
+python scripts/colour_labels.py sample
+python scripts/colour_labels.py spot-check --reviewer alex -n 25   # <- the pending one
+python scripts/colour_labels.py score
+
+# The evidence dashboard, generated from tracked files. Nothing is hand-typed.
+python scripts/build_dashboard.py --out ../docs/dashboard.html
 
 # Training – Kaggle only, never local
 python scripts/dispatch.py push negatives  --version 1   # CPU: corpus + OOD bins

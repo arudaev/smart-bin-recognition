@@ -27,6 +27,13 @@ export function EmptyState({
     <div
       style={{
         display: "grid",
+        /* `minmax(0, 1fr)`, not the implicit `auto`. An auto track takes the
+           MAX-CONTENT of its widest child, so a long action label sized this
+           card past a 320px viewport instead of wrapping inside it - and only
+           on a platform whose font is a little wider, which is the worst kind
+           of layout bug to find. With a zero minimum the track can shrink and
+           the button wraps. */
+        gridTemplateColumns: "minmax(0, 1fr)",
         justifyItems: "center",
         gap: "var(--space-4)",
         padding: "var(--space-8) var(--space-5)",

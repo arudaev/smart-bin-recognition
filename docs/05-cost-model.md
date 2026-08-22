@@ -78,6 +78,18 @@ query, at any traffic level.
 > 49 and capping crops does nothing at one bin per frame. **The gate fails on
 > compute, not on tuning.**
 >
+> **Amended 2026-08-22: the figure above is the int8 validator's, and the
+> project can now say so.** [P13](research/probes/P13-fp32-validator-viability.md)
+> measured both weight formats on one instance with the arms alternated:
+> **int8 5 scanners at one bin, fp32 4**, the frame costing 48.0 ms and 56.0 ms
+> of server time respectively. So the recovery list in § 7 gains a row it did not
+> have — *the format is a lever, and it costs one scanner* — and loses an
+> assumption: the ship gate's claim that an unquantised artefact "will not meet
+> the latency budget" is false at 448 on this architecture, where fp32 is
+> **24.6 ms against 50 ms**. Neither format reaches ten. The lever is worth
+> naming anyway, because int8 costs the validator 0.727 mAP and fp32 costs it
+> nothing, so the choice is not between two working models.
+>
 > Everything from here to the end of the section is the record of how the
 > project got here. The reasoning is still the right reasoning; only its inputs
 > have been replaced.
@@ -397,6 +409,7 @@ Ordered by cost, cheapest first. None needed for a pilot.
 | Trigger | Response | Cost |
 |---|---|---|
 | Occasional saturation at peak | Tune gates; **one shared onnxruntime thread pool**; drop model A to 384 px; cap crops | €0 |
+| Choosing a weight format | **int8 buys one concurrent scanner over fp32** (5 vs 4 at one bin, measured 2026-08-22, [P13](research/probes/P13-fp32-validator-viability.md)) — and costs the validator 0.727 mAP, so for *this* model it is not a lever anyone can pull | €0, and not free in accuracy |
 | Streaming becomes necessary | **HF PRO `cpu-basic`**, or Cloud Run instance-based | USD 9/mo **and it buys no compute** – see below |
 | Sustained saturation | **More vCPU** – HF Spaces *CPU Upgrade*, 8 vCPU | **USD 0.03/h ⇒ USD 21.90/mo** uninterrupted, **plus a paid plan** |
 | Sustained saturation, Cloud Run | Raise `--cpu` and `--max-instances` | **usage-based; there is no monthly figure** – see below |

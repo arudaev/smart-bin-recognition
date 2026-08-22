@@ -148,6 +148,26 @@ describe("a device with a camera", () => {
     }
   });
 
+  /* A tester was handed a link to /scan and the camera opened on arrival, with
+     the privacy notice and the camera explanation - first run's steps 2 and 3 -
+     never shown. A shared URL is the ordinary way somebody reaches a beta, so
+     that is the ordinary path, not an edge case. */
+  it("sends an un-onboarded device to first run before opening a camera", () => {
+    for (const tier of ["scanner", "capture"] as Tier[]) {
+      const { route, redirect } = resolveRoute(PATH.scan, { tier, onboarded: false });
+      expect(route).toEqual({ surface: "scanner", screen: "first-run" });
+      expect(redirect).toBe(PATH.firstRun);
+    }
+  });
+
+  it("lets an un-onboarded device read the rules without being intercepted", () => {
+    // These open no camera. Bouncing somebody off a rules link would be an
+    // obstacle with nothing to disclose.
+    for (const path of [PATH.rules, PATH.contribute, PATH.settings]) {
+      expect(resolveRoute(path, { tier: "scanner", onboarded: false }).redirect).toBeNull();
+    }
+  });
+
   it("is left alone on every path that is already right", () => {
     for (const path of [PATH.scan, PATH.rules, PATH.contribute, PATH.settings]) {
       expect(resolveRoute(path, { tier: "scanner", onboarded: true }).redirect).toBeNull();
@@ -194,6 +214,51 @@ describe("redirects", () => {
           const again = resolveRoute(first.redirect ?? path, { tier, onboarded });
           expect(again.redirect, `${path} on ${tier} did not settle`).toBeNull();
           expect(again.route).toEqual(first.route);
+        }
+      }
+    }
+  });
+});
+
+/* A Surface Pro reports two cameras, so the probe calls it a scanner and is
+   right about capability. It is wrong about posture, and posture is not
+   something any API reports - the same machine is a laptop on a desk and a
+   tablet in a hand, several times a day, with no reload in between. So the
+   person chooses and the choice is stored; the probe keeps the veto. */
+describe("the surface preference", () => {
+  it("hands the viewer to a device that has a camera, when asked", () => {
+    for (const tier of ["scanner", "capture"] as Tier[]) {
+      expect(surfaceFor(tier, "viewer")).toBe("viewer");
+      const { route } = resolveRoute("/scan", { tier, onboarded: true, prefer: "viewer" });
+      expect(route).toEqual({ surface: "viewer", view: "map" });
+    }
+  });
+
+  it("never hands the scanner to a device that cannot feed it", () => {
+    // The one direction the preference may not move. A viewer-tier device has
+    // no camera; a scanner there is a surface that cannot do its only job.
+    expect(surfaceFor("viewer", "scanner")).toBe("viewer");
+    expect(resolveRoute("/scan", { tier: "viewer", onboarded: true, prefer: "scanner" }).route).toEqual({
+      surface: "viewer",
+      view: "map",
+    });
+  });
+
+  it("falls back to the probe when nothing was chosen", () => {
+    expect(surfaceFor("scanner")).toBe("scanner");
+    expect(surfaceFor("capture", "auto")).toBe("scanner");
+    expect(surfaceFor("viewer", "auto")).toBe("viewer");
+  });
+
+  it("still settles in one hop with a preference in play", () => {
+    for (const prefer of ["auto", "scanner", "viewer"] as const) {
+      for (const tier of ["scanner", "capture", "viewer"] as Tier[]) {
+        for (const path of ["/", "/nope", ...Object.values(PATH), "/viewer/queue"]) {
+          for (const onboarded of [false, true]) {
+            const first = resolveRoute(path, { tier, onboarded, prefer });
+            const again = resolveRoute(first.redirect ?? path, { tier, onboarded, prefer });
+            expect(again.redirect, `${path} on ${tier}/${prefer} did not settle`).toBeNull();
+          }
         }
       }
     }

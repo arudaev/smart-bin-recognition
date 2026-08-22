@@ -1,0 +1,54 @@
+{
+  "probe": "P3",
+  "question": "are the agent's labels trustworthy? - docs/12 P3's pre-registered spot-check",
+  "human": "alex",
+  "agent": "claude",
+  "crops_labelled_by_both": 25,
+  "composition": {
+    "wheelie_large": 11,
+    "wheelie_small": 8,
+    "igloo": 5,
+    "street_basket": 1
+  },
+  "body": {
+    "n": 25,
+    "agreement": 0.92,
+    "agreement_with_neutrals_collapsed": 0.92,
+    "disagreements": [
+      {
+        "file": "0403538b_img_5584_0.jpg",
+        "form_factor": "wheelie_small",
+        "claude": "grey",
+        "alex": "black"
+      },
+      {
+        "file": "0a76dbea_img_20250521_155059_0.jpg",
+        "form_factor": "street_basket",
+        "claude": "brown",
+        "alex": "unsure"
+      }
+    ]
+  },
+  "lid": {
+    "n": 19,
+    "agreement": 0.8947,
+    "agreement_with_neutrals_collapsed": 0.8947,
+    "disagreements": [
+      {
+        "file": "0403538b_img_5584_0.jpg",
+        "form_factor": "wheelie_small",
+        "claude": "grey",
+        "alex": "black"
+      },
+      {
+        "file": "7e78855a_img_4876_0.jpg",
+        "form_factor": "wheelie_large",
+        "claude": "black",
+        "alex": "grey"
+      }
+    ],
+    "scored_on": "wheelies only - a non-wheelie's lid is auto-filled, not judged",
+    "wheelies": 19,
+    "wheelies_the_human_says_have_a_visible_lid": 19
+  }
+}

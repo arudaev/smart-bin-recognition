@@ -1,0 +1,8 @@
+
+
+# Playwright's own output. The SCREENSHOTS are not here: e2e/__screenshots__ is
+# committed, because the tablet composition is reported with them and a picture
+# nobody can diff is a picture nobody can review.
+e2e/.artifacts/
+playwright-report/
+test-results/

@@ -57,6 +57,24 @@ interface Props {
   answerOptions: Pick<AnswerOptions, "level" | "forceStale">;
   /** Present when a real camera is running. Absent in fixture playback. */
   live?: UseScanResult | null;
+  /* THE CAMERA IS REAL AND THE BINS ARE NOT.
+   *
+   * With no VITE_DETECT_URL and no VITE_DETECT_WS the loop runs against
+   * MockClient, which answers out of data/frames.ts - boxes measured off archive
+   * photographs of Deggendorf. Every other part of the path is genuine: the
+   * gates fire, the wire is encoded, the resolver runs, the region pack answers.
+   * So the screen shows a live camera with three markers on it and a real
+   * disposal rule under each, and none of it has anything to do with what the
+   * lens is pointed at.
+   *
+   * That is this product's worst failure - confidently wrong about which bin -
+   * arrived at through a configuration rather than through a model. It is not
+   * enough that the settings screen names the transport: nobody reads settings
+   * while holding a phone up at a bin. So the scanner says it where the claim is
+   * made, on the frame and in the sheet.
+   *
+   * The fix for a beta is to point it at a service, not to hide the banner. */
+  demo?: boolean;
   onBrowse: () => void;
   /** The only route to settings from the scanner, now that the shell draws no
    *  chrome of its own. It lives with the other controls over the frame. */
@@ -76,6 +94,7 @@ export function Scanner(p: Props) {
   const { t, region, frame, conn, camera, session, answerOptions } = p;
   const live = p.live ?? null;
   const auto = conn === "auto";
+  const demo = p.demo === true;
 
   const [phase, setPhase] = useState<Phase>("connecting");
   const [shown, setShown] = useState(0);
@@ -153,8 +172,13 @@ export function Scanner(p: Props) {
     if (bins.length === 0 && open != null) setOpen(null);
   }, [live, settled, bins.length, open]);
 
+  /* Only `live` is rewritten. Connecting, waking, busy and offline are all true
+     of the mock as well - it models them deliberately - and the one state that
+     would be a lie is the one that claims an answer came from somewhere. */
   const effConn: ConnectionState = live
-    ? live.state.connection
+    ? demo && live.state.connection === "live"
+      ? "demo"
+      : live.state.connection
     : auto
       ? phase === "connecting"
         ? "connecting"
@@ -207,14 +231,46 @@ export function Scanner(p: Props) {
   const sheetH = open != null ? "84%" : `max(38%, calc(100% - ${peekMedia}px))`;
 
   return (
-    <div style={{ position: "relative", blockSize: "100%", background: "var(--ink-1)", overflow: "hidden" }}>
+    <div
+      data-testid="scan-shell"
+      style={{
+        position: "relative",
+        blockSize: "100%",
+        background: "var(--ink-1)",
+        overflow: "hidden",
+        /* One column on a phone, two on a tablet. The breakpoint is in
+           tokens/space.css beside the sizes it overrides; this reads one custom
+           property and never learns what the viewport is. */
+        display: "grid",
+        gridTemplateColumns: "var(--scan-columns)",
+        /* AND A ROW THAT CANNOT GROW.
+           The implicit row is `auto`, so a column whose content is taller than
+           the viewport stretched the ROW instead of scrolling inside it. Opening
+           an answer took the sheet to 1722px in a 768px window: the bottom of
+           the panel was unreachable, `overflow-y: auto` never engaged because
+           the box was bigger than its own content, and the media box - centred
+           against that row - slid 477px down the screen, which is the camera
+           "jumping" when a bin is tapped. Same shape as the five inline-axis
+           overflows in CONVENTIONS: an `auto` track plus a content-sized child
+           removes the maximum. Pinning the row restores it. */
+        gridTemplateRows: "100%",
+        // What the sheet's height means while the two are stacked. Ignored side
+        // by side, where the sheet is a grid child and simply fills its column.
+        ["--scan-sheet-stacked" as string]: sheetH,
+      }}
+    >
+      {/* The camera pane. Everything pinned over the photograph lives inside it,
+          so on a tablet the status strip and the controls sit over the camera
+          rather than over the sheet beside it. */}
+      <div style={{ position: "relative", overflow: "hidden", minInlineSize: 0 }}>
       {/* The photograph is the evidence and the interface does not write on it:
           the media box keeps the frame's own aspect, so a marker sits exactly
           over the object rather than over a crop the user cannot see. */}
       <div
         style={{
           position: "absolute",
-          insetBlockStart: 0,
+          insetBlockStart: "var(--scan-media-block-start)",
+          transform: "translateY(var(--scan-media-shift))",
           insetInline: 0,
           aspectRatio: live ? "3 / 4" : frame.aspect,
           overflow: "hidden",
@@ -320,12 +376,28 @@ export function Scanner(p: Props) {
         />
       </div>
 
+      </div>
+
+      {/* The sheet. Stacked, it is an overlay rising from the block end of the
+          camera - `--scan-sheet-position: absolute` and the height computed
+          above. Side by side, those two properties resolve to `static` and
+          `100%`, and it becomes the grid's second column: no branch here, and
+          no component that has to be told which shape it is in. */}
       <div
+        data-testid="scan-sheet"
+        /* The height lives in tokens/space.css, on this class, and the comment
+           there says why it cannot be an inline custom property like the rest
+           of this composition. Everything else here still is. */
+        className="sbr-scan-sheet"
         style={{
-          position: "absolute",
+          position: "var(--scan-sheet-position)" as React.CSSProperties["position"],
           insetInline: 0,
           insetBlockEnd: 0,
-          blockSize: sheetH,
+          borderInlineStart: "var(--scan-sheet-rule)",
+          minInlineSize: 0,
+          // The block-axis twin of minInlineSize: a grid item's default minimum
+          // is its content, and without this it refuses to shrink to its row.
+          minBlockSize: 0,
           transition: "block-size var(--dur-3) var(--ease-out)",
         }}
       >
@@ -341,6 +413,19 @@ export function Scanner(p: Props) {
           onClose={open != null ? () => setOpen(null) : undefined}
           closeLabel={t("nav.backToCamera")}
         >
+          {/* Above every branch, including the answer panel. The answer panel is
+              where a disposal rule is actually asserted, and that is the exact
+              place the caveat has to be. */}
+          {demo ? (
+            <Notice
+              tone="attention"
+              icon="triangle-alert"
+              title={t("demo.title")}
+              style={{ marginBlockEnd: "var(--space-4)" }}
+            >
+              {t("demo.body")}
+            </Notice>
+          ) : null}
           {open != null && openBin ? (
             <AnswerPanel
               bin={openBin}

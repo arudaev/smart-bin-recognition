@@ -22,7 +22,11 @@ export function Sheet({ children, title, register, onClose, closeLabel = "Close"
       style={{
         position: "relative",
         display: "grid",
-        gridTemplateRows: "auto 1fr",
+        /* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, and
+           that auto minimum is the size of the content - so a long answer panel
+           pushed the row past the sheet instead of scrolling inside it, and the
+           scrolling box below never had anything to scroll. */
+        gridTemplateRows: "auto minmax(0, 1fr)",
         background: "var(--surface-card)",
         borderStartStartRadius: "var(--radius-3)",
         borderStartEndRadius: "var(--radius-3)",

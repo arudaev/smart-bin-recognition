@@ -32,7 +32,12 @@ export function SegmentedControl<T extends string = string>({
       style={{
         display: "inline-grid",
         gridAutoFlow: "column",
-        gridAutoColumns: "1fr",
+        /* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` track has an automatic
+           MINIMUM of its content, and these cells are `nowrap`, so three
+           labels sized the control past a 320px viewport rather than
+           sharing it. The minmax lets the tracks actually shrink. */
+        gridAutoColumns: "minmax(0, 1fr)",
+        maxInlineSize: "100%",
         border: "var(--border-rule) solid var(--ink-0)",
         borderRadius: "var(--radius-2)",
         background: "var(--surface-card)",
@@ -66,6 +71,9 @@ export function SegmentedControl<T extends string = string>({
               fontSize: size === "dense" ? "var(--text-sm)" : "var(--text-base)",
               cursor: "pointer",
               whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minInlineSize: 0,
               transition: "var(--transition-ui)",
             }}
           >

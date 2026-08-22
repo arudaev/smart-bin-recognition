@@ -61,3 +61,55 @@ jobs:
             git --no-pager diff -- src/transport/__fixtures__/requests
             exit 1
           fi
+
+  e2e:
+    # A SEPARATE JOB, not a step inside `verify`.
+    #
+    # `verify` is deliberately browserless - typecheck, 281 unit tests, locales,
+    # build, transfer budget - and it stays that way: it is what AGENTS.md asks
+    # for before a commit, and a developer should not need a 150 MB browser
+    # download to run it.
+    #
+    # These specs exist because two bugs reached this repository by somebody
+    # looking at a screen: a Surface Pro 11 opening its selfie camera, and the
+    # scanner drawn as a phone on a 1440-wide tablet. Neither was reachable from
+    # vitest, which has no layout.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium
+        # Chromium only. Both bugs were Chromium bugs (Chrome and Edge on
+        # Windows), and adding WebKit here would imply a claim about Safari that
+        # nothing has tested.
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        # playwright.config.ts builds and serves the app itself via webServer.
+        # PLAYWRIGHT_HTML_REPORT makes a failure inspectable: the `github` and
+        # `list` reporters print to the log and leave no artefact, so the first
+        # CI-only layout failure had nothing to download and had to be guessed
+        # at from one string. It costs nothing on a green run.
+        env:
+          PLAYWRIGHT_HTML_REPORT: playwright-report
+        run: npm run test:e2e -- --reporter=github,list,html
+
+      - name: Keep the report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

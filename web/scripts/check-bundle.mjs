@@ -96,12 +96,33 @@ if (process.argv.includes("--json")) {
  * constant. This is where the claim is checked. */
 const FORBIDDEN = [{ marker: "sbr-dev-only-do-not-ship", what: "the state director (src/dev/)" }];
 
+/* A BETA BUILD INVERTS THIS CHECK RATHER THAN SKIPPING IT.
+ *
+ * A Vercel preview is meant to carry the metrics overlay - a tester needs it for
+ * the reason a developer does. So on a beta build the sentinel must be PRESENT,
+ * and its absence is the failure: it would mean the overlay silently did not
+ * ship and the tester is looking at a build that cannot report anything.
+ *
+ * Production is unchanged: the sentinel must be absent, exactly as before. The
+ * point of asserting both directions is that neither mode can quietly become
+ * the other - a skipped check would let a broken beta pass as a clean build. */
+const BETA = process.env.VERCEL_ENV === "preview" || process.env.VITE_SBR_BETA === "1";
+
 const smuggled = [];
-for (const row of rows) {
-  if (row.group !== "js" && row.group !== "css") continue;
-  const text = readFileSync(join(DIST, row.rel), "utf8");
-  for (const { marker, what } of FORBIDDEN) {
-    if (text.includes(marker)) smuggled.push(`  ${row.rel} contains ${what}`);
+const missing = [];
+for (const { marker, what } of FORBIDDEN) {
+  const present = rows.some((row) => {
+    if (row.group !== "js" && row.group !== "css") return false;
+    return readFileSync(join(DIST, row.rel), "utf8").includes(marker);
+  });
+  if (BETA && !present) missing.push(`  ${what} is NOT in the bundle`);
+  if (!BETA && present) {
+    for (const row of rows) {
+      if (row.group !== "js" && row.group !== "css") continue;
+      if (readFileSync(join(DIST, row.rel), "utf8").includes(marker)) {
+        smuggled.push(`  ${row.rel} contains ${what}`);
+      }
+    }
   }
 }
 
@@ -122,6 +143,13 @@ for (const [name, budgetKb] of Object.entries(BUDGETS)) {
   if (over) failed += 1;
   const pct = ((actual / budget) * 100).toFixed(0);
   console.log(`  ${over ? "OVER" : "ok  "} ${name.padEnd(14)} ${kb(actual).padStart(9)} / ${kb(budget).padStart(9)}  ${pct}%`);
+}
+
+if (missing.length > 0) {
+  console.error("\nThis is a BETA build and the metrics overlay did not ship:\n");
+  console.error(missing.join("\n"));
+  console.error("\nVERCEL_ENV=preview (or VITE_SBR_BETA=1) must reach src/dev/ via __BETA__ in App.tsx.");
+  process.exit(1);
 }
 
 if (smuggled.length > 0) {

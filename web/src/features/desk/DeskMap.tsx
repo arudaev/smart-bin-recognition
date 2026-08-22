@@ -55,6 +55,16 @@ export function DeskMap({ t, region }: { t: T; region: Region }) {
                       cursor: "pointer",
                       insetInlineStart: `${r.at[0]}%`,
                       insetBlockStart: `${r.at[1]}%`,
+                      /* A percentage places the pin's LEADING edge and the label
+                         grows from it, so a pin at 78% of a narrow map hangs
+                         outside it - measured on the live deployment at 375px:
+                         a control 16px past the edge, clipped and unreachable.
+                         The space remaining to the inline end is exactly
+                         `100% - that percentage`, so this bounds the pin to it
+                         and the label truncates instead of escaping. */
+                      maxInlineSize: `calc(100% - ${r.at[0]}%)`,
+                      minInlineSize: 0,
+                      overflow: "hidden",
                       display: "flex",
                       alignItems: "center",
                       gap: "var(--space-2)",
@@ -100,6 +110,11 @@ export function DeskMap({ t, region }: { t: T; region: Region }) {
                 position: "absolute",
                 insetBlockEnd: "var(--space-5)",
                 insetInlineStart: "var(--space-5)",
+                /* Both ends, or `flexWrap` is decoration: with only a start inset
+                   the box is sized by its content and there is no width for the
+                   wrap to happen at. Measured on the live deployment at 375px,
+                   this cluster ran 18px past the map. */
+                insetInlineEnd: "var(--space-5)",
                 display: "flex",
                 gap: "var(--space-2)",
                 flexWrap: "wrap",

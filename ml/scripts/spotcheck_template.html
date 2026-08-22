@@ -1,0 +1,106 @@
+<title>Colour Spot-Check</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+  :root{
+    --paper-0:#fcfbf8;--paper-1:#f6f4ef;--paper-2:#ebe8e1;--line:#dcd8cf;
+    --ink-0:#16181c;--ink-1:#2e3238;--ink-2:#5a6068;
+    --signal:#5b2e91;--signal-tint:#ece5f6;--pass:#1e7a3c;
+    --bg:var(--paper-1);--card:var(--paper-0);--fg:var(--ink-0);--muted:var(--ink-2);
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper-0:#1b1e24;--paper-1:#14161a;--paper-2:#22262d;--line:#2b3038;
+    --ink-0:#f4f2ec;--ink-1:#d8d5cc;--ink-2:#9aa2b1;
+    --signal:#c0a8ec;--signal-tint:#2a2140;--pass:#5ad48b;
+    --bg:var(--paper-1);--card:var(--paper-0);--fg:var(--ink-0);--muted:var(--ink-2);}}
+  :root[data-theme="dark"]{
+    --paper-0:#1b1e24;--paper-1:#14161a;--paper-2:#22262d;--line:#2b3038;
+    --ink-0:#f4f2ec;--ink-1:#d8d5cc;--ink-2:#9aa2b1;
+    --signal:#c0a8ec;--signal-tint:#2a2140;--pass:#5ad48b;
+    --bg:var(--paper-1);--card:var(--paper-0);--fg:var(--ink-0);--muted:var(--ink-2);}
+
+  body{background:var(--bg);color:var(--fg);margin:0;font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+  .wrap{max-width:640px;margin:0 auto;padding:16px 14px 96px;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:1.35rem;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
+  .lede{color:var(--muted);font-size:14px;margin:0}
+  .lede b{color:var(--fg)}
+  .bar{position:sticky;top:0;z-index:5;background:var(--bg);border-block-end:1px solid var(--line);
+       padding:10px 0;margin:0 0 -4px;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px}
+  .bar .track{flex:1;height:8px;background:var(--paper-2);border-radius:99px;overflow:hidden}
+  .bar .track i{display:block;height:100%;width:0;background:var(--signal);transition:width .2s}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .card[data-body]:not([data-body=""]){border-color:var(--pass)}
+  .card header{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .card header b{color:var(--fg)}
+  .ff{margin-inline-start:auto}
+  .tick{inline-size:18px;block-size:18px;border-radius:99px;border:2px solid var(--line)}
+  .card.done .tick{background:var(--pass);border-color:var(--pass)}
+  img{inline-size:100%;block-size:auto;border-radius:10px;background:var(--paper-2);display:block}
+  .field h3{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:2px 0 6px;font-weight:600}
+  .sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}
+  .sw{appearance:none;background:var(--paper-1);border:1px solid var(--line);border-radius:10px;
+      padding:7px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+      font-family:var(--mono);font-size:10px;color:var(--muted);min-block-size:56px;justify-content:center}
+  .sw i{inline-size:26px;block-size:26px;border-radius:7px;background:var(--sw);border:1px solid rgba(128,128,128,.45);display:block}
+  .sw.x{font-size:11px}
+  .sw[aria-pressed="true"]{border-color:var(--signal);background:var(--signal-tint);color:var(--fg);
+      box-shadow:inset 0 0 0 1px var(--signal)}
+  .sw:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+  .na{color:var(--muted);font-size:13px;margin:0}
+  .done-note{background:var(--signal-tint);border:1px solid var(--signal);border-radius:12px;padding:14px;font-size:14px}
+  code{font-family:var(--mono);font-size:12.5px}
+</style>
+<div class="wrap">
+<h1>Colour spot-check</h1>
+<p class="lede">25 crops from the frozen 160, drawn with <code>seed 20260822</code> — the
+check <b>pre-registered in docs/12 P3</b>. Tap the colour you see for the body, and the
+lid where there is one. <b>Nothing is pre-filled and my labels are hidden on purpose</b>:
+a primed reviewer confirms rather than judges, which is how the pool's own
+stream-to-shape proposals went wrong on 116 of 403 crops.</p>
+<p class="lede">Your taps are saved to this page. When you are done, tell me and I will read
+them back and re-score P3 — that is what decides whether <b>D1, D2 and D5</b> may be
+quoted as settled.</p>
+
+<div class="bar"><span id="count">0 / {{N}}</span><span class="track"><i id="fill"></i></span><span id="pct">0%</span></div>
+<!--CARDS-->
+<div class="done-note">
+<b>What happens with these.</b> Human rows automatically beat agent rows in
+<code>colour-labels.json</code>. If you and I disagree on more than about four of 25, the
+honest move is a full 160-crop re-label rather than patching — I will say so rather than
+averaging it away.
+</div>
+</div>
+<script>
+  function sync(card){
+    var body = card.getAttribute("data-body") || "";
+    var lid  = card.getAttribute("data-lid") || "";
+    card.querySelectorAll(".sw").forEach(function(b){
+      var f = b.getAttribute("data-field");
+      var v = b.getAttribute("data-value");
+      b.setAttribute("aria-pressed", String((f === "body" ? body : lid) === v));
+    });
+    card.classList.toggle("done", body !== "" && lid !== "");
+  }
+  function tally(){
+    var cards = document.querySelectorAll(".card");
+    var n = 0;
+    cards.forEach(function(c){ if (c.classList.contains("done")) n++; });
+    document.getElementById("count").textContent = n + " / " + cards.length;
+    var pct = Math.round(100 * n / cards.length);
+    document.getElementById("fill").style.width = pct + "%";
+    document.getElementById("pct").textContent = pct + "%";
+  }
+  document.addEventListener("click", function(e){
+    var b = e.target.closest(".sw");
+    if (!b) return;
+    var card = b.closest(".card");
+    // The gesture writes an ATTRIBUTE on the card. That is the saved document -
+    // script that runs on load is not, which is why nothing is restored here.
+    card.setAttribute("data-" + b.getAttribute("data-field"), b.getAttribute("data-value"));
+    sync(card); tally();
+  });
+  document.querySelectorAll(".card").forEach(sync);
+  tally();
+</script>

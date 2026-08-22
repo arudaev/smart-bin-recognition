@@ -20,3 +20,11 @@ interface ImportMeta {
     readonly SSR: boolean;
   };
 }
+
+/** True on a Vercel PREVIEW build, false on production.
+ *
+ * Derived in vite.config.ts from `VERCEL_ENV`, not from a flag anybody sets by
+ * hand, so the metrics overlay cannot reach the production deployment by
+ * somebody forgetting to unset something. `check-bundle.mjs` asserts both
+ * directions: present in a beta build, absent in a production one. */
+declare const __BETA__: boolean;

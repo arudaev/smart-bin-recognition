@@ -64,6 +64,21 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    /* IS THIS A BETA BUILD - one a tester is meant to prod at, rather than one a
+       resident is meant to trust?
+
+       Read from `VERCEL_ENV`, which Vercel sets to "preview" on every
+       branch and pull-request build and to "production" on the production
+       domain. Deriving it rather than setting a flag by hand is the point: there
+       is no env var anybody can forget to unset, so the metrics overlay CANNOT
+       reach the production deployment. `check-bundle.mjs` asserts both
+       directions.
+
+       `VITE_SBR_BETA=1` is the local escape hatch, for looking at the overlay in
+       a production-shaped build without pushing. */
+    __BETA__: JSON.stringify(
+      process.env.VERCEL_ENV === "preview" || process.env.VITE_SBR_BETA === "1",
+    ),
   },
   resolve: {
     alias: {

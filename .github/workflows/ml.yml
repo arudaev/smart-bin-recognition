@@ -62,3 +62,20 @@ jobs:
             echo "::error::notebooks are not allowed in ml/ - see AGENTS.md"
             exit 1
           fi
+
+      - name: The dashboard still matches the evidence it claims to read
+        # docs/dashboard.html is committed so it can be published and read on a
+        # phone, which makes it exactly the kind of artefact that drifts from its
+        # sources. It reads only TRACKED files - the gate verdicts come from
+        # docs/research/probes/data/gate-sidecars.json, not from the gitignored
+        # artifacts/ - and its timestamp is the commit date, so a clean rebuild
+        # is byte-identical or something changed and was not regenerated.
+        run: |
+          python scripts/build_dashboard.py --out ../docs/dashboard.html
+          cd ..
+          if [ -n "$(git status --porcelain docs/dashboard.html)" ]; then
+            echo "::error::docs/dashboard.html is stale."
+            echo "Run: python ml/scripts/build_dashboard.py --out docs/dashboard.html"
+            git --no-pager diff -- docs/dashboard.html | head -40
+            exit 1
+          fi

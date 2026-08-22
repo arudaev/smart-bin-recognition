@@ -55,6 +55,10 @@ const LEVEL_LABELS: Record<LevelOverride, string> = {
 const CONN_LABELS: Record<ConnSetting, string> = {
   auto: "Play it out",
   live: "Connected",
+  /* Not selectable in practice: the scanner derives this one from the transport
+     rather than from the override, so forcing it here would claim a mock where
+     there is a service. Present because ConnSetting is exhaustive. */
+  demo: "Demo transport",
   connecting: "Connecting",
   waking: "Waking",
   busy: "Busy",

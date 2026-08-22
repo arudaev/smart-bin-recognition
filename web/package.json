@@ -3,14 +3,20 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:beta": "node scripts/build-beta.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:shots": "node -e \"process.env.SBR_SHOTS='1';require('child_process').execFileSync(process.platform==='win32'?'npx.cmd':'npx',['playwright','test','e2e/shots.spec.ts'],{stdio:'inherit',env:process.env})\"",
     "check:locales": "node scripts/check-locales.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "build:icons": "node scripts/build-icons.mjs",
@@ -18,10 +24,13 @@
     "verify": "npm run typecheck && npm test && npm run check:locales && npm run build && npm run check:bundle"
   },
   "dependencies": {
+    "@vercel/analytics": "1.6.1",
+    "@vercel/speed-insights": "1.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

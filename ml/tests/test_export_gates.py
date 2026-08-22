@@ -128,9 +128,119 @@ def test_latency_without_named_hardware_fails():
     assert any("naming the hardware" in f for f in result.failures)
 
 
-def test_unquantised_artefact_fails():
-    result = check_gates(_report(quantised=False), Gates.for_role("validator"))
-    assert any("not quantised" in f for f in result.failures)
+def test_unquantised_artefact_fails_for_a_role_with_no_fp32_profile():
+    """The identifier has no fp32 profile, so fp32 is still refused outright.
+
+    P11 measured int8 costing the identifier 0.0000 top-1, so it has nothing to
+    gain from fp32 and would only pay the concurrency. Absence of a profile is
+    the decision, and it is enforced.
+    """
+    result = check_gates(_report("identifier", quantised=False), Gates.for_role("identifier"))
+    assert any("no fp32 profile" in f for f in result.failures)
+
+
+def test_an_unquantised_validator_is_judged_against_its_fp32_profile():
+    """docs/12 P13: the format selects a profile; the measured latency decides.
+
+    24.6 ms is what P13 measured on Cascade Lake at 448. It is inside the same
+    50 ms budget int8 is judged against, which is the whole finding - the old
+    gate refused this artefact while asserting a reason that was never true.
+
+    Note `accuracy_onnx`, not `map50_int8`. An earlier version of this test
+    passed `map50_int8=map50_fp32` to get a zero drop, which is a fabrication:
+    an fp32 artefact has no int8 measurement and never will. That fabrication
+    made the test pass while the REAL artefact stayed `may_ship: false`, which
+    is the exact failure `test_the_real_fp32_sidecar_is_still_blocked_on_its_score`
+    below now pins.
+    """
+    result = check_gates(
+        _report(quantised=False, median_latency_ms=24.6, map50_fp32=0.7524, accuracy_onnx=0.7519),
+        Gates.for_role("validator"),
+    )
+    assert result.failures == []
+    assert result.may_ship is True
+
+
+def test_the_real_fp32_sidecar_is_still_blocked_on_its_own_score():
+    """The artefact on disk, not a fabricated one.
+
+    `artifacts/local/validator-v1.json` carries `map50_fp32: 0.7524` copied from
+    the PyTorch training run - its own provenance says "not measured here" - and
+    no score for the exported graph. So even with the fp32 profile and P13's
+    latency it must NOT ship, and the reason must name the missing eval rather
+    than talk about int8.
+    """
+    result = check_gates(
+        _report(
+            quantised=False,
+            median_latency_ms=24.605,
+            latency_representative=True,
+            map50_fp32=0.7524,
+            map50_int8=None,
+            accuracy_onnx=None,
+        ),
+        Gates.for_role("validator"),
+    )
+    assert result.may_ship is False
+    assert result.failures == []
+    assert any("has not been scored" in u for u in result.unmeasured)
+    assert not any("int8" in u for u in result.unmeasured), (
+        "asking an fp32 artefact what int8 cost it is the bug this branch fixes"
+    )
+
+
+def test_an_fp32_export_that_lost_accuracy_still_fails():
+    """Export is a transformation. A graph that degraded in the box fails here."""
+    result = check_gates(
+        _report(quantised=False, median_latency_ms=24.6, map50_fp32=0.7524, accuracy_onnx=0.70),
+        Gates.for_role("validator"),
+    )
+    assert any("quantisation cost" in f or "0.05" in f for f in result.failures)
+    assert result.may_ship is False
+
+
+def test_an_unquantised_validator_that_is_genuinely_slow_still_fails():
+    """The gate did not become a waiver. It became a measurement."""
+    result = check_gates(
+        _report(quantised=False, median_latency_ms=61.0, map50_fp32=0.7524, map50_int8=0.7524),
+        Gates.for_role("validator"),
+    )
+    assert any("exceeds the 50 ms budget" in f for f in result.failures)
+
+
+def test_a_format_profile_may_not_loosen_accuracy():
+    """The one thing the split must never enable.
+
+    A per-format LATENCY budget is the point. A per-format ACCURACY budget would
+    let a format buy its way past the gate that exists to stop a
+    confidently-wrong model shipping, which is this product's worst failure.
+    """
+    with pytest.raises(ValueError, match="never accuracy"):
+        Gates.from_config(
+            "validator",
+            {
+                "export": {
+                    "gates": {
+                        "max_median_latency_ms": 50,
+                        "max_accuracy_drop": 0.02,
+                        "fp32": {"max_accuracy_drop": 0.75},
+                    }
+                }
+            },
+        )
+
+
+def test_the_validator_fp32_profile_carries_what_the_format_costs():
+    """5 concurrent scanners become 4. A gate that hides that is a gate lying."""
+    profile = Gates.for_role("validator").fp32_profile
+    assert profile is not None
+    assert profile.max_accuracy_drop == PINNED_ACCURACY_DROP
+    assert profile.concurrent_scanners_at_1_bin == 4
+    assert "P13" in profile.measured_by
+
+
+def test_the_identifier_has_no_fp32_profile():
+    assert Gates.for_role("identifier").fp32_profile is None
 
 
 def test_role_and_gates_must_agree():

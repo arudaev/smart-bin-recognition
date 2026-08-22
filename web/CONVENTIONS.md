@@ -104,6 +104,35 @@ Corrections are **always `replaceState`**. A redirect written with `pushState`
 leaves the wrong URL in the history stack, and the back button lands on it and
 is bounced off again.
 
+**Every path is the app, and `web/vercel.json`'s rewrite is what makes that true
+in production:**
+
+```json
+{ "source": "/:path((?!api/).*)", "destination": "/" }
+```
+
+**The destination is `/`, not `/index.html`, and that is the whole bug.** Until
+2026-08-22 it rewrote to `/index.html` and every route except `/` returned **404
+on both preview and production** – deep links, shared URLs and the PWA start path
+all broken. `cleanUrls: true` makes `/index.html` **redirect (308)** rather than
+serve, so the rewrite pointed at a path that bounces. Verified directly: `curl
+/index.html` against the deployment returns 308.
+
+*Recorded because the first two attempts fixed the wrong half.* The `source` was
+rewritten twice on a theory that path-to-regexp rejects an unnamed lookahead
+group. That may even be true, but it is not what broke this – with a redirecting
+destination, a correctly matching rewrite 404s in exactly the same way. **Test
+the destination before rewriting the source.**
+
+Two more things not to do to that file. It is strict JSON, so **no comment
+keys**: a `_comment` inside a rewrite fails Vercel's config validation and the
+deployment errors *before the build starts*, which appears as a deployment with
+no build log at all. And keep the `api/` exclusion – measured, a bare `/(.*)`
+swallows `api/pack/[region]` and serves the SPA instead of the function.
+
+**None of this is reproducible locally.** `vite dev` and `vite preview` serve the
+SPA fallback themselves, so this routing only becomes real on a deployment.
+
 ### Filling the viewport
 
 The shell is `.sbr-app-root`: `100dvh` with a `100vh` line above it as the
@@ -181,6 +210,34 @@ Updates are never applied on their own – a waiting worker raises a flag and
 settings offers a button. Reloading the page underneath somebody who is reading
 an answer off it is worse than being one deployment behind.
 
+### And not lying about the mock
+
+With neither `VITE_DETECT_URL` nor `VITE_DETECT_WS` set, `createClient` returns
+`MockClient`, which answers out of `data/frames.ts` – boxes measured off archive
+photographs of Deggendorf. **Every other part of the path is genuine.** The
+gates fire, the wire is encoded, the resolver runs, the region pack answers. So
+the screen shows a live camera with markers on it and a real disposal rule under
+each, and none of it has anything to do with what the lens is pointed at.
+
+That shipped. A preview went out with no endpoint configured, and a tester
+pointed a phone at their own living room and was told bin 1 was Biomüll under
+the caption *Connected · Deggendorf*. It is this product's worst failure –
+confidently wrong about which bin – arrived at through a configuration rather
+than through a model.
+
+So the rule is: **whatever names the transport must be where the claim is made.**
+The settings row was not enough; nobody reads settings while holding a phone up
+at a bin. `Scanner`'s `demo` prop takes the `live` connection state and rewrites
+it, and the notice sits above *every* branch of the sheet including the answer
+panel, because that is where a disposal rule is actually asserted.
+
+Pinned in `src/features/scan/demo.test.ts` (logic and wiring) and
+`e2e/demo-honesty.spec.ts` (what a person is actually told). The e2e config
+empties both endpoint variables so a developer's `.env.local` cannot make the
+suite pass locally for a reason CI does not share.
+
+**The fix for a beta is to point it at a service, not to quiet the banner.**
+
 ## Performance
 
 `perf/metrics.ts` holds a **closed vocabulary**: add a metric there or not at
@@ -190,6 +247,18 @@ instrumentation stops being trusted. Budgets are judged at p95 (`vitals.cls` and
 
 `scripts/check-bundle.mjs` is the transfer budget and it exits non-zero. Either
 growth is worth it and the budget moves in the same commit, or it is not.
+
+**It also asserts the dev/beta split in both directions**, which is what keeps
+the metrics overlay out of production without anybody having to remember:
+
+| build | the `src/dev/` sentinel | exits |
+|---|---|---|
+| production – `npm run build` | must be **absent** | 1 if present |
+| beta – `npm run build:beta`, or `VERCEL_ENV=preview` | must be **present** | 1 if absent |
+
+Asserting both is the point: a check that merely *skipped* on a beta build would
+let a broken beta – one where the overlay silently failed to ship – pass as a
+clean production build. Neither mode can quietly become the other.
 
 ## Commands
 
@@ -237,10 +306,24 @@ names honestly when nothing is configured.
 
 - **There is no model.** If anything here imports an inference runtime it is in
   the wrong repository. Enforced in `test/discipline.test.ts`.
-- **There is no analytics.** `perf/` records to a ring buffer on the device and
-  exports a JSON file when a person asks. Nothing is sent anywhere, because
-  there is no user identity in this architecture and adding an endpoint would be
-  the first thing in the product to transmit anything about anybody.
+- **There is no analytics *in production*.** `perf/` records to a ring buffer on
+  the device and exports a JSON file when a person asks. Nothing is sent
+  anywhere, because there is no user identity in this architecture and adding an
+  endpoint would be the first thing in the product to transmit anything about
+  anybody.
+
+  **Amended 2026-08-22, narrowed rather than dropped.** Vercel Analytics and
+  Speed Insights are mounted in `app/Telemetry.tsx` behind `__BETA__`, which
+  `vite.config.ts` derives from Vercel's own `VERCEL_ENV`. They run on **preview
+  deployments only** – a beta given to named testers who know they are testing.
+  On a production build the branch folds, the dynamic import is unreachable, and
+  neither package reaches `dist`: 124.3 kB production against 131.7 kB beta, and
+  `grep vercel dist/assets/*.js` finds nothing in the former.
+
+  **Moving them to production needs a consent gate, not a code change.** Vercel
+  Analytics is cookieless but is still a transfer to a US processor, and Germany
+  is the launch market – the same reasoning that keeps Google Fonts out of
+  `tokens/fonts.css`. That is a product decision and the maintainer's.
 - **There is no surface switch.** The surface is `routes.ts:surfaceFor` applied
   to the capability probe, and nothing else – never a viewport query, never a
   user-agent. Only `tier: "viewer"` gets the viewer; `capture` gets the scanner,

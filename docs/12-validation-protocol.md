@@ -219,6 +219,18 @@ precision target · docs/07's second kill criterion.
 
 ## P3 – Colour measurement
 
+> **RAN 2026-08-22 — [result](research/probes/P3-colour-measurement.md), and it
+> did NOT close.** Body agreement **0.5625** against the ~0.75 rule, so the
+> **third row fires**; lid agreement **0.1966** against the amendment's 0.60
+> floor, so its third row fires too and **`lid_color` is not wired in**.
+> **SAM leaves the critical path**: variant (2), the plain centre sample, is the
+> best of the four, so no mask variant was needed to retire the dependency —
+> and illuminant normalisation *loses* to naive sampling on this corpus.
+> **The failure is the reference swatches, not the geometry**: against centroids
+> measured from real bins, leave-one-capture-cluster-out, body agreement is
+> **0.9125**. **The labels are an agent's and a 25-crop spot-check is
+> pre-registered**, so every number here carries the word PROVISIONAL.
+
 **Question.** Does illuminant normalisation beat naive sampling — and **is SAM
 needed at all**?
 
@@ -241,6 +253,10 @@ nearest named colour:
 
 Lid-vs-body separation is **explicitly out of scope for P3** and recorded as an
 open problem (research note 06 § 3). Measure body colour first.
+
+*That scoping was reversed on 2026-08-22. The paragraph above is left standing
+because it is what the probe was written against; the amendment below is what it
+now runs under.*
 
 ### That scoping is now the binding constraint on the product — observed 2026-08-21
 
@@ -271,6 +287,74 @@ Deggendorf.** `igloo` is 40 crops of the project's data and the only form factor
 that currently resolves; `wheelie_small` and `wheelie_large` are 362 crops and
 resolve to nothing. That reorders P3's own priorities and is recorded here
 rather than acted on.
+
+### Amended 2026-08-22 — the lid is in scope, and the labeller is disclosed
+
+**Why the scoping is reversed.** The paragraph above says *"measure body colour
+first"*, and the section above it records why that ordering no longer serves: the
+glass path answers, and 362 of 403 crops resolve to nothing because the pack's
+four wheelie rules match on `lid_color` and nothing measures a lid. Deferring the
+lid to a second probe would cost a second labelling session for a field that is
+free to record while the crop is already open. So P3 now records **both**, and
+reports **two agreement numbers rather than one**.
+
+The body half of P3 is unchanged: same four CIELAB variants, same decision rule,
+same three outcomes. The lid is added beside it, with its own rule.
+
+#### The sample, frozen before a label was written
+
+| | |
+|---|---|
+| **Population** | the 403 adjudicated legacy crops in `data/legacy/pool` |
+| **Sample** | **160 crops, seed 20260821**: all 40 `igloo`, the 1 `street_basket`, and 119 wheelies drawn across the **92 distinct wheelie capture clusters** |
+| **Why cluster-stratified** | one bin photographed eighteen times is one bin. The largest capture cluster here holds 18 crops; a simple random sample would spend a sixth of its budget on a single object and report the agreement of one lid as if it were many |
+| **Why 160 and not P3's "~120"** | the lid rule is scored on wheelies **with a visible lid**, which is a subset of a subset. 119 wheelies is the number that keeps that subset wide enough to estimate a proportion to roughly ±8 points at 95 % |
+| **Measured from** | the **full frame plus the box**, never the crop alone — `service/colour.py` estimates the illuminant from the whole frame, and its own docstring records that estimating from a crop *"turns every bin grey"* |
+| **Fields** | `body_color`, `lid_color`, and **`lid_visible`** |
+| **Writes** | a new `colour-labels.json`. Nothing touches `adjudication.json`, and no crop acquires or loses a `form_factor` |
+
+**`lid_visible` is not bookkeeping.** A wheelie photographed square-on from the
+front shows no lid at all. Scoring those as measurement failures would blame the
+sampler for the camera angle, and — more importantly — the fraction of crops with
+no visible lid is *itself a product answer*: if most real scanning angles cannot
+see a lid, then a lid-colour rule cannot answer most scans however well the
+sampler works.
+
+#### Who labelled, stated plainly
+
+**`labeller: claude`.** P3 says "hand-label" and the maintainer was away for this
+run. These labels are recorded as **`provisional_proposals`, not ground truth**,
+and they are marked as such in the data file, in this document, and in the
+report.
+
+**So P3 does not close on this pass.** What this run delivers is the tooling, the
+frozen sample, the sampler, and a scoring harness that fires the moment human
+labels exist. The verdict rows below are evaluated against human labels; run
+against the provisional set they produce a **PROVISIONAL** number that must carry
+that word everywhere it is quoted.
+
+The maintainer pre-registered a **25-crop random spot-check** on return. That is
+the minimum; `ml/scripts/colour_labels.py --label` runs the full blinded pass over
+the same 160 if the spot-check disagrees enough to warrant it. Which of the two
+happens is the maintainer's call and this document does not presume it.
+
+#### The lid decision rule, frozen before the measurement
+
+Scored on **wheelies where `lid_visible` is true**, against human labels.
+
+| Outcome | Action |
+|---|---|
+| lid agreement **≥ 0.75** | wire the sampler through `service/pipeline.py`; `lid_color` is populated and the wheelie rules become reachable |
+| lid agreement **0.60 – 0.75** | wire it, but bounded by ΔE so a poor sample returns `None` rather than a guess. Report it as **marginal**, never as solved |
+| lid agreement **< 0.60** | **do not wire it.** Report that the Deggendorf pack matches wheelies on an axis this geometry cannot measure — which is a pack question, and the maintainer's |
+| `lid_visible` **< 0.5 of wheelies** | record it beside whatever the agreement is. A sampler that is accurate on a third of frames does not make the product answer |
+
+**What the lid half must not do.** It must not edit the region pack, and it must
+not be read as corroborating one. The Deggendorf pack's own verification note
+says no source consulted states a single container colour, so **measuring a lid
+does not make a wheelie rule true** — it only makes it reachable. Whether an
+uncorroborated rule should be shown to a user is a separate decision and is the
+maintainer's.
 
 **Cost.** No GPU, no model, no SAM. Half a day, most of it labelling.
 
@@ -1014,6 +1098,36 @@ guess satisfy a contract about the human pass — the proposal is wrong on 116 o
 questions: **15.7:1** within the Open Images subset (17 474 backgrounds against
 that subset's 1 110 bin frames) and **11.8:1** against all positives (against
 1 480). Neither may be quoted without saying which it is.
+
+## P13 – Is an fp32 validator ship profile viable?
+
+*Pre-registered at `09c6b93` on 2026-08-22, **before the measurement**, and the
+rule was not edited when the result came in.*
+
+**RAN 2026-08-22 — [result](research/probes/P13-fp32-validator-viability.md).**
+The ship gate refused any unquantised artefact with the rationale *"it will not
+meet the latency budget"*. **That rationale had never been tested**: P12's
+18.3 ms was measured on the int8 graph, as its own health report says
+(`"quantised": true`), so fp32 latency on representative hardware did not exist
+as a number.
+
+Measured, paired on one Cascade Lake instance with the arms alternated:
+**fp32 24.605 ms against a 50 ms budget, int8 17.921 ms — ratio 1.3664** — and
+fp32 costs **one concurrent scanner**, 5 → 4 at one bin per frame. The rule's
+**third row fires**: recommend the split, with the price named in scanners.
+Implemented, tested and **staged unmerged** on `feat/fp32-ship-profile`;
+`max_accuracy_drop` stays `0.02` in every profile and the config raises if one
+tries to loosen it.
+
+**The free triage nearly misled it, and the file says so.** Arm A measured the
+same ratio on the development workstation as **0.5917** — fp32 *faster* — because
+that box is a Snapdragon X Elite with no AVX-512 VNNI while the service host has
+it. **A ratio cancels host noise; it does not cancel an instruction set.** Arm A
+was still worth running: it cost nothing and correctly said "go and measure it".
+It was worth nothing as an answer.
+
+**Resolves.** `onnx_export.py`'s fourth gate · docs/05 § 7's recovery list ·
+whether `artifacts/local/validator-v1.onnx` is eligible for anything.
 
 ## What this document is not
 

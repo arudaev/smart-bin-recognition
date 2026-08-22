@@ -1,0 +1,105 @@
+{
+  "validator": {
+    "role": "validator",
+    "version": 1,
+    "onnx_path": "validator-v1.onnx",
+    "imgsz": 448,
+    "classes": [
+      "bin"
+    ],
+    "quantised": true,
+    "size_bytes": 3147798,
+    "accuracy_metric": "map50",
+    "accuracy_split": null,
+    "accuracy_drop": 0.7274389678079388,
+    "map50_fp32": 0.7524389678079388,
+    "map50_int8": 0.025,
+    "top1_fp32": null,
+    "top1_int8": null,
+    "median_latency_ms": 18.252,
+    "p95_latency_ms": 21.345,
+    "latency_hardware": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+    "latency_representative": true,
+    "gates": {
+      "role": "validator",
+      "max_median_latency_ms": 50.0,
+      "max_accuracy_drop": 0.02
+    },
+    "gate_result": {
+      "failures": [
+        "int8 quantisation cost 0.727 map50 (max 0.02)"
+      ],
+      "unmeasured": [],
+      "may_ship": false
+    },
+    "targets": {
+      "min_recall_heldout_city": 0.97,
+      "min_precision_on_negatives": 0.97
+    },
+    "target_result": {
+      "met": {
+        "min_precision_on_negatives": 0.9793
+      },
+      "missed": {},
+      "unmeasurable": [
+        "min_recall_heldout_city"
+      ]
+    },
+    "_source": "artifacts/gate/validator-v1.json",
+    "_snapshotted": "2026-08-22T08:45:17+00:00"
+  },
+  "identifier": {
+    "role": "identifier",
+    "version": 1,
+    "onnx_path": "identifier-v1.onnx",
+    "imgsz": 320,
+    "classes": [
+      "igloo",
+      "wheelie_large",
+      "wheelie_small"
+    ],
+    "quantised": true,
+    "size_bytes": 5805084,
+    "accuracy_metric": "top1",
+    "accuracy_split": "test",
+    "accuracy_drop": 0.0,
+    "map50_fp32": null,
+    "map50_int8": null,
+    "top1_fp32": 1.0,
+    "top1_int8": 1.0,
+    "median_latency_ms": 9.921,
+    "p95_latency_ms": 11.409,
+    "latency_hardware": "GCE n2-standard-4, 2 of 4 vCPU pinned, Intel Cascade Lake, europe-west3-a, 2 of 4 vCPU, Intel(R) Xeon(R) CPU @ 2.80GHz, onnxruntime 1.29.0",
+    "latency_representative": true,
+    "gates": {
+      "role": "identifier",
+      "max_median_latency_ms": 25.0,
+      "max_accuracy_drop": 0.02
+    },
+    "gate_result": {
+      "failures": [],
+      "unmeasured": [],
+      "may_ship": true
+    },
+    "targets": {
+      "min_formfactor_acc_heldout_city": 0.85
+    },
+    "target_result": {
+      "met": {},
+      "missed": {},
+      "unmeasurable": [
+        "min_formfactor_acc_heldout_city"
+      ]
+    },
+    "_source": "artifacts/gate/identifier-v1.json",
+    "_snapshotted": "2026-08-22T08:45:17+00:00"
+  },
+  "_coverage": {
+    "clusters": {
+      "igloo": 17,
+      "street_basket": 1,
+      "wheelie_large": 56,
+      "wheelie_small": 65
+    }
+  }
+}

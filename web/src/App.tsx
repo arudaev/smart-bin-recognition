@@ -8,6 +8,7 @@ import { readPreferences, writePreferences } from "@/app/preferences";
 import { PATH, normalisePath, resolveRoute } from "@/app/routes";
 import type { Mode } from "@/app/theme";
 import { applyThemeToDocument } from "@/app/theme";
+import { Telemetry } from "@/app/Telemetry";
 import { useRouter } from "@/app/useRoute";
 import type { Tier } from "@/capture/capability";
 import { useScan } from "@/capture/useScan";
@@ -21,7 +22,7 @@ import { Scanner } from "@/features/scan/Scanner";
 import { Settings } from "@/features/settings/Settings";
 import type { Locale } from "@/i18n";
 import { translator } from "@/i18n";
-import { MockClient, createClient } from "@/transport";
+import { MockClient, clientKind } from "@/transport";
 
 /* THE SHELL.
  *
@@ -52,13 +53,23 @@ import { MockClient, createClient } from "@/transport";
  * no header, no wordmark, no switch. Every pixel belongs to a screen.
  */
 
-/* The DEV branch is the only place this module is named, so a production build
-   folds the condition away and the import becomes unreachable. What must not
-   come back is a static import: the panels return null in production, but
-   their props – every state label in the product – were built either way, and
-   ~3 kB of director copy shipped to every user. scripts/check-bundle.mjs greps
-   dist for the sentinel in that file and fails the build if it reappears. */
-const DevTools = import.meta.env.DEV ? lazy(() => import("@/dev/DevTools")) : null;
+/* This branch is the only place the module is named, so a build that fails the
+   condition folds it away and the import becomes unreachable. What must not come
+   back is a static import: the panels return null in production, but their
+   props – every state label in the product – were built either way, and ~3 kB of
+   director copy shipped to every user. scripts/check-bundle.mjs greps dist for
+   the sentinel in that file.
+
+   `__BETA__` widens the branch from "development" to "development or a Vercel
+   PREVIEW build", because a beta tester needs the metrics overlay for exactly
+   the reason a developer does: a latency budget nobody looks at is a wish, and
+   the maintainer cannot stand behind the tester's shoulder.
+
+   It does NOT widen to production. `__BETA__` is derived in vite.config.ts from
+   `VERCEL_ENV`, which Vercel sets itself - there is no flag to forget - and
+   check-bundle.mjs asserts the sentinel is PRESENT in a beta build and ABSENT in
+   a production one, so both directions fail loudly rather than one silently. */
+const DevTools = import.meta.env.DEV || __BETA__ ? lazy(() => import("@/dev/DevTools")) : null;
 
 export default function App() {
   const { path, navigate } = useRouter();
@@ -69,6 +80,12 @@ export default function App() {
   const [mode, setMode] = useState<Mode>(stored.mode);
   const [locale, setLocale] = useState<Locale>(stored.locale);
   const [onboarded, setOnboarded] = useState(stored.onboarded);
+  /* Which surface this person chose, if they chose. `auto` is the probe, and the
+     probe still holds the veto - see routes.ts:surfaceFor. Held here beside the
+     other preferences because it survives a reload for the same reason they do:
+     a Surface Pro is a laptop all afternoon, and being sent back to the camera
+     on every navigation is the version of this that helps nobody. */
+  const [surface, setSurface] = useState(stored.surface);
 
   const [director, setDirector] = useState<DirectorState>(PRODUCTION_DIRECTOR);
   const patch = useCallback((next: Partial<DirectorState>) => setDirector((d) => ({ ...d, ...next })), []);
@@ -106,14 +123,17 @@ export default function App() {
     client: ladder,
   });
 
-  const transport = useMemo(() => createClient(live.tier).kind, [live.tier]);
+  /* Named, not built. This used to construct a client and read its `kind`,
+     which for a configured socket meant standing one up on every tier change
+     just to ask what it was called. */
+  const transport = useMemo(() => clientKind(live.tier), [live.tier]);
 
   /* Nothing is placed until the probe has answered. It is one enumerateDevices
      call and resolves in a microtask, and holding one frame is much better than
      the alternative: `capability` starts at VIEWER, so guessing would put every
      phone on the viewer surface and then snatch it away. */
   const tier = import.meta.env.DEV && devTier ? devTier : live.tier;
-  const placement = live.probed ? resolveRoute(path, { tier, onboarded }) : null;
+  const placement = live.probed ? resolveRoute(path, { tier, onboarded, prefer: surface }) : null;
   const redirect = placement?.redirect ?? null;
 
   useEffect(() => {
@@ -127,8 +147,8 @@ export default function App() {
   }, [mode, locale]);
 
   useEffect(() => {
-    writePreferences({ mode, locale, onboarded });
-  }, [mode, locale, onboarded]);
+    writePreferences({ mode, locale, onboarded, surface });
+  }, [mode, locale, onboarded, surface]);
 
   /* Session state is keyed by the bin's number in the current frame, and that
      number means nothing across a different frame or a different city – bin 1
@@ -154,6 +174,34 @@ export default function App() {
       capability={live.capability}
       transport={transport}
       onClose={onClose}
+      /* `onClose` is present on the scanner and absent on the desk - the desk
+         reaches settings through its own nav - so it is also what says which
+         surface this panel is drawn on, and therefore which way across to
+         offer. The scanner never offers itself and the desk never offers
+         itself.
+
+         `onScanner` is withheld from a viewer-TIER device: it has no camera, so
+         routes.ts would bounce /scan straight back to the map and the row would
+         be a button that appears to do nothing. */
+      onDeskView={
+        onClose
+          ? () => {
+              setSurface("viewer");
+              navigate(PATH.viewer);
+            }
+          : undefined
+      }
+      onScanner={
+        !onClose && tier !== "viewer"
+          ? () => {
+              // Back to the probe rather than to a second explicit choice: the
+              // probe already says scanner for this device, and "auto" is the
+              // state a person can leave behind.
+              setSurface("auto");
+              navigate(PATH.scan);
+            }
+          : undefined
+      }
     />
   );
 
@@ -203,6 +251,7 @@ export default function App() {
           settings={settingsPanel()}
         />
         {devTools}
+        <Telemetry />
       </div>
     );
   }
@@ -239,6 +288,8 @@ export default function App() {
         session={session}
         answerOptions={{ level: director.level, forceStale: director.forceStale }}
         live={director.source === "live" ? live : null}
+        /* The camera is real and the detections are not. See Scanner's `demo`. */
+        demo={transport === "mock"}
         onBrowse={() => navigate(PATH.rules)}
         onSettings={() => navigate(PATH.settings)}
         onContribute={(n) => {
@@ -292,6 +343,7 @@ export default function App() {
     <div className="sbr-app-root" style={{ background: "var(--surface-page)" }}>
       {screens[route.screen]}
       {devTools}
+      <Telemetry />
     </div>
   );
 }

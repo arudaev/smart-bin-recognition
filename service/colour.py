@@ -49,6 +49,23 @@ SHADES_OF_GRAY_P = 6.0
 #: pavement at the bottom corners.
 CENTRE_FRACTION = 0.5
 
+#: How much of the box, from the top, is treated as lid.
+#:
+#: **The simplest thing that could work, and deliberately so.** docs/12 P3's lid
+#: half says to start with geometry and reach for segmentation only if the
+#: measurement shows geometry is not enough - so this is a band, not a mask.
+#: A wheelie bin's lid is roughly the top fifth of its silhouette seen from the
+#: front and rather more seen from above; 0.22 is inside that range at both
+#: angles and is what P3 scored.
+LID_BAND_FRACTION = 0.22
+
+#: How much of the lid band's WIDTH is sampled, centred.
+#:
+#: Narrower than the body's 0.5 because the lid's top corners are where the sky
+#: is: a bin photographed from below has its lid edge against bright background
+#: on both sides, and those pixels drag a dark lid towards grey.
+LID_WIDTH_FRACTION = 0.6
+
 #: Beyond this ΔE from every named colour, the honest answer is that we do not
 #: know.
 #:
@@ -278,6 +295,56 @@ def measure_body_colour(
     return best, distances[best]
 
 
+def lid_sample(crop: np.ndarray) -> np.ndarray:
+    """The upper band of the box, flattened to (N, 3) sRGB in [0, 1].
+
+    Deliberately the crudest thing that could answer the question. A lid is not
+    a region a rectangle can isolate in general - a bin photographed from the
+    side puts lid and body in the same rows - and the honest way to find out
+    whether that matters is to measure a band and see what it scores, rather
+    than to add a segmentation dependency on the strength of an argument.
+    """
+    height, width = crop.shape[:2]
+    y1 = max(1, int(np.ceil(height * LID_BAND_FRACTION)))
+    half = LID_WIDTH_FRACTION / 2
+    x0, x1 = int(width * (0.5 - half)), int(np.ceil(width * (0.5 + half)))
+    band = crop[0:y1, max(0, x0) : max(1, x1)]
+    if band.size == 0:
+        band = crop[0:y1] if y1 > 0 else crop
+    return band.reshape(-1, 3).astype(np.float64) / 255.0
+
+
+def measure_lid_colour(
+    crop: np.ndarray, gain: np.ndarray | None = None
+) -> tuple[str | None, float]:
+    """Name the lid colour of one crop, or admit it is not measurable.
+
+    **PROVISIONAL, and on a shorter leash than the body.** ``docs/12`` P3's lid
+    half decides whether this is wired into the service at all, and it is scored
+    on wheelies where a lid is actually visible - a bin photographed square-on
+    from the front shows none, and this function cannot tell that from a dark
+    lid. It returns a colour for the top band it was given either way; deciding
+    whether that band *is* a lid is not something a band can do.
+
+    Same contract as :func:`measure_body_colour`: ``(name, delta_e)``, and
+    ``None`` when nothing is within :data:`MAX_DELTA_E`. ``None`` propagates to
+    a rule that does not match, which is the designed outcome.
+    """
+    if crop is None or crop.size == 0:
+        return None, float("inf")
+
+    sample = lid_sample(crop)
+    if gain is not None:
+        sample = apply_illuminant(sample, gain)
+    lab = srgb_to_lab(sample.mean(axis=0))
+
+    distances = {name: delta_e_2000(lab, ref) for name, ref in named_colours().items()}
+    best = min(distances, key=lambda name: distances[name])
+    if distances[best] > MAX_DELTA_E:
+        return None, distances[best]
+    return best, distances[best]
+
+
 def measurement_note() -> dict[str, Any]:
     """What ``/health`` says about how colour is being measured.
 
@@ -290,9 +357,21 @@ def measurement_note() -> dict[str, Any]:
             "illuminant from the whole frame (shades-of-gray p=6), applied to a "
             "centre-weighted sample inside the box, named by CIEDE2000 in CIELAB"
         ),
-        "status": "PROVISIONAL - docs/12 probe P3 has not run",
+        "status": (
+            "PROVISIONAL - docs/12 probe P3 ran 2026-08-22 against AGENT labels and did not "
+            "close. Body agreement 0.5625 against a ~0.75 rule; the shipped variant (4) is "
+            "not the best of the four, and recalibrating the taxonomy's hex_ref would take "
+            "the body to 0.9125 leave-one-cluster-out. That is a maintainer decision"
+        ),
         "max_delta_e": MAX_DELTA_E,
         "centre_fraction": CENTRE_FRACTION,
-        "lid_colour": "not measured - lid/body separation is an open problem (research/06 § 3)",
+        "lid_colour": (
+            "NOT measured, and now for a measured reason. P3 scored the upper-band sampler at "
+            "0.1966 against a 0.60 floor on 117 wheelies whose lids were visible in 98% of "
+            "frames - so this is not a cropping or visibility failure. Recalibrated references "
+            "reach only 0.5214. The sampler exists (measure_lid_colour) and is deliberately "
+            "NOT wired in: the Deggendorf pack matches wheelies on lid_color, and answering it "
+            "right one time in five would be worse than answering unknown"
+        ),
         "sam": "not used - P3 has not shown a mask is needed",
     }

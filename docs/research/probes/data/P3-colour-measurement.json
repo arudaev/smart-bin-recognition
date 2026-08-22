@@ -1,0 +1,173 @@
+{
+  "probe": "P3",
+  "generated": "2026-08-22T00:38:28+00:00",
+  "labeller": "all",
+  "PROVISIONAL": true,
+  "provisional_note": "scored against labels written by an agent (labeller: claude), recorded as provisional_proposals. P3 does NOT close on these. The maintainer pre-registered a 25-crop spot-check on return; quote no number here without the word PROVISIONAL",
+  "n_labelled": 160,
+  "body": {
+    "n_scored": 160,
+    "agreement": {
+      "whole_crop": 0.45,
+      "centre": 0.5625,
+      "centre_grayworld": 0.4875,
+      "centre_shades_of_gray_p6": 0.5437
+    },
+    "unmeasurable_above_max_delta_e": {
+      "whole_crop": 1,
+      "centre": 5,
+      "centre_grayworld": 2,
+      "centre_shades_of_gray_p6": 2
+    },
+    "best_variant": "centre",
+    "confusion": {
+      "black->black": 36,
+      "green->metal": 29,
+      "blue->blue": 26,
+      "brown->brown": 18,
+      "black->grey": 12,
+      "brown->grey": 12,
+      "green->grey": 7,
+      "black->blue": 7,
+      "green->green": 5,
+      "grey->grey": 2,
+      "blue->metal": 2,
+      "black->None": 2,
+      "green->white": 1,
+      "brown->orange": 1
+    },
+    "agreement_with_neutrals_collapsed": 0.5437,
+    "decision_rule": "docs/12 P3: (2) or (3) within 5 points of the best means SAM leaves the critical path"
+  },
+  "lid": {
+    "wheelies_in_sample": 119,
+    "wheelies_with_a_visible_lid": 117,
+    "lid_visible_fraction": 0.9832,
+    "n_scored": 117,
+    "agreement": 0.1966,
+    "confusion": {
+      "grey->metal": 24,
+      "grey->grey": 15,
+      "blue->metal": 15,
+      "brown->metal": 13,
+      "brown->grey": 12,
+      "black->grey": 10,
+      "blue->grey": 6,
+      "blue->blue": 5,
+      "grey->white": 4,
+      "black->metal": 4,
+      "brown->brown": 3,
+      "green->metal": 2,
+      "blue->None": 1,
+      "blue->white": 1,
+      "brown->None": 1,
+      "brown->black": 1
+    },
+    "band_fraction": 0.22,
+    "width_fraction": 0.6,
+    "agreement_with_neutrals_collapsed": 0.4359,
+    "decision_rule": "docs/12 P3 amended 2026-08-22: >=0.75 wire it, 0.60-0.75 marginal, <0.60 do not",
+    "verdict": "do not wire it - the pack matches on an axis this geometry cannot measure"
+  },
+  "reference_audit": {
+    "what_this_is": "where real bins of each labelled colour actually sit in CIELAB, against the hex_ref the taxonomy names them by. A large delta_e here means the vocabulary is describing paint swatches rather than weathered objects under overcast light",
+    "neutrals_that_cannot_be_separated": [
+      "grey",
+      "metal",
+      "white"
+    ],
+    "centroids": {
+      "black": {
+        "n": 57,
+        "measured_lab": [
+          30.5,
+          0.0,
+          -4.5
+        ],
+        "reference_lab": [
+          9.3,
+          -0.0,
+          0.0
+        ],
+        "delta_e_measured_to_reference": 15.3,
+        "nearest_reference_to_the_measured_centroid": "black"
+      },
+      "blue": {
+        "n": 28,
+        "measured_lab": [
+          44.3,
+          1.8,
+          -38.7
+        ],
+        "reference_lab": [
+          35.4,
+          17.7,
+          -52.4
+        ],
+        "delta_e_measured_to_reference": 9.9,
+        "nearest_reference_to_the_measured_centroid": "blue"
+      },
+      "brown": {
+        "n": 31,
+        "measured_lab": [
+          44.3,
+          7.3,
+          12.0
+        ],
+        "reference_lab": [
+          32.7,
+          13.3,
+          26.5
+        ],
+        "delta_e_measured_to_reference": 12.8,
+        "nearest_reference_to_the_measured_centroid": "brown"
+      },
+      "green": {
+        "n": 42,
+        "measured_lab": [
+          64.7,
+          -10.8,
+          7.2
+        ],
+        "reference_lab": [
+          45.0,
+          -40.9,
+          26.4
+        ],
+        "delta_e_measured_to_reference": 24.1,
+        "nearest_reference_to_the_measured_centroid": "metal"
+      },
+      "grey": {
+        "n": 2,
+        "measured_lab": [
+          48.8,
+          1.6,
+          -6.8
+        ],
+        "reference_lab": [
+          57.5,
+          -0.0,
+          0.0
+        ],
+        "delta_e_measured_to_reference": 10.5,
+        "nearest_reference_to_the_measured_centroid": "grey"
+      }
+    },
+    "if_the_references_were_recalibrated": {
+      "what_this_is": "the SAME sampling geometry, scored against centroids measured from real bins instead of the taxonomy's hex_ref, leave-one-capture-cluster-out. It separates 'the geometry is wrong' from 'the reference colours are wrong'",
+      "body": {
+        "n": 160,
+        "held_out_groups": 99,
+        "agreement": 0.9125,
+        "protocol": "leave-one-capture-cluster-out; centroids refitted without the held-out cluster"
+      },
+      "lid": {
+        "n": 117,
+        "held_out_groups": 90,
+        "agreement": 0.5214,
+        "protocol": "leave-one-capture-cluster-out; centroids refitted without the held-out cluster"
+      },
+      "this_is_not_a_proposal": "changing hex_ref changes every resolution outcome in every region pack, so it is a taxonomy decision and the maintainer's. This measures what it would buy"
+    }
+  }
+}

@@ -22,14 +22,35 @@ import { MODES } from "./theme";
 
 const KEY = "sbr.prefs";
 
+/* WHICH SURFACE, WHEN THE DEVICE CANNOT BE ASKED.
+ *
+ * `auto` is the capability probe, and it is right about capability: this device
+ * has a camera facing away, or it does not. What no API reports is POSTURE - a
+ * Surface Pro with two cameras is a scanner by every measurable fact and a
+ * laptop on a desk by every practical one, and it changes between the two
+ * several times a day without the page reloading.
+ *
+ * Orientation is not the missing signal either. `web/CONVENTIONS.md` is right
+ * that a phone in landscape is still a scanner, so "landscape means desk" would
+ * be wrong for the device this product is actually written for.
+ *
+ * So posture is a preference. The probe still decides the DEFAULT, and it still
+ * refuses to promote a device with no camera - `surfaceFor` will not hand the
+ * scanner to a tier that cannot feed it. This only records that a person chose
+ * otherwise, so the choice survives the reload that used to undo it. */
+export type SurfacePreference = "auto" | "scanner" | "viewer";
+
+export const SURFACE_PREFERENCES: SurfacePreference[] = ["auto", "scanner", "viewer"];
+
 export interface Preferences {
   mode: Mode;
   locale: Locale;
   /** First run has been through once, so "/" stops asking on every launch. */
   onboarded: boolean;
+  surface: SurfacePreference;
 }
 
-export const DEFAULT_PREFERENCES: Preferences = { mode: "paper", locale: "en", onboarded: false };
+export const DEFAULT_PREFERENCES: Preferences = { mode: "paper", locale: "en", onboarded: false, surface: "auto" };
 
 /** The two methods used here, so a test can supply a storage that throws. */
 export interface StorageLike {
@@ -63,6 +84,9 @@ export function readPreferences(storage: StorageLike | null = browserStorage()):
         ? (stored.locale as Locale)
         : DEFAULT_PREFERENCES.locale,
       onboarded: stored.onboarded === true,
+      surface: SURFACE_PREFERENCES.includes(stored.surface as SurfacePreference)
+        ? (stored.surface as SurfacePreference)
+        : DEFAULT_PREFERENCES.surface,
     };
   } catch {
     return DEFAULT_PREFERENCES;

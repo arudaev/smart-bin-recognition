@@ -73,6 +73,16 @@ export function DeskRules({ t, region }: { t: T; region: Region }) {
           overflowY: "auto",
           padding: "var(--gutter-desk)",
           display: "grid",
+          /* `minmax(0, 1fr)`, not the implicit `auto`. With `justifyItems: start`
+             on an auto track, every child is sized to its MAX-CONTENT, so the
+             wrapping chip row below had no width to wrap at and simply ran off
+             the pane - measured at 390px, chips 39px past the viewport.
+             Bounding the track lets `flexWrap` do its job.
+
+             This is the third place the same pattern bit: see also EmptyState
+             and SegmentedControl. An auto grid track plus a content-sized child
+             is how a layout silently stops having a maximum width. */
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: "var(--space-6)",
           alignContent: "start",
           justifyItems: "start",

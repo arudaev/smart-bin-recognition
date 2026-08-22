@@ -30,6 +30,31 @@ for the measurement and destroyed after. Full account:
 
 **Two latency halves pass on hardware that counts. The concurrency half fails.**
 
+### Both weight formats, measured 2026-08-22
+
+The row above is the **int8** validator, and it was worth saying which — the
+project could not distinguish "18.3 ms" from "18.3 ms in the format we happen to
+serve" until [P13](research/probes/P13-fp32-validator-viability.md) measured both
+on one instance with the arms alternated:
+
+| | int8 | fp32 | budget |
+|---|---:|---:|---:|
+| validator p50 | 17.921 ms | **24.605 ms** | ≤ 50 ms — **both pass** |
+| validator p95 | 20.917 ms | 28.752 ms | – |
+| frame server cost @ 1 bin | 48.0 ms | 56.0 ms | – |
+| **concurrent scanners @ 1 bin** | **5** | **4** | ≥ 10 |
+
+Same host as P12, `representative: true`, three repeats. **The int8 arm
+reproduced P12 to 0.33 ms on a different VM of the same spec**, which is what
+makes the fp32 arm beside it worth believing.
+
+**Neither format reaches the gate.** What fp32 changes is not concurrency but
+eligibility: int8 costs the validator **0.727 mAP@0.5** and cannot ship on
+accuracy at all, while fp32 costs it nothing and clears latency with 25.4 ms to
+spare. The trade is **one concurrent scanner for a validator that is actually
+correct**, in a gate that fails either way. The gate split is staged and
+unmerged; see [the memo](research/FP32-PROFILE-MEMO.md).
+
 The host is quiet and the numbers show it: across three repeats of a fourteen-
 level ramp the worst spread at any level is about 3 ms, against a laptop whose
 identical baseline moved by three whole scanners in one evening.

@@ -1,0 +1,110 @@
+{
+  "probe": "P3",
+  "act": "second - which axis should the pack match on?",
+  "generated": "2026-08-22T07:39:22+00:00",
+  "PROVISIONAL": true,
+  "provisional_note": "the colour labels are an agent's (labeller: claude). The STREAM truth is not - it is the legacy archive's own class label, independent of those labels. So correct_fraction is measured against independent ground truth even though the recalibration is fitted to provisional ones",
+  "candidate_rule": {
+    "black": "residual",
+    "grey": "residual",
+    "blue": "paper",
+    "brown": "bio",
+    "green": "glass_mixed"
+  },
+  "truth_source": "legacy_class in the pool manifest, from the predecessor's archive",
+  "matching_on_lid_color": {
+    "n": 119,
+    "resolved": 0,
+    "resolved_fraction": 0.0,
+    "correct_stream": 0,
+    "correct_fraction": 0.0,
+    "why": "service/pipeline.py sets lid_color=None; docs/12 P3 scored the sampler at 0.1966 and its rule says do not wire it in"
+  },
+  "matching_on_body_color": {
+    "ceiling_perfect_colour": {
+      "n": 119,
+      "resolved": 119,
+      "resolved_fraction": 1.0,
+      "correct_stream": 116,
+      "correct_fraction": 0.9748,
+      "errors": {
+        "paper measured black -> residual": 3
+      }
+    },
+    "shipped_sampler_hex_ref_as_is": {
+      "n": 119,
+      "resolved": 114,
+      "resolved_fraction": 0.958,
+      "correct_stream": 92,
+      "correct_fraction": 0.7731,
+      "errors": {
+        "bio measured grey -> residual": 11,
+        "residual measured blue -> paper": 7,
+        "paper measured grey -> residual": 2,
+        "paper measured metal -> None": 2,
+        "residual measured None -> None": 2,
+        "paper measured black -> residual": 1,
+        "glass_mixed measured grey -> residual": 1,
+        "bio measured orange -> None": 1
+      }
+    },
+    "shipped_sampler_recalibrated": {
+      "n": 119,
+      "resolved": 119,
+      "resolved_fraction": 1.0,
+      "correct_stream": 113,
+      "correct_fraction": 0.9496,
+      "errors": {
+        "paper measured black -> residual": 3,
+        "bio measured grey -> residual": 2,
+        "bio measured black -> residual": 1
+      }
+    }
+  },
+  "discriminative_power_of_each_axis": {
+    "body_color": {
+      "bio": {
+        "n": 30,
+        "dominant": "brown",
+        "purity": 1.0
+      },
+      "glass_mixed": {
+        "n": 2,
+        "dominant": "green",
+        "purity": 1.0
+      },
+      "paper": {
+        "n": 31,
+        "dominant": "blue",
+        "purity": 0.9032
+      },
+      "residual": {
+        "n": 56,
+        "dominant": "black",
+        "purity": 0.9643
+      }
+    },
+    "lid_color": {
+      "bio": {
+        "n": 30,
+        "dominant": "brown",
+        "purity": 1.0
+      },
+      "glass_mixed": {
+        "n": 2,
+        "dominant": "green",
+        "purity": 1.0
+      },
+      "paper": {
+        "n": 31,
+        "dominant": "blue",
+        "purity": 0.9032
+      },
+      "residual": {
+        "n": 54,
+        "dominant": "grey",
+        "purity": 0.7407
+      }
+    }
+  }
+}

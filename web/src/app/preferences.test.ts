@@ -32,13 +32,13 @@ const hostile: StorageLike = {
 describe("readPreferences", () => {
   it("round-trips what was written", () => {
     const storage = memory();
-    writePreferences({ mode: "night", locale: "ar", onboarded: true }, storage);
-    expect(readPreferences(storage)).toEqual({ mode: "night", locale: "ar", onboarded: true });
+    writePreferences({ mode: "night", locale: "ar", onboarded: true, surface: "viewer" }, storage);
+    expect(readPreferences(storage)).toEqual({ mode: "night", locale: "ar", onboarded: true, surface: "viewer" });
   });
 
   it("starts in paper, in English, having asked nothing", () => {
     expect(readPreferences(memory())).toEqual(DEFAULT_PREFERENCES);
-    expect(DEFAULT_PREFERENCES).toEqual({ mode: "paper", locale: "en", onboarded: false });
+    expect(DEFAULT_PREFERENCES).toEqual({ mode: "paper", locale: "en", onboarded: false, surface: "auto" });
   });
 
   it("survives storage that throws on read", () => {
@@ -76,7 +76,7 @@ describe("readPreferences", () => {
 
   it("keeps the fields it does recognise alongside the ones it does not", () => {
     const stored = readPreferences(memory('{"mode":"sun","locale":"zz","onboarded":true}'));
-    expect(stored).toEqual({ mode: "sun", locale: "en", onboarded: true });
+    expect(stored).toEqual({ mode: "sun", locale: "en", onboarded: true, surface: "auto" });
   });
 
   it("treats anything but true as not yet onboarded", () => {
@@ -99,8 +99,31 @@ describe("writePreferences", () => {
 
   it("writes one key", () => {
     const storage = memory();
-    writePreferences({ mode: "sun", locale: "de", onboarded: true }, storage);
+    writePreferences({ mode: "sun", locale: "de", onboarded: true, surface: "auto" }, storage);
     expect(storage.written).toHaveLength(1);
-    expect(JSON.parse(storage.written[0])).toEqual({ mode: "sun", locale: "de", onboarded: true });
+    expect(JSON.parse(storage.written[0])).toEqual({ mode: "sun", locale: "de", onboarded: true, surface: "auto" });
+  });
+});
+
+/* Posture is not measurable, so it is stored. What must NOT happen is a stored
+   preference promoting a device past what the probe found: `surfaceFor` grants
+   the viewer to anyone and the scanner to nobody who cannot feed it. */
+describe("the surface preference", () => {
+  it("defaults to the probe", () => {
+    expect(readPreferences(memory()).surface).toBe("auto");
+  });
+
+  it("rejects a value that is not one of the three", () => {
+    const storage = memory();
+    storage.setItem("sbr.prefs", JSON.stringify({ mode: "paper", locale: "en", onboarded: true, surface: "desk" }));
+    expect(readPreferences(storage).surface).toBe("auto");
+  });
+
+  it("survives a bundle that has never heard of it", () => {
+    // The key outlives the build that wrote it - a preferences blob written
+    // before this existed must still read back, not throw.
+    const storage = memory();
+    storage.setItem("sbr.prefs", JSON.stringify({ mode: "night", locale: "de", onboarded: true }));
+    expect(readPreferences(storage)).toEqual({ mode: "night", locale: "de", onboarded: true, surface: "auto" });
   });
 });
