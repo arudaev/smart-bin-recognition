@@ -1,0 +1,8 @@
+uname: Linux sbr-bench-1787358351 6.6.143+ #1 SMP Fri Aug 14 11:09:17 UTC 2026 x86_64 Intel(R) Xeon(R) CPU @ 2.80GHz GenuineIntel GNU/Linux
+nproc: 4
+model name	: Intel(R) Xeon(R) CPU @ 2.80GHz
+--- int8 acceleration is the whole question, so record the flags ---
+avx2
+avx512f
+avx512_vnni
+1

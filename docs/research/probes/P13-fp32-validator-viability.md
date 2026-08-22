@@ -112,7 +112,115 @@ worse. **Nothing here reopens or fires the kill criterion.**
 
 ---
 
-## Result
+## Result — ran 2026-08-22
 
-*Not yet run. This section is filled in after the measurement, and the rule
-above is not edited when it is.*
+**The rule's third row fires: recommend the split, with the price named in
+scanners.** The gate's stated rationale is empirically false on this
+architecture, and the cost of acting on that is exactly one concurrent scanner.
+
+### Arm A — the free triage, and why it was nearly a trap
+
+| | fp32 | int8 | ratio |
+|---|---:|---:|---:|
+| p50, 5 alternating cycles | 39.2 ms | 65.9 ms | **0.5917** |
+
+fp32 measured **41 % faster** than int8, R = 0.59 against a 2.74 spend
+threshold, so the rule said spend. **That number is not transferable and the
+report says so in the file.** The development workstation is a **Snapdragon X
+Elite — ARM64, no AVX-512 VNNI**; the service host is Cascade Lake, which has
+it. A ratio cancels host *noise*, because the noise moves both arms together. It
+does not cancel a systematic per-*format* difference between hosts, and
+instruction-set support for int8 convolution is exactly that.
+
+Measured on the real host the ratio is **1.3664**, not 0.5917 — the two hosts
+disagree about which format is faster. Arm A was still worth running: it cost
+nothing and it correctly said "fp32 is live, go and measure it". It would have
+been worth very little as an answer.
+
+*(Arm A also found a bug on the way: `sbr.bench.hardware()` labelled this
+Windows box a **Kaggle CPU kernel**, because `Path("/kaggle")` is
+absolute-from-the-drive-root on Windows and the machine happens to have that
+directory. A latency figure stamped with silicon it never ran on is the exact
+failure this project's discipline exists to prevent. Fixed at `ff60b8e`, with
+tests.)*
+
+### Arm C — paired, on the service host, `representative: true`
+
+GCE `n2-standard-4`, `europe-west3-a`, CPU platform pinned to Intel Cascade
+Lake, service on CPUs 0–1 and the client on 2–3, **both formats on one
+instance, arms alternated cycle by cycle**. Host flags confirmed
+`avx512f`, `avx512_vnni`, `avx2`. VM and disk destroyed on exit and verified
+gone. About **USD 0.29**.
+
+| | int8 | **fp32** | budget |
+|---|---:|---:|---:|
+| validator p50 | 17.921 ms | **24.605 ms** | ≤ 50 ms |
+| p50 per cycle | 17.66 – 17.92 | 24.10 – 24.61 | – |
+| **ratio, paired median** | – | **1.3664** | – |
+| clears the latency gate | yes | **yes, by 25.4 ms** | – |
+| frame server cost @ 1 bin | 48.0 ms | 56.0 ms | – |
+| **concurrent scanners @ 1 bin** | **5** | **4** | ≥ 10 |
+
+The p95 curve, worst repeat at each level, against the 250 ms budget:
+
+| scanners | 1 | 2 | 3 | 4 | **5** | 6 |
+|---|---:|---:|---:|---:|---:|---:|
+| int8 p95 ms | 54.9 | 104.9 | 149.9 | 199.2 | **247.7** | 289.1 |
+| fp32 p95 ms | 66.2 | 126.0 | 182.2 | **239.1** | 296.6 | 368.0 |
+
+int8 clears 250 ms at five scanners with 2.3 ms to spare; fp32 clears it at four
+with 10.9 ms and misses at five. **The int8 arm reproduced P12 exactly — 5
+scanners, and 17.92 ms against P12's 18.252 on a different VM of the same
+spec — which is what makes the fp32 arm beside it worth believing.**
+
+Arm B projected 4.4 scanners from arm A's ratio. Measured: 4.
+
+## Recommendation
+
+**Split the gate, and make the fp32 profile carry its cost.**
+
+The gate at `onnx_export.py:319` refuses an unquantised artefact with the
+rationale *"it will not meet the latency budget"*. **On this architecture, at
+448, that is false by a factor of two: 24.6 ms against 50 ms.** The gate is
+enforcing a proxy that has outlived the fact it stood for.
+
+What acting on it buys and costs:
+
+| | int8 validator | fp32 validator |
+|---|---|---|
+| accuracy vs fp32 reference | **−0.727 mAP@0.5** (P9) | 0.0 by construction |
+| `may_ship` today | **false** — fails accuracy | **false** — fails "must be quantised" |
+| latency | 17.9 ms | 24.6 ms, **passes** |
+| concurrency @ 1 bin | 5 | **4** |
+| size | 3.1 MB | 10.5 MB |
+
+**The trade is one concurrent scanner for a validator that is actually
+correct.** The concurrency gate already fails — 5 against 10 — so the honest
+framing is not "fp32 costs us the gate" but "fp32 costs one scanner in a gate
+that is failing either way, and is the only route to a validator that can ship
+on accuracy at all". P9 established that post-training int8 over the whole graph
+is not viable for this architecture; P10 found no module outside the detection
+head to blame. fp32 is what is left.
+
+**Three conditions on the recommendation, and they are not negotiable:**
+
+1. **`max_accuracy_drop` stays `0.02` in every profile.** Nothing here loosens an
+   accuracy gate; the only question on the table was whether *"must be
+   quantised"* is a proxy for *"must be fast"*.
+2. **The fp32 profile must carry its concurrency cost in the sidecar.** A gate
+   that hides what a format costs is the kind of number AGENTS.md forbids. 4, not
+   5, and it should be readable from the artefact.
+3. **This is measured at 448, on Cascade Lake, at one bin per frame.** A different
+   input size, a host without VNNI, or a six-bin scene are all separate
+   questions. At six bins neither format was measured here.
+
+## What this probe does not do
+
+**It does not merge anything.** The implementation is staged on
+`feat/fp32-ship-profile`, unmerged, for the maintainer. Phase 2's concurrency
+gate fails at 5 against 10 and an fp32 validator cannot fix that — at best it
+does not make it much worse. **Nothing here reopens or fires the kill
+criterion**, and nothing here publishes an fp32 artefact: the graph travelled to
+the measuring VM in the harness tarball and was mounted through
+`SBR_ARTEFACT_DIR`, because putting an ungated graph in the model repo would
+leave it one environment variable away from a deployment.
