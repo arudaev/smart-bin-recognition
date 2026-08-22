@@ -1,4 +1,5 @@
 import type { Tier } from "@/capture/capability";
+import type { SurfacePreference } from "./preferences";
 
 /* THE URL SPACE.
  *
@@ -94,14 +95,25 @@ export function routeOf(pathname: string): Route | null {
  *   for it and `capability.reason` exists to be read; the viewer would hide the
  *   explanation instead of giving it.
  */
-export function surfaceFor(tier: Tier): Surface {
-  return tier === "viewer" ? "viewer" : "scanner";
+export function surfaceFor(tier: Tier, prefer: SurfacePreference = "auto"): Surface {
+  /* A person may choose, and the probe still holds the veto.
+     `viewer` is always grantable - it needs nothing the device might lack.
+     `scanner` is not: handing it to a tier with no camera would be a surface
+     that cannot do the one thing it is for. The probe therefore decides the
+     default and the ceiling, and the preference moves within it.
+     Note what is still absent: any reading of width, orientation or
+     user-agent. Posture is not measurable, so it is asked rather than guessed
+     (see app/preferences.ts). */
+  if (tier === "viewer") return "viewer";
+  return prefer === "viewer" ? "viewer" : "scanner";
 }
 
 export interface Where {
   tier: Tier;
   /** First run has been through once, so "/" stops asking. */
   onboarded: boolean;
+  /** What the person chose in settings, if they chose. Defaults to the probe. */
+  prefer?: SurfacePreference;
 }
 
 export interface Placement {
@@ -116,7 +128,7 @@ function landing(surface: Surface, onboarded: boolean): Route {
 }
 
 function place(pathname: string, where: Where): Route {
-  const surface = surfaceFor(where.tier);
+  const surface = surfaceFor(where.tier, where.prefer);
   const asked = routeOf(pathname);
 
   if (!asked) return landing(surface, where.onboarded);

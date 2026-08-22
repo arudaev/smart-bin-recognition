@@ -20,9 +20,9 @@ export const VIEWPORTS = {
    the wrong locale and the theme flips under the assertion. */
 export async function seedPreferences(
   page: Page,
-  prefs: { mode?: "paper" | "sun" | "night"; locale?: string; onboarded?: boolean } = {},
+  prefs: { mode?: "paper" | "sun" | "night"; locale?: string; onboarded?: boolean; surface?: "auto" | "scanner" | "viewer" } = {},
 ): Promise<void> {
-  const value = JSON.stringify({ mode: "paper", locale: "en", onboarded: true, ...prefs });
+  const value = JSON.stringify({ mode: "paper", locale: "en", onboarded: true, surface: "auto", ...prefs });
   await page.addInitScript(
     ([key, json]) => window.localStorage.setItem(key as string, json as string),
     ["sbr.prefs", value],

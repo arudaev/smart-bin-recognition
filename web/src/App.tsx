@@ -80,6 +80,12 @@ export default function App() {
   const [mode, setMode] = useState<Mode>(stored.mode);
   const [locale, setLocale] = useState<Locale>(stored.locale);
   const [onboarded, setOnboarded] = useState(stored.onboarded);
+  /* Which surface this person chose, if they chose. `auto` is the probe, and the
+     probe still holds the veto - see routes.ts:surfaceFor. Held here beside the
+     other preferences because it survives a reload for the same reason they do:
+     a Surface Pro is a laptop all afternoon, and being sent back to the camera
+     on every navigation is the version of this that helps nobody. */
+  const [surface, setSurface] = useState(stored.surface);
 
   const [director, setDirector] = useState<DirectorState>(PRODUCTION_DIRECTOR);
   const patch = useCallback((next: Partial<DirectorState>) => setDirector((d) => ({ ...d, ...next })), []);
@@ -127,7 +133,7 @@ export default function App() {
      the alternative: `capability` starts at VIEWER, so guessing would put every
      phone on the viewer surface and then snatch it away. */
   const tier = import.meta.env.DEV && devTier ? devTier : live.tier;
-  const placement = live.probed ? resolveRoute(path, { tier, onboarded }) : null;
+  const placement = live.probed ? resolveRoute(path, { tier, onboarded, prefer: surface }) : null;
   const redirect = placement?.redirect ?? null;
 
   useEffect(() => {
@@ -141,8 +147,8 @@ export default function App() {
   }, [mode, locale]);
 
   useEffect(() => {
-    writePreferences({ mode, locale, onboarded });
-  }, [mode, locale, onboarded]);
+    writePreferences({ mode, locale, onboarded, surface });
+  }, [mode, locale, onboarded, surface]);
 
   /* Session state is keyed by the bin's number in the current frame, and that
      number means nothing across a different frame or a different city – bin 1
@@ -177,8 +183,25 @@ export default function App() {
          `onScanner` is withheld from a viewer-TIER device: it has no camera, so
          routes.ts would bounce /scan straight back to the map and the row would
          be a button that appears to do nothing. */
-      onDeskView={onClose ? () => navigate(PATH.viewer) : undefined}
-      onScanner={!onClose && tier !== "viewer" ? () => navigate(PATH.scan) : undefined}
+      onDeskView={
+        onClose
+          ? () => {
+              setSurface("viewer");
+              navigate(PATH.viewer);
+            }
+          : undefined
+      }
+      onScanner={
+        !onClose && tier !== "viewer"
+          ? () => {
+              // Back to the probe rather than to a second explicit choice: the
+              // probe already says scanner for this device, and "auto" is the
+              // state a person can leave behind.
+              setSurface("auto");
+              navigate(PATH.scan);
+            }
+          : undefined
+      }
     />
   );
 

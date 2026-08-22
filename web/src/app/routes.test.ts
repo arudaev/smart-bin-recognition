@@ -219,3 +219,48 @@ describe("redirects", () => {
     }
   });
 });
+
+/* A Surface Pro reports two cameras, so the probe calls it a scanner and is
+   right about capability. It is wrong about posture, and posture is not
+   something any API reports - the same machine is a laptop on a desk and a
+   tablet in a hand, several times a day, with no reload in between. So the
+   person chooses and the choice is stored; the probe keeps the veto. */
+describe("the surface preference", () => {
+  it("hands the viewer to a device that has a camera, when asked", () => {
+    for (const tier of ["scanner", "capture"] as Tier[]) {
+      expect(surfaceFor(tier, "viewer")).toBe("viewer");
+      const { route } = resolveRoute("/scan", { tier, onboarded: true, prefer: "viewer" });
+      expect(route).toEqual({ surface: "viewer", view: "map" });
+    }
+  });
+
+  it("never hands the scanner to a device that cannot feed it", () => {
+    // The one direction the preference may not move. A viewer-tier device has
+    // no camera; a scanner there is a surface that cannot do its only job.
+    expect(surfaceFor("viewer", "scanner")).toBe("viewer");
+    expect(resolveRoute("/scan", { tier: "viewer", onboarded: true, prefer: "scanner" }).route).toEqual({
+      surface: "viewer",
+      view: "map",
+    });
+  });
+
+  it("falls back to the probe when nothing was chosen", () => {
+    expect(surfaceFor("scanner")).toBe("scanner");
+    expect(surfaceFor("capture", "auto")).toBe("scanner");
+    expect(surfaceFor("viewer", "auto")).toBe("viewer");
+  });
+
+  it("still settles in one hop with a preference in play", () => {
+    for (const prefer of ["auto", "scanner", "viewer"] as const) {
+      for (const tier of ["scanner", "capture", "viewer"] as Tier[]) {
+        for (const path of ["/", "/nope", ...Object.values(PATH), "/viewer/queue"]) {
+          for (const onboarded of [false, true]) {
+            const first = resolveRoute(path, { tier, onboarded, prefer });
+            const again = resolveRoute(first.redirect ?? path, { tier, onboarded, prefer });
+            expect(again.redirect, `${path} on ${tier}/${prefer} did not settle`).toBeNull();
+          }
+        }
+      }
+    }
+  });
+});
