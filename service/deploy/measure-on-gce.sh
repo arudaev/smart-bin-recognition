@@ -39,6 +39,16 @@ LEVELS="${LEVELS:-1 2 3 4 5 6 7 8 9 10 11 12 13 14}"
 REPEATS="${REPEATS:-3}"
 HOLD="${HOLD:-20}"
 
+# WHICH MEASUREMENT. `gate` is the phase-2 gate and is what ran on 2026-08-21:
+# whatever the service loads from the model repo, at 1 and 6 bins per frame.
+# `fp32` is docs/12 P13: the validator in BOTH formats on one instance, arms
+# alternated, with the fp32 graph shipped from the working tree because it is
+# not published and must not be. They are different questions, they write
+# different files, and neither path can silently become the other.
+ARM="${ARM:-gate}"
+CYCLES="${CYCLES:-5}"
+FP32_SRC="${FP32_SRC:-artifacts/local}"
+
 mkdir -p "$OUT"
 
 # The VM is billed by the second and this is the only thing standing between a
@@ -87,9 +97,35 @@ cp service/deploy/gce-run.sh service/deploy/gce-latency.py "$STAGE/"
 # Shipping loadtest/ alone gives ModuleNotFoundError: No module named 'wire'.
 cp service/wire.py "$STAGE/"
 rm -rf "$STAGE/loadtest/__pycache__"
+
+# THE fp32 GRAPH TRAVELS IN THE TARBALL and is never published. SBR_ARTEFACT_DIR
+# (service/settings.py) is what the service reads it through. Publishing an
+# ungated graph to the model repo so a benchmark could reach it would leave it
+# one environment variable away from a deployment, which is not a trade worth
+# making for a measurement.
+if [ "$ARM" = "fp32" ]; then
+  echo ">>> staging the fp32 validator from $FP32_SRC"
+  mkdir -p "$STAGE/fp32"
+  cp "$FP32_SRC/validator-v1.onnx" "$FP32_SRC/validator-v1.json" "$STAGE/fp32/"
+  # The identifier travels with it: SBR_ARTEFACT_DIR is all-or-nothing, so a
+  # directory holding only a validator makes the service fail to find role B
+  # rather than fall back to the Hub for it.
+  cp "$FP32_SRC/identifier-v1.onnx" "$FP32_SRC/identifier-v1.json" "$STAGE/fp32/"
+  python -c "import json,sys; raise SystemExit(0 if json.load(open(sys.argv[1])).get('quantised') is False else 1)" "$STAGE/fp32/validator-v1.json" || {
+    echo "REFUSING: $FP32_SRC/validator-v1.json does not say quantised: false"; exit 1; }
+  cp service/deploy/gce-fp32.sh service/deploy/gce-latency-paired.py "$STAGE/"
+fi
 find "$STAGE" -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 find "$STAGE" -type f -name '*.py' -exec sed -i 's/\r$//' {} +
-tar -czf "$TARBALL" -C "$STAGE" loadtest gce-run.sh gce-latency.py wire.py
+# `if`, not `[ ... ] && EXTRA=...`. This script runs under `set -e`, and a bare
+# test that evaluates false IS a failing command at statement level - so the
+# one-liner form would abort the default arm rather than skip the assignment.
+EXTRA=""
+if [ "$ARM" = "fp32" ]; then
+  EXTRA="fp32 gce-fp32.sh gce-latency-paired.py"
+fi
+# shellcheck disable=SC2086
+tar -czf "$TARBALL" -C "$STAGE" loadtest gce-run.sh gce-latency.py wire.py $EXTRA
 
 echo ">>> copying the harness to $REMOTE"
 gcloud compute ssh "$VM" --zone "$ZONE" --project "$PROJECT" --quiet \
@@ -103,11 +139,16 @@ gcloud compute ssh "$VM" --zone "$ZONE" --project "$PROJECT" --quiet \
 # `bash <script>` rather than executing it. /tmp is mounted NOEXEC on
 # Container-Optimized OS, so the file is -rwxr-xr-x and still refuses to run.
 # The error is "Permission denied", which sends people to chmod for an hour.
-echo ">>> running"
+echo ">>> running the '$ARM' arm"
+REMOTE_SCRIPT=gce-run.sh
+if [ "$ARM" = "fp32" ]; then
+  REMOTE_SCRIPT=gce-fp32.sh
+fi
 gcloud compute ssh "$VM" --zone "$ZONE" --project "$PROJECT" --quiet --command \
   "HF_TOKEN='${HF_TOKEN:-}' IMAGE='$IMAGE' \
    LEVELS='$LEVELS' REPEATS='$REPEATS' HOLD='$HOLD' WORK='$REMOTE' \
-   bash $REMOTE/gce-run.sh"
+   CYCLES='$CYCLES' \
+   bash $REMOTE/$REMOTE_SCRIPT"
 
 echo ">>> collecting"
 gcloud compute ssh "$VM" --zone "$ZONE" --project "$PROJECT" --quiet \

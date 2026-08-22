@@ -1,0 +1,100 @@
+{
+  "probe": "P13",
+  "question": "is an fp32 validator ship profile viable?",
+  "arm": "A - free local triage",
+  "generated": "2026-08-22T00:18:18+00:00",
+  "pre_registered": "docs/research/probes/P13-fp32-validator-viability.md at 09c6b93",
+  "hardware": {
+    "label": "local Windows, 2 of 12 vCPU, ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc, onnxruntime 1.29.0 [PROXY, not the service]",
+    "where": "local Windows",
+    "cpu": "ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc",
+    "cores": 12,
+    "intra_op_threads": 2,
+    "onnxruntime": "1.29.0",
+    "representative": false
+  },
+  "representative": false,
+  "why_not_representative": "a development workstation running the tooling. docs/12 P8 showed this class of host cannot hold an absolute latency figure still. The RATIO is the result; the absolutes are recorded and must not be quoted as service latency",
+  "architecture": {
+    "machine": "ARM64",
+    "system": "Windows",
+    "service_architecture": "x86-64, Intel Cascade Lake (AVX-512 VNNI)",
+    "same_architecture_as_service": false
+  },
+  "ratio_transferability": "READ THIS BEFORE USING THE RATIO. A ratio cancels host NOISE - thermal drift, another process arriving - because the noise moves both arms together. It does NOT cancel a systematic per-FORMAT difference between hosts, and instruction-set support for int8 is exactly that. Cascade Lake has AVX-512 VNNI, which accelerates int8 convolution and does nothing for fp32; this box has no VNNI at all. So a ratio measured here is not transferable to the service host, and the projection built on it below is an ORDER-OF-MAGNITUDE sanity check for deciding whether to spend money - never an answer",
+  "arms_alternated": true,
+  "graphs": {
+    "fp32": {
+      "path": "artifacts/local/validator-v1.onnx",
+      "bytes": 10518298,
+      "quantised": false
+    },
+    "int8": {
+      "path": "arudaev/smart-bin-detect:v1/validator-v1.onnx",
+      "bytes": 3147798,
+      "quantised": true
+    }
+  },
+  "results": {
+    "fp32": {
+      "median_latency_ms": 40.197,
+      "median_latency_ms_runs": [
+        40.197,
+        39.01,
+        39.185,
+        39.056,
+        39.215
+      ],
+      "median_latency_ms_best": 39.01,
+      "median_latency_ms_mean": 39.333,
+      "spread_ms": 1.187,
+      "p95_latency_ms": 51.873,
+      "iterations": 50,
+      "warmup": 10,
+      "imgsz": 448,
+      "reported": "the SLOWEST of the repeats, not the mean and not the best"
+    },
+    "int8": {
+      "median_latency_ms": 66.437,
+      "median_latency_ms_runs": [
+        66.212,
+        65.934,
+        66.437,
+        66.286,
+        65.534
+      ],
+      "median_latency_ms_best": 65.534,
+      "median_latency_ms_mean": 66.081,
+      "spread_ms": 0.903,
+      "p95_latency_ms": 68.551,
+      "iterations": 50,
+      "warmup": 10,
+      "imgsz": 448,
+      "reported": "the SLOWEST of the repeats, not the mean and not the best"
+    }
+  },
+  "ratio": {
+    "paired_median": 0.5917,
+    "worst_over_worst": 0.605,
+    "mean_over_mean": 0.5952,
+    "reported": "paired_median - the median of the per-cycle ratios, which is what alternating the arms buys"
+  },
+  "projection": {
+    "is_a_projection": true,
+    "baseline": "docs/research/probes/data/P12-gce-latency.json (canonical run 2)",
+    "p12_validator_p50_ms": 18.252,
+    "p12_frame_ms": 49.0,
+    "p12_scanners_at_1_bin": 5,
+    "projected_fp32_validator_p50_ms": 10.8,
+    "projected_frame_ms": 41.55,
+    "projected_scanners_at_1_bin": 5.9,
+    "latency_budget_ms": 50.0,
+    "projected_clears_latency_gate": true
+  },
+  "decision": {
+    "rule": "spend the GCE run only if R < 50 / 18.252 = 2.74 (pre-registered)",
+    "r_threshold": 2.7394,
+    "r_measured": 0.5917,
+    "spend": true
+  }
+}
