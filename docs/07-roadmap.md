@@ -5,6 +5,37 @@ about that.
 
 ---
 
+## The decision register — read this before planning anything
+
+*Added 2026-08-22, because a review of why phase 3 has not moved found the answer
+is not engineering.*
+
+**Nothing in phases 3 to 6 is blocked on code that has not been written.** Every
+live blocker traces to a decision that has evidence in front of it and has not
+been taken. They are listed here with the evidence and the cost of not deciding,
+because a decision nobody has written down is indistinguishable from work nobody
+has done — and this project has been mistaking the first for the second.
+
+| # | Decision | Evidence sitting in front of it | What it unblocks | Cost of not deciding |
+|---|---|---|---|---|
+| **D1** | Move the Deggendorf wheelie rules from `lid_color` to `body_color` | [P3 second act](research/probes/P3-colour-measurement.md): 0 % → **95 % correct stream**; [research/12](research/12-deggendorf-packaging-evidence.md): the municipality names the **bin** grey/brown/blue, not the lid | **The product's core answer.** 362 of 403 crops | Wheelies answer `unknown` forever |
+| **D2** | Recalibrate `waste-streams.json`'s `hex_ref` to measured centroids | P3: body agreement **0.5625 → 0.9125** leave-one-cluster-out; real green igloos sit nearer the `metal` swatch than `green` | D1's accuracy, and every future region pack | Colour stays a coin-flip |
+| **D3** | Merge or reject `feat/fp32-ship-profile` | [P13](research/probes/P13-fp32-validator-viability.md): fp32 **24.6 ms vs a 50 ms budget**, costs 1 of 5 scanners, and is the only route to a validator that ships on accuracy | **Everything downstream of a running service** | Nothing can ever be deployed |
+| **D4** | Re-derive the ≥ 10 concurrency budget from pilot size **in people**, or accept 5 | [P12](research/probes/P12-the-controlled-host.md) 5 at one bin; the number 10 appears in [docs/00](00-product-requirements.md) with no derivation from users | The kill criterion, and whether to spend money | A gate fails against a number nobody chose |
+| **D5** | Whether 95 % correct is shippable for disposal advice, and what the floor is | P3 second act: 6 errors in 119, three of which a person could not call either | Whether D1 ships as an answer or behind a threshold | D1 lands with no policy |
+| **D6** | The `deg-packaging-*` rules describe a collection that does not exist | [research/12](research/12-deggendorf-packaging-evidence.md): no Gelber Sack in the ZAW area; LVP goes to recycling centres until end-2027 | Pack `draft` → `published` | The pack cannot be published |
+
+**D1, D2, D3 and D5 are one working session between here and "a person in
+Deggendorf points a phone at a bin and gets a correct answer".** None of them
+needs new code. D1 and D2 are edits to two JSON files.
+
+**The one prerequisite:** D1, D2 and D5 all rest on 160 colour labels written by
+an **agent**, not a person. The pre-registered spot-check —
+`python ml/scripts/colour_labels.py spot-check --reviewer alex -n 25` — is the
+cheapest thing on this page and it gates the three most valuable decisions.
+
+---
+
 ## Phase 0 – Foundation ✅
 
 - [x] Audit the predecessor; extract what carries forward → [08-legacy-audit](08-legacy-audit.md)
@@ -544,8 +575,84 @@ Built in the same pass, beyond what this phase originally listed:
       that works from a small laptop to a wide monitor, and the state director
       out of the production bundle by construction
 
+### The steps that were missing, added 2026-08-22 and ordered by what unblocks what
+
+The list above is a list of *components*, and every one of them is built. It was
+never a route from here to the exit criterion, which is why the phase has not
+moved. This is the route. **Each step names what it costs and what it produces**,
+and steps 1–5 are a single working session between here and an answer.
+
+- [ ] **3.1 — Spot-check the colour labels.** `colour_labels.py spot-check
+      --reviewer alex -n 25`, twenty-five crops, one keystroke each. It gates
+      3.2, 3.3 and 3.6 and it is the cheapest item on this page.
+      *Produces:* permission to quote P3 without the word PROVISIONAL.
+      **Risk if skipped:** three product decisions rest on an agent's eyesight.
+- [ ] **3.2 — [D1] Move the wheelie rules onto `body_color`.** Edit four rules in
+      `de-by-deggendorf.json`; no code, no schema change, no retrain
+      (`body_color` is already in the schema and already used by
+      `deg-packaging-sack`). Cite the municipal source
+      ([research/12](research/12-deggendorf-packaging-evidence.md)) on each.
+      *Produces:* **the single largest behaviour change available to this
+      project** — 0 % → 95 % of wheelies answering, measured end to end.
+- [ ] **3.3 — [D2] Recalibrate `hex_ref` against measured centroids.** Eleven hex
+      values in `waste-streams.json`. Re-run `colour_labels.py score` after.
+      *Produces:* body colour 0.5625 → 0.9125, and it is what takes 3.2 from
+      77 % to 95 %. **Warning:** this changes every resolution outcome in every
+      pack, so it needs the regression it does not yet have — see 3.4.
+- [ ] **3.4 — A resolver regression corpus.** 3.2 and 3.3 both change what the
+      product *answers*, and nothing today would catch a change for the worse:
+      the resolver's tests use synthetic packs, not real frames. Freeze the 119
+      wheelies plus the 40 igloos as a fixture with their expected streams, and
+      fail CI on a drop. *Produces:* the ability to change colour or a pack
+      without holding your breath. **This is the missing safety net that makes
+      3.2 and 3.3 reversible rather than brave.**
+- [ ] **3.5 — [D3] Merge or reject `feat/fp32-ship-profile`, then deploy.**
+      The branch is reviewed and green; `docs/research/FP32-PROFILE-MEMO.md` is
+      the argument. Merging it makes `validator-v1` eligible on latency; it then
+      needs `gate.py` run against P13's measurement to flip `may_ship`.
+      *Produces:* a service that starts, and therefore a public URL, and
+      therefore the web client on Vercel — the three items above that are all
+      really one item.
+- [ ] **3.6 — [D5] Decide the confidence floor for disposal advice.** 95 % correct
+      means one wheelie in twenty is confidently wrong about where rubbish goes.
+      Either that ships, or it ships behind a threshold with `unknown` below it.
+      Three of the six known errors are bins a person could not call either.
+      *Produces:* a policy that the resolver can enforce, instead of a number in
+      a probe.
+- [ ] **3.7 — The `uk` bundle. The exit criterion names Ukrainian and it does not
+      exist.** `en` is complete at 422 keys; `uk` is one of six locales not
+      started. This has been true since the criterion was written and nobody has
+      noticed in writing. *Produces:* an exit criterion that can be met at all.
+- [ ] **3.8 — First contact: put it in front of five people.** It runs today
+      against the in-process mock with the **real** resolver, the **real**
+      Deggendorf pack and real fixture frames. No model, no deployment and no
+      decision above is required to learn whether anybody wants this.
+      *Produces:* the only evidence this project has never collected. **The
+      riskiest assumption in the whole design — that a person points a phone at a
+      bin rather than reading the sticker on it — has never been tested, and it
+      is the cheapest thing here to test.**
+
+### What is NOT solvable by trying harder, and must not be retried
+
+Stated so that effort stops going here. Each of these has been measured, and the
+measurement says the *approach* is exhausted, not that the *attempt* was poor.
+
+| Item | Why retrying will not change it | What would |
+|---|---|---|
+| **Lid colour by geometry** | 0.1966, and **0.5214 even with perfect references** — still under the 0.60 floor. Lids are visible in 98 % of frames and the band lands on them, so there is no easy defect to fix | Nothing worth doing. **3.2 removes the need**: the pack should not have been asking for a lid |
+| **≥ 10 concurrent scanners on 2 vCPU** | The frame costs 49 ms and would need ~25. The shared thread pool is already applied; 384 px is worth ~6 ms; capping crops is worth nothing at one bin. **Both models are already inside budget** — the 21 ms outside them is decode, letterbox, colour and wire | **D4**: re-derive the requirement from pilot size, or buy vCPU. This is an arithmetic problem, not an engineering one |
+| **int8 for the validator** | Four probes (P9, P10, P11, P13) and the best configuration still misses by 0.0052. P10 could attribute nothing outside the detection head | **D3.** fp32 clears the budget at 24.6 ms. The compression was never needed |
+| **Six form factors with no data** | Open Images is a street-litter corpus — 384 boxes surveyed, **zero** `underground`, `textile_bank` or `wall_unit`. The legacy archive is four streams in one week | Somebody photographs them, or the product ships with three form factors and says so. **No probe closes this** |
+| **Held-out-city recall** | Every Open Images frame is `region_id: unknown`; no split in this data can answer it. The target is reported `unmeasurable`, correctly | Phase 6, or drop the target. It is not a phase-3 item and should never have read like one |
+
 **Exit:** a person in Deggendorf who reads no German points a phone at a bin and
 gets a correct answer in Ukrainian.
+
+**Exit criterion, restated as a test somebody can run:** with 3.1–3.3 and 3.5
+done, `probe_detect.py` against a real `Papier` wheelie returns
+`stream: "paper"`, `local_name: "Papier / Papiertonne"`, and the app renders it
+in `uk`. Today that same command returns `stream: "unknown"`, and the reason is
+one line in one JSON file.
 
 No longer blocked on the service — that exists. Blocked on five things, and it
 is worth being exact about which, because they have different owners:
@@ -560,6 +667,35 @@ is worth being exact about which, because they have different owners:
 
 The first decides whether the exit criterion is *reachable*; the third decides
 whether reaching it is *useful*. Neither is shortened by engineering the client.
+
+---
+
+## Before phase 4, 5 or 6 — the precondition, added 2026-08-22
+
+**Do not start them yet, and the reason is not that phase 3 is unfinished
+engineering.**
+
+Each of the next three phases is machinery built *on top of* an answer:
+
+- **Phase 4 (registry)** maps where bins are. A map of bins whose commonest type
+  answers `unknown` is a map of question marks.
+- **Phase 5 (escalation)** closes an improvement loop on the
+  validator/identifier *disagreement*. Its exit is *"escalation rate measurably
+  falls between two model versions"* — that needs a deployed model, a second
+  model, and users generating escalations. **None of the three exists.**
+- **Phase 6 (second city)** tests whether the region abstraction holds. Testing
+  it against a first city that does not yet answer measures nothing.
+
+**The precondition is one line: a real bin in Deggendorf returns a real stream,
+in front of a real person.** That is steps 3.1–3.3, 3.5 and 3.8 — four edits, one
+merge and an afternoon with five people.
+
+**Phase 5 has a second precondition nobody has stated.** Its whole design rests
+on novelty precision ≥ 0.5, which is a **kill criterion** and has **never been
+measured** — [P2](12-validation-protocol.md#p2--novelty-scoring-bake-off) has not
+run, and `unknown_threshold: 0.55` is still the unjustified constant P2 was
+written to justify. Starting phase 5 before P2 runs is building an improvement
+loop on an assumption that is explicitly listed as capable of ending the project.
 
 ---
 
@@ -652,9 +788,22 @@ Stated in advance, so they are not rationalised away later:
   therefore whether to cost a paid tier, shrink the validator, or revise the
   gate — is the maintainer's decision, and is deliberately left open rather than
   taken by the probe that produced the number.
+  **Sharpened 2026-08-22 (D4).** Before firing or revising this, note that the
+  number **10** enters the project in [docs/00](00-product-requirements.md)'s
+  success table with **no derivation from users**, and the cost model reasons
+  about vCPU rather than about people. A scan is roughly fifteen frames under the
+  result lock — about four seconds — so five concurrent scanners is on the order
+  of four thousand scans an hour. **Nobody has written down what a Deggendorf
+  pilot needs.** Firing a kill criterion against an unexamined constant would be
+  the same error as the withdrawn laptop figures, one level up: a number quoted
+  because it was written down rather than because it was measured.
 - **Novelty precision stays below 0.5** → the validator/identifier disagreement
   is not a usable signal and the improvement loop does not close. That is the
   load-bearing assumption of the whole design.
+  **NOT MEASURED, 2026-08-22.** P2 has not run. This is the only kill criterion
+  with no evidence of any kind against it, and it gates phase 5 entirely. It is
+  cheap now in a way it was not before: both models exist, so the disagreement
+  the criterion is about can finally be observed.
 - **Held-out-city recall stays below 0.6 after two dataset expansions** → form
   factors do not generalise the way this design assumes. Revisit the class split.
 - **The €0 constraint breaks at < 10 000 MAU** → the cost model is wrong

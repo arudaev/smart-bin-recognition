@@ -141,6 +141,79 @@ product's worst.
 **A wheelie in Deggendorf therefore still resolves to `unknown`, and this probe
 is the reason it is allowed to.**
 
+---
+
+# Second act, 2026-08-22 — P3 answered the wrong question first
+
+*Raw data: [`data/P3-rule-axis.json`](data/P3-rule-axis.json). Tool:
+`ml/scripts/probe_rule_axis.py`. Same 119 wheelies, same sampler, same crops.*
+
+Everything above is a correct answer to *"can the service measure a lid?"* The
+prior question is **"what does the pack need to know, and what is the cheapest
+measurable thing that supplies it?"** — and it was never asked. Two facts that
+arrived from elsewhere make it unavoidable:
+
+1. **[research/12](../12-deggendorf-packaging-evidence.md) found the
+   municipality naming the containers**: *„die **graue** Restmülltonne, die
+   **braune** Biotonne und die **blaue** Papiertonne"*, and *„**grüne**
+   Wertstoffinseln"*. **That is a statement about the bin, not about its lid.**
+   The pack's `lid_color` rules were never what the source says.
+2. **The lid is also the worse axis**, on P3's own labels, before measurability
+   enters the argument at all:
+
+| stream | by **body** colour | purity | by **lid** colour | purity |
+|---|---|---:|---|---:|
+| `bio` | brown | **100 %** | brown | 100 % |
+| `paper` | blue | **90 %** | blue | 90 % |
+| `residual` | black | **96 %** | grey | **74 %** |
+
+Restmüll bins in Deggendorf are black-bodied with grey lids about three times in
+four, and black-lidded the rest of the time. **The body is the more constant
+surface.** The pack chose the axis that is both harder to see and less
+informative.
+
+## What happens if the rules move to `body_color`
+
+The whole chain, measured: real frame → real crop → **the shipping sampler** →
+a candidate rule carrying the *same streams and same colours the pack already
+has* → scored against the **legacy archive's own stream label**, which is human
+and entirely independent of the colour labels.
+
+| the rule matches on | resolves | **correct stream** |
+|---|---:|---:|
+| `lid_color` — what the pack does today | **0 / 119 (0 %)** | **0 / 119 (0 %)** |
+| `body_color`, sampler as deployed, `hex_ref` unchanged | 114 / 119 (95.8 %) | 92 / 119 (77.3 %) |
+| `body_color`, sampler + **recalibrated references** | **119 / 119 (100 %)** | **113 / 119 (95.0 %)** |
+| `body_color`, with perfect colour — the ceiling | 119 / 119 | 116 / 119 (97.5 %) |
+
+**Two data edits — an axis and a set of reference swatches — take wheelies from
+"never answers" to "answers, and is right 95 % of the time".** No new model, no
+segmentation, no schema change: `body_color` is already in
+`region-pack.schema.json` and already used by `deg-packaging-sack`.
+
+### This also validates the provisional labels
+
+The recalibrated centroids are fitted to agent-written colour labels, but they
+are scored against **`legacy_class`**, which no part of this pipeline touched.
+A badly wrong label set could not produce centroids that predict an independent
+variable at 95 %. That is not a substitute for the pre-registered spot-check —
+it is evidence the spot-check is likely to confirm rather than overturn.
+
+### The 5 % that is still wrong, and why it matters
+
+| n | what happened |
+|---:|---|
+| 3 | `paper` bins that are genuinely **black-bodied** — measured black, routed to residual |
+| 3 | `bio` bins measured grey or black instead of brown |
+
+**Five per cent confidently wrong about where rubbish goes is not automatically
+acceptable**, and this probe does not decide that it is. Three of the six errors
+are bins that a *person* could not classify by colour either — a black Papier
+bin is black. Those need the `text_hint` axis, which is already in the wire and
+in the schema and is measured by nothing. Whether 95 % ships, or ships behind a
+confidence floor with `unknown` below it, is a **product decision and the
+maintainer's**.
+
 ## What this leaves the maintainer
 
 Three decisions, none of them taken here:
